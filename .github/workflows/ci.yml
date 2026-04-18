@@ -14,6 +14,56 @@ permissions:
   contents: read
 
 jobs:
+  makefile-targets-guard:
+    name: Makefile targets documented
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Verify make help lists every required target
+        run: |
+          set -euo pipefail
+
+          # Every target documented as part of the project contract must
+          # appear in `make help` output. This guard fails the build if
+          # a future Makefile edit silently drops a target. The expected
+          # list is pinned here and mirrors the "Makefile Targets"
+          # section of CLAUDE.md. If a new target is genuinely added to
+          # the contract, update this list AND the CLAUDE.md section
+          # together.
+          expected=(
+            check
+            test
+            test-bdd
+            lint
+            vet
+            fmt
+            fmt-check
+            bench
+            coverage
+            tidy
+            tidy-check
+            security
+            release-check
+            clean
+            help
+          )
+          # Strip ANSI colour escapes so the grep matches the plain target
+          # name as it appears after Makefile rendering.
+          help_output=$(make help | sed $'s/\x1b\\[[0-9;]*m//g')
+          missing=()
+          for target in "${expected[@]}"; do
+            if ! grep -qE "^[[:space:]]*${target}[[:space:]]" <<<"$help_output"; then
+              missing+=("$target")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::make help is missing required target(s): ${missing[*]}"
+            echo "-- full output of 'make help' --"
+            echo "$help_output"
+            exit 1
+          fi
+          echo "All ${#expected[@]} required Makefile targets are documented in 'make help'."
+
   local-paths-guard:
     name: No local paths or replace directives
     runs-on: ubuntu-latest
