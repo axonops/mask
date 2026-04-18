@@ -766,6 +766,54 @@ func TestDeterministicHash_SaltNotLeakedInOutputOrDescribe(t *testing.T) {
 	}
 }
 
+// TestDeterministicHash_VersionDoesNotLeakSalt asserts the two-sided
+// contract called out in issue #24: the salt never appears in any output
+// surface, while the version — which is part of the public wire format —
+// must appear in the output for every successful hash.
+func TestDeterministicHash_VersionDoesNotLeakSalt(t *testing.T) {
+	t.Parallel()
+	const (
+		salt    = "SEKRET"
+		version = "v1"
+	)
+
+	m := mask.New()
+	require.NoError(t, m.Register("salted_hash_v", mask.DeterministicHashFunc(mask.WithSalt(salt, version))))
+
+	inputs := []string{
+		"",
+		"ascii",
+		salt,
+		salt + "-with-suffix",
+		"prefix-" + salt,
+		"佐藤太郎",
+		"\xff\xfe",
+		"\x00" + salt + "\x00",
+		hex.EncodeToString([]byte(salt)),
+		strings.Repeat("x", 1000),
+	}
+	for _, in := range inputs {
+		out := m.Apply("salted_hash_v", in)
+		assert.NotContains(t, out, salt, "salt leaked for input=%q", in)
+		assert.NotContains(t, out, hex.EncodeToString([]byte(salt)), "salt-hex leaked for input=%q", in)
+		// The positive half of the contract: the version IS part of the
+		// wire format and must appear between the algo prefix and the
+		// digest.
+		assert.Contains(t, out, ":"+version+":", "version missing for input=%q; out=%q", in, out)
+	}
+
+	info, ok := m.Describe("salted_hash_v")
+	require.True(t, ok)
+	v := reflect.ValueOf(info)
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if f.Kind() == reflect.String {
+			assert.NotContains(t, f.String(), salt,
+				"salt leaked in RuleInfo.%s", v.Type().Field(i).Name)
+		}
+	}
+}
+
 func TestDeterministicHash_ConcurrentHashing(t *testing.T) {
 	t.Parallel()
 	r := mask.DeterministicHashFunc(mask.WithSalt("k", "v1"))
