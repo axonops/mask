@@ -42,7 +42,7 @@
 // library predictable and safe by default.
 //
 // Primitives and domain rules are separate layers. Generic building blocks
-// such as keep_first_n, same_length_mask and deterministic_hash are exposed
+// such as [KeepFirstN], [SameLengthMask] and [DeterministicHash] are exposed
 // both as registered rules and as Go helper functions; domain rules such as
 // payment_card_pan, email_address and us_ssn are thin wrappers over the
 // primitives with format-aware parsing.

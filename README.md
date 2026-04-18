@@ -496,6 +496,15 @@ A compact summary:
 | `mask.SetMaskChar(c)` | Change the default mask character on the package-level registry. |
 | `mask.New(opts...)` | Construct an isolated `Masker`. Options: `mask.WithMaskChar`. |
 | `mask.HasRule(name)` | Check whether a rule is registered. |
+| `mask.DescribeAll()` | Return the `RuleInfo` metadata for every registered rule. |
+| `mask.MaskChar()` | Return the mask rune currently configured on the package-level registry. |
+
+## For AI assistants and automated tooling
+
+Two files at the repository root are published specifically for AI coding assistants and for automated documentation crawlers:
+
+- [`llms.txt`](./llms.txt) — a concise index (~1000 words) following the [llmstxt.org](https://llmstxt.org/) specification, with the core concepts, API surface, integration flow, and common mistakes.
+- [`llms-full.txt`](./llms-full.txt) — the complete documentation corpus (`llms.txt` + README + godoc + contributing + security + requirements + generated godoc reference) concatenated in a stable order. Regenerated via `make llms-full`; CI fails if it drifts.
 
 ## Contributing
 

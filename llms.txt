@@ -1,0 +1,128 @@
+# mask
+
+> `github.com/axonops/mask` is a pure-function string-masking library for Go. It redacts PII, PCI, and PHI in strings before they reach logs, dashboards, or persistent storage. Composable primitives (`KeepFirstN`, `DeterministicHash`, `SameLengthMask`, …) are wrapped by 68 built-in domain rules (`email_address`, `payment_card_pan`, `us_ssn`, `ipv4_address`, `uuid`, `medical_record_number`, …). Zero runtime dependencies — stdlib only. Every rule is fail-closed: unknown rule names return `[REDACTED]` and malformed input returns a same-length mask. The API never returns an error from `Apply`.
+
+## Core concepts
+
+- **Two layers.** Utility primitives are Go functions (`KeepFirstN`, `KeepLastN`, `KeepFirstLast`, `PreserveDelimiters`, `ReplaceRegex`, `ReducePrecision`, `DeterministicHash`, `SameLengthMask`, `FullRedact`, `Nullify`, `TruncateVisible`). Domain rules are named strings registered against a `Masker` and invoked via `Apply(name, value)`.
+- **Fail-closed.** `Apply("no_such_rule", v)` returns `[REDACTED]`; a malformed input to a known rule (for example a 7-digit "PAN") returns a same-length mask. The original value is never echoed on error.
+- **Thread-safety contract.** `Register` MUST be called during program initialisation, before any goroutine calls `Apply`. After that, the registry is read-only and `Apply` is lock-free from any number of goroutines. Same model as `database/sql.Register`.
+- **Jurisdiction-qualified naming.** Country-specific identifiers use ISO-style prefixes — `us_ssn`, `uk_nino`, `in_aadhaar`, `br_cpf`. Generic rules (`phone_number`, `email_address`) have no prefix.
+- **Compile-time typed rule names.** Every built-in rule has an exported `mask.RuleX` constant (`mask.RuleEmailAddress`, `mask.RulePaymentCardPAN`, `mask.RuleUSSSN`, …). Use the constant in production for typo safety; string literals still work.
+
+## API entry points
+
+**Package-level (global registry):**
+
+- `mask.Apply(rule, value string) string` — mask `value` using the named rule. Never returns an error. Unknown rule → `[REDACTED]`.
+- `mask.Register(name string, fn RuleFunc) error` — add a custom rule. Returns `ErrDuplicateRule` / `ErrInvalidRule`. Call at init only.
+- `mask.SetMaskChar(c rune)` — change the default mask character (default `'*'`).
+- `mask.Rules() []string` — sorted list of every registered rule name.
+- `mask.HasRule(name string) bool` — presence check.
+- `mask.Describe(name string) (RuleInfo, bool)` — category, jurisdiction, description.
+- `mask.DescribeAll() []RuleInfo` — every rule's metadata in one call.
+- `mask.MaskChar() rune` — current mask character for the package-level registry.
+
+**Per-instance (isolated registry):**
+
+- `mask.New(opts ...Option) *Masker` — construct an isolated Masker.
+- `mask.WithMaskChar(c rune) Option` — per-instance mask character.
+- `m.Apply(rule, value string) string`, `m.Register`, `m.Rules`, `m.HasRule`, `m.Describe`, `m.DescribeAll`, `m.MaskChar` — identical shape to the package-level functions but scoped to the instance.
+
+**Direct-call primitive helpers** (use inside custom `RuleFunc`s):
+
+- `mask.FullRedact(v) string` → `[REDACTED]`
+- `mask.Nullify(v) string` → `""`
+- `mask.SameLengthMask(v, c) string`
+- `mask.KeepFirstN(v, n, c) string` / `mask.KeepLastN` / `mask.KeepFirstLast(v, first, last, c)`
+- `mask.TruncateVisible(v, n) string` (not fail-closed — use only in composition)
+- `mask.PreserveDelimiters(v, delim, c) string`
+- `mask.ReplaceRegex(v, pattern, replacement) (string, error)`
+- `mask.ReducePrecision(v, decimals, c) string`
+- `mask.DeterministicHash(v) string` — returns `sha256:<16-hex>` (unsalted).
+
+> **WARNING** — `DeterministicHash` without a salt is pseudonymisation, not anonymisation. For production use configure `WithSalt` + `WithSaltVersion` on `DeterministicHashFunc` and register that as a rule. See the "Deterministic hashing" example below.
+
+**Factory primitive helpers** (return a `RuleFunc` suitable for `Register`):
+
+- `mask.FixedReplacementFunc(s) RuleFunc`
+- `mask.KeepFirstNFunc(n)` / `mask.KeepLastNFunc(n)` / `mask.KeepFirstLastFunc(first, last)`
+- `mask.TruncateVisibleFunc(n)` / `mask.PreserveDelimitersFunc(delim)` / `mask.ReducePrecisionFunc(decimals)`
+- `mask.ReplaceRegexFunc(pattern, replacement) (RuleFunc, error)`
+- `mask.DeterministicHashFunc(opts ...HashOption) RuleFunc` — configure via `WithAlgorithm(mask.SHA256 | mask.SHA512)`, `WithSalt(salt)`, `WithSaltVersion(version)`. Default algorithm is SHA-256; output is `"<algo>:<version>:<16-hex>"` when salted, `"sha256:<16-hex>"` when unsalted.
+
+Factories capture `DefaultMaskChar` at construction. If your custom rule needs to honour `WithMaskChar` / `SetMaskChar`, register a closure that reads `m.MaskChar()` (per-instance) or `mask.MaskChar()` (package-level) at apply time.
+
+## Standard integration flow
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/axonops/mask"
+)
+
+func main() {
+	fmt.Println(mask.Apply("email_address", "alice@example.com"))
+	// Output: a****@example.com
+}
+```
+
+Install: `go get github.com/axonops/mask` (requires Go 1.26+).
+
+**Custom rule pattern**:
+
+```go
+func init() {
+	if err := mask.Register("employee_id", mask.KeepFirstNFunc(9)); err != nil {
+		log.Fatalf("register employee_id: %v", err)
+	}
+}
+
+// mask.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
+```
+
+**Deterministic hashing for pseudonymisation** (production):
+
+```go
+_ = mask.Register("user_id", mask.DeterministicHashFunc(
+	mask.WithSalt(os.Getenv("MASK_SALT")),
+	mask.WithSaltVersion("v1"),
+))
+// mask.Apply("user_id", "alice@example.com") → "sha256:v1:<hex16>"
+```
+
+## Rule catalogue
+
+Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static references in [README.md](./README.md) rule tables and [docs/v0.9.0-requirements.md](./docs/v0.9.0-requirements.md).
+
+68 rules total — 4 utility primitives plus 64 domain rules, including 25 identity rules (11 global + 14 country-specific). Rules within each group below are listed alphabetically.
+
+- **Utility primitives** (4): `deterministic_hash`, `full_redact`, `nullify`, `same_length_mask`.
+- **Identity — global** (11): `date_of_birth`, `driver_license_number`, `email_address`, `family_name`, `generic_national_id`, `given_name`, `passport_number`, `person_name`, `street_address`, `tax_identifier`, `username`.
+- **Identity — country-specific** (14): `au_medicare_number`, `br_cnpj`, `br_cpf`, `ca_sin`, `cn_resident_id`, `es_dni_nif_nie`, `in_aadhaar`, `in_pan`, `mx_curp`, `mx_rfc`, `sg_nric_fin`, `uk_nino`, `us_ssn`, `za_national_id`.
+- **Financial** (11): `bank_account_number`, `iban`, `monetary_amount`, `payment_card_cvv`, `payment_card_pan`, `payment_card_pan_first6`, `payment_card_pan_last4`, `payment_card_pin`, `swift_bic`, `uk_sort_code`, `us_aba_routing_number`.
+- **Health** (5): `diagnosis_code`, `health_plan_beneficiary_id`, `medical_device_identifier`, `medical_record_number`, `prescription_text`.
+- **Technology** (14): `api_key`, `bearer_token`, `connection_string`, `database_dsn`, `hostname`, `ipv4_address`, `ipv6_address`, `jwt_token`, `mac_address`, `password`, `private_key_pem`, `url`, `url_credentials`, `uuid`.
+- **Telecom + location** (9): `geo_coordinates`, `geo_latitude`, `geo_longitude`, `imei`, `imsi`, `mobile_phone_number`, `msisdn`, `phone_number`, `postal_code`.
+
+## Common mistakes to avoid
+
+- **Using `ssn` instead of `us_ssn`.** There is no bare `ssn` rule — every country-specific identifier is jurisdiction-qualified. `mask.HasRule("ssn")` returns `false`; browse `mask.Rules()` to see every registered name.
+- **Hardcoding `'*'`.** Direct-call primitives take the rune as a parameter; built-in rules read the configured character via `m.MaskChar()` at apply time. If you construct `mask.New(WithMaskChar('#'))`, every built-in rule now emits `#` — don't assume `*`.
+- **Calling `Register` concurrently with `Apply`.** Data race, detected by `go test -race`. Call `Register` at `init()` and never again.
+- **Expecting `Apply` to return an error.** It doesn't — it fails closed. Check `HasRule(name)` up front if you need to distinguish "rule exists" from "rule masked".
+- **Confusing `full_redact` and `same_length_mask`.** `full_redact` returns the constant `[REDACTED]` (length not preserved). `same_length_mask` returns a string of mask characters the same length as the input. Pick based on whether length leakage is acceptable.
+- **Treating `deterministic_hash` as anonymisation.** It is pseudonymisation — reversible given the input space. Always configure `WithSalt` + `WithSaltVersion` for production; the default unsalted form is for development only.
+- **Passing encoded userinfo through `url` when you mean `url_credentials`.** `url` masks paths, queries, fragments, and redacts userinfo defensively; `url_credentials` only redacts userinfo and preserves the rest. Use the rule that matches the semantic of your field.
+
+## Further reading
+
+- [`llms-full.txt`](./llms-full.txt) — complete source bundle for agents that want the full corpus. Section order: `llms.txt`, `README.md`, package godoc (`doc.go`), `CONTRIBUTING.md`, `SECURITY.md`, `docs/v0.9.0-requirements.md`, full `go doc -all` reference.
+- [`README.md`](./README.md) — human-facing documentation with regulatory positioning (PCI / HIPAA / GDPR), worked custom-rule examples, and a full rule table.
+- [`docs/v0.9.0-requirements.md`](./docs/v0.9.0-requirements.md) — authoritative rule-by-rule spec.
+- [`SECURITY.md`](./SECURITY.md) — threat model and disclosure.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — contribution, testing, and release policy.
+- [pkg.go.dev/github.com/axonops/mask](https://pkg.go.dev/github.com/axonops/mask) — godoc.

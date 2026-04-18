@@ -102,11 +102,17 @@ func WithMaskChar(c rune) Option {
 	}
 }
 
-// Masker is an isolated masking registry.
+// Masker holds an isolated rule registry and a configured mask rune;
+// use it when you need parallel registries that do not share state
+// with the package-level API.
 //
 // The zero value is usable: on first call, built-in rules register themselves
 // and the mask character defaults to [DefaultMaskChar]. Prefer [New] when you
 // want to apply options at construction.
+//
+// A Masker MUST NOT be copied after first use. It contains
+// synchronisation primitives and atomic fields; copying it is a
+// programming error that go vet will flag.
 //
 // Thread-safety contract: [Masker.Register] MUST NOT be called concurrently
 // with [Masker.Apply]. Call all [Masker.Register] invocations during program
@@ -197,9 +203,10 @@ func (m *Masker) maskChar() rune {
 	return m.maskCharAtomic.Load()
 }
 
-// MaskChar returns the mask rune currently configured on this Masker.
-// The returned value reflects the most recent [WithMaskChar] applied at
-// construction or [SetMaskChar] at runtime.
+// MaskChar reports which rune this Masker will substitute for hidden
+// characters. The returned value reflects the most recent [WithMaskChar]
+// applied at construction or [SetMaskChar] at runtime, defaulting to
+// [DefaultMaskChar] if neither has been called.
 //
 // Custom rule authors who want their rule to honour per-instance
 // mask-character configuration call this inside the registered closure:
@@ -318,8 +325,12 @@ func (m *Masker) loadRules() *ruleMap {
 	return rm
 }
 
-// Rules returns the sorted list of rule names registered on this Masker.
-// The slice is freshly allocated; callers may mutate it freely.
+// Rules lists every rule name registered on this Masker (built-in and
+// custom), alphabetically sorted. Ordering is stable across calls on
+// an unchanged registry, so callers can rely on it for deterministic
+// output in generated documentation, tests, and snapshots. The slice
+// is freshly allocated, so callers may mutate or sort it without
+// affecting the registry.
 //
 // Example:
 //

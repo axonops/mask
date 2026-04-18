@@ -48,6 +48,8 @@ Every PR MUST:
 
 CI runs the same gates as `make check`. If CI fails on your PR, fix the root cause — do not add suppressions or `//nolint` directives without an issue reference.
 
+Documentation changes that touch `README.md`, `doc.go`, `CONTRIBUTING.md`, `SECURITY.md`, `llms.txt`, or `docs/v0.9.0-requirements.md` MUST also regenerate `llms-full.txt` by running `make llms-full` and including the updated `llms-full.txt` in the **same commit** as the documentation change. CI enforces this via the `llms-full.txt is up to date` job.
+
 ### Review workflow
 
 Before opening a PR, run the full quality gate (`make check`). Internally this project uses several review passes — code review, security review, documentation review, performance review, and a test-analyst pass — before every merge. Contributors are expected to address findings from those passes the same way they address CI failures: fix the root cause in the same PR rather than deferring to a follow-up.

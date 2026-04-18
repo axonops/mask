@@ -204,18 +204,20 @@ func KeepFirstLast(v string, first, last int, c rune) string {
 	return b.String()
 }
 
-// TruncateVisible returns the first n runes of v with no mask characters
-// appended. Values of n ≤ 0 produce the empty string; n ≥ the rune count of
-// v returns v unchanged. Unicode aware.
+// TruncateVisible keeps the first n runes of v and drops everything after —
+// no mask characters are appended, so the output is shorter than the input.
+// Values of n ≤ 0 produce the empty string; n ≥ the rune count of v returns
+// v unchanged. Unicode aware.
 //
 // Example: TruncateVisible("Sensitive", 4) → "Sens".
 //
 // WARNING: TruncateVisible is a formatting helper, not a masking primitive.
 // It does NOT fail closed — when n ≥ the rune count of v it returns v
-// verbatim. Use it only in composition with an actual masking primitive
-// (for example chained after [KeepFirstN] to clip a too-long visible
-// prefix). Registering TruncateVisible directly as a masking rule will
-// produce data leaks on short inputs.
+// verbatim. For example, TruncateVisible("abc", 99) returns "abc", the
+// original value unmasked. Use it only in composition with an actual
+// masking primitive (for example chained after [KeepFirstN] to clip a
+// too-long visible prefix). Registering TruncateVisible directly as a
+// masking rule will produce data leaks on short inputs.
 func TruncateVisible(v string, n int) string {
 	if n <= 0 || v == "" {
 		return ""

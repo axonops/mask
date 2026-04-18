@@ -50,6 +50,29 @@ func ExampleApply_unknownRule() {
 	// Output: [REDACTED]
 }
 
+// ExampleApply_failClosed pairs with ExampleApply_unknownRule to
+// document the uniform fail-closed contract: unknown rule names
+// return [FullRedactMarker] and the original value is never echoed.
+// Treat this as the library's safety rail — Apply never returns an
+// error, and never leaks the input on a misconfigured rule name.
+func ExampleApply_failClosed() {
+	// Typo'd rule name — returns [REDACTED] instead of the email.
+	fmt.Println(mask.Apply("emial_address", "alice@example.com"))
+	// Output: [REDACTED]
+}
+
+// ExampleApply_malformedFallsBack demonstrates the second leg of
+// the fail-closed contract: when a known rule cannot parse its
+// input, it returns a same-length mask of the whole value instead
+// of the original bytes. The caller never has to check for
+// malformed input at the call site.
+func ExampleApply_malformedFallsBack() {
+	// "nope" is 4 bytes of nonsense, not a PAN — the rule falls
+	// back to same-length mask over the whole value.
+	fmt.Println(mask.Apply("payment_card_pan", "nope"))
+	// Output: ****
+}
+
 // ExampleRegister adds a custom masking rule to the package-level
 // registry and applies it. The registry is process-global; pick rule
 // names that cannot collide with the built-in catalogue.
@@ -113,6 +136,22 @@ func ExampleKeepFirstNFunc() {
 	}
 	fmt.Println(m.Apply("my_token", "SensitiveToken"))
 	// Output: Sens**********
+}
+
+// ExampleMasker_isolation shows that two Maskers constructed via
+// [New] keep their registries isolated. Rules registered on one are
+// invisible to the other — a key property for multi-tenant services
+// that need per-tenant rule sets or for tests that need clean state.
+func ExampleMasker_isolation() {
+	a := mask.New()
+	b := mask.New()
+	_ = a.Register("tenant_only", mask.KeepFirstNFunc(3))
+
+	fmt.Println("a has tenant_only:", a.HasRule("tenant_only"))
+	fmt.Println("b has tenant_only:", b.HasRule("tenant_only"))
+	// Output:
+	// a has tenant_only: true
+	// b has tenant_only: false
 }
 
 // ExampleDescribe prints the metadata registered with a built-in rule.
