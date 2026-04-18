@@ -69,7 +69,7 @@ mask.Apply("iban",             "GB82WEST12345698765432") // "GB82**************5
 mask.Apply("no_such_rule",     "anything")            // "[REDACTED]"   ← fail closed
 ```
 
-> **68 built-in rules · 7 categories · 14 jurisdictions.** PCI DSS display modes for PANs. HIPAA pseudonymisation caveats for clinical identifiers. GDPR Art. 4(5) salted hashing for user IDs. Every regulation-aware rule is documented next to the code that delivers it — no spelunking required.
+> **60+ built-in rules across seven categories, covering identifiers in more than a dozen jurisdictions.** PCI DSS display modes for PANs. HIPAA pseudonymisation caveats for clinical identifiers. GDPR Art. 4(5) salted hashing for user IDs. Every regulation-aware rule is documented next to the code that delivers it — no spelunking required.
 
 ---
 
@@ -79,7 +79,7 @@ mask.Apply("no_such_rule",     "anything")            // "[REDACTED]"   ← fail
 
 | Feature | Description | Docs |
 |---|---|---|
-| 📋 Rich built-in rule catalogue | 68 rules across identity, financial, health, technology, telecom, and country-specific categories | [Built-in Rules](#-built-in-rules) |
+| 📋 Rich built-in rule catalogue | 60+ rules across identity, financial, health, technology, telecom, and country-specific categories | [Built-in Rules](#-built-in-rules) |
 | 🧩 Composable primitives | `KeepFirstN`, `KeepLastN`, `KeepFirstLast`, `DeterministicHash`, `ReplaceRegex`, `ReducePrecision`, and more — every primitive is exposed both as a direct-call helper and as a factory `RuleFunc` | [Primitives](#-utility-primitives) |
 | 🌍 Unicode correct | Rune-aware masking for international names, addresses, and free-text content | [Unicode correctness](#unicode-correctness) |
 | 🛡 Fail closed | Unknown rule returns `[REDACTED]`; malformed input returns a same-length mask; the original value is never echoed | [Fail Closed](#-fail-closed) |
@@ -104,7 +104,7 @@ Every Go project starts with a one-line regex and a TODO. Three outages and an a
 |---|---|---|---|---|
 | Ad-hoc `strings.Replace` | No | N/A | No | No — original leaks through |
 | Hand-rolled regex | Partial — author-dependent | Partial | No | No — non-match returns original |
-| **`github.com/axonops/mask`** | **Yes** — 68 format-specific rules | **Yes** — rune-aware by default | **Yes** — identity, financial, health, tech, telecom, country-specific | **Yes** — unknown rule ⇒ `[REDACTED]`, malformed input ⇒ same-length mask |
+| **`github.com/axonops/mask`** | **Yes** — 60+ format-specific rules | **Yes** — rune-aware by default | **Yes** — identity, financial, health, tech, telecom, country-specific | **Yes** — unknown rule ⇒ `[REDACTED]`, malformed input ⇒ same-length mask |
 
 </div>
 
@@ -195,17 +195,17 @@ For the full catalogue, see [Built-in Rules](#-built-in-rules) or call `mask.Rul
 
 ## 📚 Built-in Rules
 
-**68 rules registered out of the box** across seven categories. Every rule is fail-closed, honours the configured mask character, and has a concrete `input → output` example in its godoc.
+**60+ rules registered out of the box** across seven categories. Every rule is fail-closed, honours the configured mask character, and has a concrete `input → output` example in its godoc.
 
-| Category | Count | Examples |
-|---|---|---|
-| Utility primitives | 4 | `full_redact`, `same_length_mask`, `nullify`, `deterministic_hash` |
-| Identity — global | 11 | `email_address`, `person_name`, `date_of_birth`, `passport_number` |
-| Identity — country-specific | 14 | `us_ssn`, `uk_nino`, `in_aadhaar`, `br_cpf`, `mx_curp` |
-| Financial | 11 | `payment_card_pan`, `iban`, `swift_bic`, `uk_sort_code` |
-| Health | 5 | `medical_record_number`, `diagnosis_code`, `prescription_text` |
-| Technology | 14 | `ipv4_address`, `url`, `jwt_token`, `uuid`, `password` |
-| Telecom + location | 9 | `phone_number`, `imei`, `msisdn`, `postal_code`, `geo_coordinates` |
+| Category | Examples |
+|---|---|
+| Utility primitives | `full_redact`, `same_length_mask`, `nullify`, `deterministic_hash` |
+| Identity — global | `email_address`, `person_name`, `date_of_birth`, `passport_number` |
+| Identity — country-specific | `us_ssn`, `uk_nino`, `in_aadhaar`, `br_cpf`, `mx_curp` |
+| Financial | `payment_card_pan`, `iban`, `swift_bic`, `uk_sort_code` |
+| Health | `medical_record_number`, `diagnosis_code`, `prescription_text` |
+| Technology | `ipv4_address`, `url`, `jwt_token`, `uuid`, `password` |
+| Telecom + location | `phone_number`, `imei`, `msisdn`, `postal_code`, `geo_coordinates` |
 
 👉 **Full catalogue with `input → output` examples for every rule: [`docs/rules.md`](./docs/rules.md)**
 

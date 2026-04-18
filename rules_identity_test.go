@@ -236,8 +236,8 @@ func TestApply_DriverLicenseNumber(t *testing.T) {
 		{"dashed short", "DL-1234-5678", "DL-****-5678"},
 		// SMITH901015JN9AA has 16 non-separator runes. Rule branch is ≥ 13 →
 		// keep last 3. Output preserves length: 2 first + 11 masked + 3 last
-		// = 16. The spec printout in docs/v0.9.0-requirements.md shows
-		// SM**********9AA (15 chars) — believed to be a spec typo; we follow
+		// = 16. An earlier draft of the requirements doc showed
+		// SM**********9AA (15 chars) — believed to be a typo; we follow
 		// the stronger length-preservation invariant here.
 		{"spec long length preserved", "SMITH901015JN9AA", "SM***********9AA"},
 		// Fail-closed: inputs whose non-separator count would be fully

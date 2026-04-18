@@ -2,17 +2,17 @@
 
 <sub>← [Back to README](../README.md) · **Rule Catalogue** · [Extending](./extending.md)</sub>
 
-Full catalogue of the 68 rules registered with every `*Masker` out of the box. Every rule is fail-closed and honours the configured mask character (`SetMaskChar` / `WithMaskChar`). Use `mask.Rules()` to list every registered name and `mask.Describe(name)` to retrieve a rule's category, jurisdiction, and description at runtime.
+Full catalogue of the built-in rules registered with every `*Masker` out of the box — currently 60+ across seven categories. Every rule is fail-closed and honours the configured mask character (`SetMaskChar` / `WithMaskChar`). Use `mask.Rules()` to list every registered name and `mask.Describe(name)` to retrieve a rule's category, jurisdiction, and description at runtime.
 
 ## Table of contents
 
-- [Utility primitives (rules)](#utility-primitives-rules) — 4 rules
-- [Identity](#identity) — 11 global rules
-- [Country-specific identity](#country-specific-identity) — 14 jurisdiction-qualified rules
-- [Financial](#financial) — 11 payment-card, banking, and tax rules
-- [Health](#health) — 5 healthcare identifier and clinical-content rules
-- [Technology](#technology) — 14 infrastructure and application-security rules
-- [Telecom and location](#telecom-and-location) — 9 phone, mobile, postcode and geographic rules
+- [Utility primitives (rules)](#utility-primitives-rules) — general-purpose masking building blocks
+- [Identity](#identity) — personal identifiers common to most jurisdictions
+- [Country-specific identity](#country-specific-identity) — jurisdiction-qualified IDs (SSN, NINO, Aadhaar, CPF, CURP, …)
+- [Financial](#financial) — payment-card, banking, and tax identifiers
+- [Health](#health) — healthcare identifiers and clinical content
+- [Technology](#technology) — infrastructure and application-security fields
+- [Telecom and location](#telecom-and-location) — phone, mobile, postcode and geographic data
 
 ## Utility primitives (rules)
 

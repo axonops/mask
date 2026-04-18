@@ -18,9 +18,9 @@ import (
 	"strings"
 )
 
-// Country-category rules implement the 14 jurisdiction-specific
-// identifiers documented in docs/v0.9.0-requirements.md §"Personal
-// and Identity" from `us_ssn` through `es_dni_nif_nie`. Each rule
+// Country-category rules implement the jurisdiction-specific
+// identifiers documented in docs/rules.md §"Country-specific
+// identity" — `us_ssn` through `es_dni_nif_nie`. Each rule
 // preserves a deterministic window (first N, last M, or both) and
 // routes malformed input to [SameLengthMask]. The rules are
 // registered under the `identity` category so `Describe()` answers

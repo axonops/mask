@@ -48,7 +48,7 @@ Every PR MUST:
 
 CI runs the same gates as `make check`. If CI fails on your PR, fix the root cause — do not add suppressions or `//nolint` directives without an issue reference.
 
-Documentation changes that touch `README.md`, `doc.go`, `CONTRIBUTING.md`, `SECURITY.md`, `llms.txt`, or `docs/v0.9.0-requirements.md` MUST also regenerate `llms-full.txt` by running `make llms-full` and including the updated `llms-full.txt` in the **same commit** as the documentation change. CI enforces this via the `llms-full.txt is up to date` job.
+Documentation changes that touch `README.md`, `doc.go`, `CONTRIBUTING.md`, `SECURITY.md`, `llms.txt`, `docs/rules.md`, or `docs/extending.md` MUST also regenerate `llms-full.txt` by running `make llms-full` and including the updated `llms-full.txt` in the **same commit** as the documentation change. CI enforces this via the `llms-full.txt is up to date` job.
 
 ### Review workflow
 
@@ -61,7 +61,7 @@ Before opening a PR, run the full quality gate (`make check`). Internally this p
 - Every masking rule and every primitive has at least one `Scenario Outline` with `Examples` covering canonical, formatted, malformed, empty, and (where applicable) unicode inputs.
 - Benchmarks live in `*_bench_test.go` files and call `b.ReportAllocs()`.
 
-See `CLAUDE.md` (developer-local, not checked into the repo) and the `docs/v0.9.0-requirements.md` spec for the authoritative testing requirements.
+See `CLAUDE.md` (developer-local, not checked into the repo) for the authoritative project-specific testing requirements.
 
 ## Code standards
 

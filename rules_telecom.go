@@ -18,13 +18,13 @@ import (
 	"strings"
 )
 
-// Telecom-category rules implement the 9 masks from
-// docs/v0.9.0-requirements.md §"Telecommunications and Location".
-// Identifier rules (phone, mobile_phone_number, imei, imsi, msisdn)
-// preserve a deterministic prefix (country code or fixed index)
-// plus the last 2-4 digits; location rules reduce numeric precision
-// or dispatch on postal-code shape. Every rule is fail-closed:
-// malformed input routes to [SameLengthMask].
+// Telecom-category rules implement the masks documented in
+// docs/rules.md §"Telecom and location". Identifier rules (phone,
+// mobile_phone_number, imei, imsi, msisdn) preserve a deterministic
+// prefix (country code or fixed index) plus the last 2-4 digits;
+// location rules reduce numeric precision or dispatch on postal-code
+// shape. Every rule is fail-closed: malformed input routes to
+// [SameLengthMask].
 
 // ---------- file-local constants ----------
 
