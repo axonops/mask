@@ -14,6 +14,64 @@ permissions:
   contents: read
 
 jobs:
+  local-paths-guard:
+    name: No local paths or replace directives
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Scan for local-filesystem references and replace directives
+        run: |
+          set -euo pipefail
+
+          # A Go library MUST NOT ship with references to the maintainer's
+          # local filesystem. Downstream consumers fetching the module via
+          # `go get` can't satisfy /Users/johnny/... paths — the module is
+          # broken on their machine. This guard catches two failure modes
+          # before they reach main:
+          #
+          # 1. `replace` directives in go.mod — commonly used during local
+          #    development against a checkout of a sibling package, but
+          #    fatal for downstream consumers when committed. We block ALL
+          #    replace directives. If a legitimate need arises (a known
+          #    upstream bug, a fork hosted elsewhere), add an exception
+          #    here with a linked GitHub issue.
+          #
+          # 2. Absolute local paths anywhere in tracked files: Linux/macOS
+          #    /home/<user>/..., macOS /Users/..., Windows C:\Users\...\.
+          #    Covers source, docs, workflows, and anything else committed.
+
+          failed=0
+
+          echo "::group::go.mod replace directives"
+          if grep -nE "^[[:space:]]*replace[[:space:]]" go.mod; then
+            echo "::error file=go.mod::replace directives are forbidden in a published library — see local-paths-guard."
+            failed=1
+          else
+            echo "go.mod: no replace directives"
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Absolute local paths in tracked files"
+          # Exclusions:
+          #  - CLAUDE.md and .claude/ are dev-local (gitignored, but paranoid).
+          #  - This workflow file itself describes the forbidden patterns.
+          pattern='(/Users/[A-Za-z0-9._-]+/|/home/[A-Za-z0-9._-]+/|[A-Z]:\\\\Users\\\\)'
+
+          hits=$(git ls-files \
+            | grep -Ev '^(CLAUDE\.md|\.claude/|\.github/workflows/ci\.yml)$' \
+            | xargs -I{} sh -c 'grep -EHn "$1" "$2" 2>/dev/null || true' _ "$pattern" {} \
+            || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Absolute local paths found in tracked files:"
+            printf '%s\n' "$hits"
+            failed=1
+          else
+            echo "no local paths found"
+          fi
+          echo "::endgroup::"
+
+          exit "$failed"
+
   bdd-strict-mode-guard:
     name: BDD strict mode guard
     runs-on: ubuntu-latest
