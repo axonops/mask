@@ -442,6 +442,30 @@ func keepFirstLastNonSepCounted(v string, first, last, nonsep int, c rune, isSep
 	return buildKeepFirstLastNonSep(v, first, nonsep-last, c, isSep)
 }
 
+// keepFirstLastNonSepWithPrefix is a third variant used by rules that want
+// to preserve a leading format-literal prefix verbatim in the same output
+// allocation. The prefix is written first, followed by the normal
+// keep-first-last-over-body pass. Using this instead of concatenating
+// `prefix + keepFirstLastNonSep(body, ...)` keeps the happy path at one
+// allocation (the shared strings.Builder's backing array) rather than two.
+//
+// The caller MUST pass the non-separator count of body (NOT including the
+// prefix). On fallback (nonsep of body ≤ first+last) the helper returns
+// a same-length mask of the WHOLE prefix+body, preserving the fail-closed
+// contract — the alphabetic prefix is not echoed on pathologically short
+// bodies.
+func keepFirstLastNonSepWithPrefix(prefix, body string, first, last, bodyNonsep int, c rune, isSep func(rune) bool) string {
+	first, last = clampNonNeg(first), clampNonNeg(last)
+	if bodyNonsep <= first+last {
+		return SameLengthMask(prefix+body, c)
+	}
+	var b strings.Builder
+	b.Grow(len(prefix) + len(body))
+	b.WriteString(prefix)
+	writeKeepFirstLastBody(&b, body, first, bodyNonsep-last, c, isSep)
+	return b.String()
+}
+
 // clampNonNeg returns n or zero when n is negative.
 func clampNonNeg(n int) int {
 	if n < 0 {
@@ -467,8 +491,18 @@ func countNonSep(v string, isSep func(rune) bool) int {
 func buildKeepFirstLastNonSep(v string, first, tailStart int, c rune, isSep func(rune) bool) string {
 	var b strings.Builder
 	b.Grow(len(v))
+	writeKeepFirstLastBody(&b, v, first, tailStart, c, isSep)
+	return b.String()
+}
+
+// writeKeepFirstLastBody walks body once, emits separator runes
+// verbatim, keeps non-separator runes whose non-separator index lies
+// outside the [first, tailStart) masked window, and otherwise emits the
+// mask rune c. Shared by [buildKeepFirstLastNonSep] and
+// [keepFirstLastNonSepWithPrefix].
+func writeKeepFirstLastBody(b *strings.Builder, body string, first, tailStart int, c rune, isSep func(rune) bool) {
 	seen := 0
-	for _, r := range v {
+	for _, r := range body {
 		if isSep(r) {
 			b.WriteRune(r)
 			continue
@@ -480,7 +514,6 @@ func buildKeepFirstLastNonSep(v string, first, tailStart int, c rune, isSep func
 		}
 		seen++
 	}
-	return b.String()
 }
 
 // byteOffsetAtRune returns the byte index in s where the rune at position idx
