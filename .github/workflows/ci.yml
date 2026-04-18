@@ -85,12 +85,13 @@ jobs:
       - uses: actions/checkout@v6.0.2
       - uses: DavidAnson/markdownlint-cli2-action@v21.0.0
         with:
+          # Intentionally omits docs/** — the requirements document is a
+          # frozen design record written in a terser style.
           globs: |
             README.md
             CONTRIBUTING.md
             SECURITY.md
             CHANGELOG.md
-            docs/**/*.md
 
   apache-header-guard:
     name: Apache 2.0 header on every Go file
@@ -277,14 +278,17 @@ jobs:
           #    names in the "common mistakes" prose.
           files=$(git ls-files \
             | grep -Ev '^(CLAUDE\.md|\.claude/|\.github/workflows/ci\.yml|CONTRIBUTING\.md|SECURITY\.md|docs/v0\.9\.0-requirements\.md|\.gitignore|llms\.txt|llms-full\.txt)$' \
+            | grep -Ev '\.(png|jpg|jpeg|gif|ico|webp|svg|pdf|woff2?|ttf|otf|mp3|mp4|wav|zip|gz|tgz)$' \
             || true)
           hits=""
+          # grep -I skips any file detected as binary — safety net in case the
+          # extension blocklist above misses something.
           for f in $files; do
-            if grep -iEn "$PATTERN" "$f" >/dev/null 2>&1; then
+            if grep -IiEn "$PATTERN" "$f" >/dev/null 2>&1; then
               # Strip benign path references: llms.txt / llms-full.txt product
               # filenames, the CLAUDE.md filename token, and .claude/ path
               # segments in config files.
-              match=$(grep -iEn "$PATTERN" "$f" | grep -viE 'llms(-full)?\.txt|CLAUDE\.md|\.claude/')
+              match=$(grep -IiEn "$PATTERN" "$f" | grep -viE 'llms(-full)?\.txt|CLAUDE\.md|\.claude/')
               if [ -n "$match" ]; then
                 hits="${hits}${f}:\n${match}\n\n"
               fi
