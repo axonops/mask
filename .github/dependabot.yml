@@ -1,0 +1,39 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - P2
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      test-deps-patch:
+        patterns:
+          - "github.com/stretchr/testify"
+          - "github.com/cucumber/godog"
+          - "go.uber.org/goleak"
+        update-types:
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    labels:
+      - ci/cd
+      - P2
+    commit-message:
+      prefix: ci

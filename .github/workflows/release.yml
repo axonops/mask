@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.9.0). Must not exist yet; workflow creates it."
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run — build and validate without publishing or tagging."
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify quality gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+      - name: Run quality gate
+        run: make check
+
+  tag:
+    name: Create tag
+    needs: verify
+    if: inputs.dry_run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate tag format
+        run: |
+          if [[ ! "${{ inputs.tag }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "Tag must match vMAJOR.MINOR.PATCH[-prerelease]"
+            exit 1
+          fi
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ inputs.tag }}" -m "Release ${{ inputs.tag }}"
+          git push origin "${{ inputs.tag }}"
+
+  goreleaser:
+    name: GoReleaser
+    needs: [verify, tag]
+    if: always() && needs.verify.result == 'success' && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Dry-run GoReleaser
+        if: inputs.dry_run == true
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean
+      - name: Publish GoReleaser
+        if: inputs.dry_run != true
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  proxy-warm:
+    name: Warm Go module proxy
+    needs: goreleaser
+    if: inputs.dry_run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Request module from proxy (with retry)
+        run: |
+          tag="${{ inputs.tag }}"
+          for attempt in 1 2 3 4 5 6; do
+            if curl -sSfL "https://proxy.golang.org/github.com/axonops/mask/@v/${tag}.info" | tee /dev/stderr; then
+              exit 0
+            fi
+            echo "proxy not ready, retry ${attempt}/6 in 15s"
+            sleep 15
+          done
+          echo "proxy did not index ${tag} after 90s"
+          exit 1
