@@ -12,11 +12,70 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mask is a pure-function string-masking library with composable
-// primitives and a rich catalogue of built-in domain rules for redacting
-// personally identifying information, payment card data, and protected
-// health information.
+// Package mask is a pure-function string-masking library.
 //
-// This file is a placeholder during Phase 1 bootstrap. The full package
-// documentation lands with the core API in Phase 2 (#2).
+// The library provides composable utility primitives and a rich catalogue of
+// built-in domain rules for redacting personally identifying information,
+// payment card data, and protected health information from strings before
+// they are logged, displayed, or persisted. It is stdlib-only at runtime.
+//
+// # Quick start
+//
+//	package main
+//
+//	import (
+//		"fmt"
+//
+//		"github.com/axonops/mask"
+//	)
+//
+//	func main() {
+//		fmt.Println(mask.Apply("email_address", "alice@example.com"))
+//		// Output: a****@example.com
+//	}
+//
+// # Design principles
+//
+// Masking rules fail closed. When [Apply] is called with an unknown rule it
+// returns [FullRedactMarker] — never the original value. When a built-in rule
+// cannot parse its input it falls back to a same-length mask. This keeps the
+// library predictable and safe by default.
+//
+// Primitives and domain rules are separate layers. Generic building blocks
+// such as keep_first_n, same_length_mask and deterministic_hash are exposed
+// both as registered rules and as Go helper functions; domain rules such as
+// payment_card_pan, email_address and us_ssn are thin wrappers over the
+// primitives with format-aware parsing.
+//
+// Rule names are lowercase snake_case. Country-specific identifiers are
+// jurisdiction-qualified (us_ssn, uk_nino, in_aadhaar). The authoritative
+// catalogue lives in docs/v0.9.0-requirements.md; use [Rules] and [Describe]
+// to discover available rules at runtime.
+//
+// # Thread safety
+//
+// [Register] (both the package-level function and [Masker.Register]) MUST NOT
+// be called concurrently with [Apply]. Call Register during program
+// initialisation, before any goroutine starts calling Apply. After every
+// Register call has returned, the registry is read-only and Apply is safe for
+// concurrent use by any number of goroutines. This matches the contract used
+// by database/sql.Register.
+//
+// Built-in rules are stateless pure functions and are safe for concurrent use
+// once registered. Custom [RuleFunc] implementations MUST satisfy the same
+// contract.
+//
+// # Mask character
+//
+// The default mask character is the ASCII asterisk. Override it globally with
+// [SetMaskChar] or per instance with [WithMaskChar]. Built-in rules read the
+// configured character at apply time so changes are picked up immediately.
+//
+// # Further reading
+//
+//   - The full rule catalogue lives in docs/v0.9.0-requirements.md.
+//   - Short machine-readable summaries are in llms.txt and llms-full.txt at
+//     the repository root (added in a follow-up).
+//   - Contributing guidance is in CONTRIBUTING.md.
+//   - Vulnerability disclosure policy is in SECURITY.md.
 package mask

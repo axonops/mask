@@ -57,8 +57,8 @@ bench: ## Run benchmarks
 	$(GO) test -bench=. -benchmem -run=^$$ $(PKG)
 
 .PHONY: coverage
-coverage: ## Generate coverage profile and HTML report
-	$(GO) test -race -coverprofile=$(COVER_OUT) -covermode=atomic $(PKG)
+coverage: ## Generate coverage profile and HTML report for the library
+	$(GO) test -race -coverprofile=$(COVER_OUT) -covermode=atomic .
 	$(GO) tool cover -func=$(COVER_OUT) | tail -1
 	$(GO) tool cover -html=$(COVER_OUT) -o $(COVER_HTML)
 
