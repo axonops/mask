@@ -778,9 +778,13 @@ See [SECURITY.md](./SECURITY.md) for the threat model, salt-rotation policy, and
 
 ## 📄 Licence
 
-Apache Licence 2.0. See [LICENSE](./LICENSE) for the full text.
+[Apache Licence 2.0](./LICENSE) — Copyright © 2026 AxonOps Limited.
 
-Copyright © 2026 AxonOps Limited.
+---
+
+<div align="center">
+  <sub>Made with ❤️ by <a href="https://axonops.com">AxonOps</a></sub>
+</div>
 
 ---
 
