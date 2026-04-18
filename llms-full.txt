@@ -173,11 +173,29 @@ Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static ref
 
 ## 🔍 Overview
 
-`mask` redacts personally identifiable information (PII), payment-card data (PCI DSS scope), and protected health information (PHI) in Go strings before they reach logs, dashboards, traces, or persistent storage. It is a pure-function library — no goroutines, no I/O, no configuration files, stdlib only — designed to sit on the hot path of a service that writes structured logs or serialises audit events.
+> **Stop leaking PII through half-baked regexes.** `mask` is the drop-in redaction library every Go service on the hot path of a log, trace, or audit stream was missing. One import. One call. The original value **never** reaches the outside world.
 
-It exists because ad-hoc `strings.Replace` and hand-rolled regex replacement are the usual alternatives, and both fail quietly when the input is not shaped as the author expected. `mask` is format-aware (it preserves PAN separators, masks only the local-part of an email address, honours IBAN country and check digits, truncates geographic coordinates by decimal precision), it fails closed (an unknown rule returns `[REDACTED]` and a malformed input returns a same-length mask — the original value is never echoed), and it walks inputs rune-by-rune so multi-byte UTF-8 sequences are never split mid-character.
+Hand-rolled regexes work on the inputs you tested. They leak on the ones you didn't — the email with a `+` alias, the PAN with an extra space, the phone number from a country you forgot existed, the unicode address your byte-indexed slice chopped mid-character. `mask` is built so reality can disagree with the pattern and the library **still fails safe**.
 
-Compared with other Go masking libraries, `mask` ships with a richer catalogue of jurisdiction-qualified identity rules (US SSN, UK NINO, Indian Aadhaar, Brazilian CPF/CNPJ, Mexican CURP/RFC, and ten more), surfaces the same primitives both as Go helper functions and as registered rules, isolates per-tenant or per-request configuration via `*Masker` instances, and observes the same thread-safety contract as `database/sql.Register` — register at init, apply concurrently for the rest of the process lifetime. Regulatory context is named explicitly: PCI DSS display modes for PANs, HIPAA pseudonymisation caveats for medical identifiers, and GDPR Art. 4(5) pseudonymisation via salted deterministic hashing are documented next to the rules they apply to.
+### What you get, out of the box
+
+- 🎯 **Format-aware by design** — preserves PAN separators, email domains, IBAN check digits, phone country codes, and geographic precision so masked fields stay useful for debugging, diffing, and support tickets.
+- 🛡 **Fail-closed, always** — unknown rule? `[REDACTED]`. Malformed input? Same-length mask. The original value is **never** echoed back. Not even once.
+- 🌍 **Unicode-safe from day one** — rune-aware so multi-byte UTF-8 is never split mid-character. International names, CJK addresses, emoji in free-text — all handled.
+- ⚡ **Zero runtime dependencies** — stdlib only. No goroutines. No config files. No transitive-dependency CVEs.
+- 🧵 **Thread-safe like the stdlib** — register at init, apply concurrently forever after. Same contract as `database/sql.Register`.
+
+### See it in action
+
+```go
+mask.Apply("payment_card_pan", "4111-1111-1111-1111") // "4111-11**-****-1111"
+mask.Apply("email_address",    "alice@example.com")   // "a****@example.com"
+mask.Apply("us_ssn",           "123-45-6789")         // "***-**-6789"
+mask.Apply("iban",             "GB82WEST12345698765432") // "GB82**************5432"
+mask.Apply("no_such_rule",     "anything")            // "[REDACTED]"   ← fail closed
+```
+
+> **68 built-in rules · 7 categories · 14 jurisdictions.** PCI DSS display modes for PANs. HIPAA pseudonymisation caveats for clinical identifiers. GDPR Art. 4(5) salted hashing for user IDs. Every regulation-aware rule is documented next to the code that delivers it — no spelunking required.
 
 ---
 
@@ -202,7 +220,9 @@ Compared with other Go masking libraries, `mask` ships with a richer catalogue o
 
 ## ❓ Why mask?
 
-Picking a masking strategy is mostly a question of what fails when the input does not look the way the author imagined. `strings.Replace` and bespoke regexes work perfectly on the examples you wrote them for, and then leak the full value the first time a user's email contains a `+` alias or a phone number arrives with an unexpected country code. `mask` is designed so that when reality disagrees with the pattern, the library fails safe — the output tells you the field was masked, not what the value was.
+> **Because `strings.Replace` fails silently, and your production logs are the wrong place to find out.**
+
+Every Go project starts with a one-line regex and a TODO. Three outages and an audit later, it becomes a 400-line helper package nobody understands. `mask` is what that package wants to be when it grows up — fewer bugs, broader coverage, unicode-correct by default, and a fail-closed contract you can actually rely on.
 
 <div align="center">
 
