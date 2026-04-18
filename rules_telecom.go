@@ -528,13 +528,13 @@ func registerTelecomRules(m *Masker) {
 		func(v string) string { return maskGeoNumber(v, m.maskChar()) },
 		RuleInfo{
 			Name: "geo_longitude", Category: "location", Jurisdiction: "global",
-			Description: "Reduces decimal precision to 2 places by truncation (not rounding); input without a fractional part fails closed. Example: -122.4194155 → -122.42*****.",
+			Description: "Reduces decimal precision to 2 places by truncation (not rounding); input without a fractional part fails closed. Example: -122.4194155 → -122.41*****.",
 		})
 	m.mustRegisterBuiltin("geo_coordinates",
 		func(v string) string { return maskGeoCoordinates(v, m.maskChar()) },
 		RuleInfo{
 			Name: "geo_coordinates", Category: "location", Jurisdiction: "global",
-			Description: "Splits on a single comma and applies `geo_latitude` / `geo_longitude` to each half; any other shape fails closed. Example: 37.7749,-122.4194 → 37.77**,-122.42**.",
+			Description: "Splits on a single comma and applies `geo_latitude` / `geo_longitude` to each half; any other shape fails closed. Example: 37.7749,-122.4194 → 37.77**,-122.41**.",
 		})
 }
 

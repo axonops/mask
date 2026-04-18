@@ -48,9 +48,10 @@
 // primitives with format-aware parsing.
 //
 // Rule names are lowercase snake_case. Country-specific identifiers are
-// jurisdiction-qualified (us_ssn, uk_nino, in_aadhaar). The authoritative
-// catalogue lives in docs/v0.9.0-requirements.md; use [Rules] and [Describe]
-// to discover available rules at runtime.
+// jurisdiction-qualified (us_ssn, uk_nino, in_aadhaar). Use [Rules] to list
+// every registered rule name and [Describe] to retrieve a rule's category,
+// jurisdiction, and human-readable description at runtime — useful when
+// building dashboards or configuration UIs that enumerate the catalogue.
 //
 // # Thread safety
 //
@@ -89,7 +90,7 @@
 //
 // # Further reading
 //
-//   - The full rule catalogue lives in docs/v0.9.0-requirements.md.
-//   - Contributing guidance is in CONTRIBUTING.md.
-//   - Vulnerability disclosure policy is in SECURITY.md.
+//   - README: https://github.com/axonops/mask#readme
+//   - Contributing guidance: https://github.com/axonops/mask/blob/main/CONTRIBUTING.md
+//   - Vulnerability disclosure policy: https://github.com/axonops/mask/blob/main/SECURITY.md
 package mask

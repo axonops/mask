@@ -52,6 +52,19 @@ Feature: Core masking API
     Then the describe result name is "desc_feature"
     And the describe result is present
 
+  @core_api
+  Scenario: Any built-in rule can be discovered at runtime with its category, jurisdiction and example
+    # Consumer contract: every built-in rule is discoverable at runtime
+    # with a populated category, jurisdiction, and a description that
+    # carries an input-to-output example.
+    Given a fresh masker
+    When I describe rule "email_address"
+    Then the describe result is present
+    And the describe result name is "email_address"
+    And the describe result category is "identity"
+    And the describe result jurisdiction is "global"
+    And the describe result description contains "Example:"
+
   @core_api @smoke
   Scenario: Per-instance mask character override survives Apply
     # Smoke test for the Phase 2 core API — Phase 3 adds primitives that read
