@@ -106,7 +106,15 @@ func maskEmail(v string, c rune) string {
 	// without a full RuneCountInString scan.
 	_, sz := utf8.DecodeRuneInString(local)
 	if sz == len(local) {
-		return v
+		// Single-rune local part: masking the first rune while keeping
+		// the domain would echo the identifier verbatim. Mask the
+		// whole local part instead so the output always differs from
+		// the input when any user identifier is present.
+		var b strings.Builder
+		b.Grow(safeRuneLen(c) + len(domain))
+		b.WriteRune(c)
+		b.WriteString(domain)
+		return b.String()
 	}
 	// Build the masked result in a single allocation.
 	tailRunes := utf8.RuneCountInString(local[sz:])
@@ -151,6 +159,23 @@ func maskPersonName(v string, c rune) string {
 	if strings.TrimSpace(v) == "" {
 		return SameLengthMask(v, c)
 	}
+	// Inputs without at least one masked rune would echo the original
+	// verbatim. Count non-separator runes up front and fail closed when
+	// there is no maskable material — at least two non-separator runes
+	// are required for the first-initial-kept-rest-masked pattern to
+	// produce output that differs from the input.
+	nonsep := 0
+	for _, r := range v {
+		if !nameSeparators(r) {
+			nonsep++
+			if nonsep >= 2 {
+				break
+			}
+		}
+	}
+	if nonsep < 2 {
+		return SameLengthMask(v, c)
+	}
 	var b strings.Builder
 	b.Grow(len(v))
 	inToken := false
@@ -171,9 +196,12 @@ func maskPersonName(v string, c rune) string {
 }
 
 // maskGivenOrFamilyName keeps only the first rune of the whole input.
-// Empty input returns empty; 1-rune input is returned unchanged via the
-// underlying KeepFirstN.
+// Inputs shorter than 2 runes fail closed to a same-length mask so
+// single-rune names are never echoed verbatim.
 func maskGivenOrFamilyName(v string, c rune) string {
+	if utf8.RuneCountInString(v) < 2 {
+		return SameLengthMask(v, c)
+	}
 	return KeepFirstN(v, 1, c)
 }
 
@@ -275,14 +303,16 @@ func maskStreet(v string, c rune) string {
 		return SameLengthMask(v, c)
 	}
 	body, tail, prependSpace := splitBodyAndTail(rest, tailOff)
-	// Fail-closed guard: if the recognised suffix consumed the entire
-	// non-digit portion of the input, the rule would echo v unchanged.
-	// That happens on inputs like "42 N" or "1 NE" where the whole
-	// non-digit body is itself a recognised single-letter direction
-	// token. Drop the suffix and mask the non-digit portion rune-wise,
-	// preserving internal whitespace so the output matches input length.
+	// Fail-closed guard: with no street-name body to anchor the mask,
+	// the only remaining structure is the recognised trailing suffix.
+	// If the suffix is also empty (e.g. bare house numbers like "42" or
+	// "42 ") we have no signal at all and must not echo the digits
+	// verbatim — fall through to SameLengthMask. When the suffix is
+	// present (e.g. "42 N"), the digits are balanced by the masked
+	// direction, so we fall back to masking the non-digit portion
+	// rune-wise while preserving internal whitespace.
 	if strings.TrimSpace(body) == "" {
-		if head == "" {
+		if tail == "" {
 			return SameLengthMask(v, c)
 		}
 		var out strings.Builder
@@ -477,8 +507,13 @@ func monthNameRecognised(s string) bool {
 	return ok
 }
 
-// maskUsername keeps the first two runes of the input.
+// maskUsername keeps the first two runes of the input. Inputs of two
+// runes or fewer fail closed to a same-length mask rather than echoing
+// the value.
 func maskUsername(v string, c rune) string {
+	if utf8.RuneCountInString(v) <= 2 {
+		return SameLengthMask(v, c)
+	}
 	return KeepFirstN(v, 2, c)
 }
 
@@ -501,14 +536,25 @@ func maskPassport(v string, c rune) string {
 	// allocation. We only need to know if both are letters.
 	r0, sz0 := utf8.DecodeRuneInString(v)
 	if sz0 == 0 {
-		return KeepLastN(v, 4, c)
+		return SameLengthMask(v, c)
 	}
 	r1, sz1 := utf8.DecodeRuneInString(v[sz0:])
 	if sz1 == 0 {
-		return KeepLastN(v, 4, c)
+		return SameLengthMask(v, c)
 	}
+	runeCount := utf8.RuneCountInString(v)
 	if unicode.IsLetter(r0) && unicode.IsLetter(r1) {
+		// Alpha-prefix branch needs at least 5 runes (2 kept + 1 masked
+		// + 2 kept). Shorter inputs would echo verbatim via
+		// KeepFirstLast's "window >= runeCount → return v" short-path.
+		if runeCount < 5 {
+			return SameLengthMask(v, c)
+		}
 		return KeepFirstLast(v, 2, 2, c)
+	}
+	// Numeric branch keeps the last 4 runes. Shorter inputs fail closed.
+	if runeCount < 5 {
+		return SameLengthMask(v, c)
 	}
 	return KeepLastN(v, 4, c)
 }
@@ -549,11 +595,14 @@ func maskDriverLicense(v string, c rune) string {
 
 // maskGenericNationalID is the fallback rule for national IDs that are
 // not covered by a jurisdiction-specific rule. Keeps the first 2 and
-// last 2 runes, masks the middle.
+// last 2 runes, masks the middle. Inputs of 4 runes or fewer fail
+// closed — KeepFirstLast's "window >= runeCount → return v" short path
+// would otherwise leak the original value.
 func maskGenericNationalID(v string, c rune) string {
-	// Fail closed on invalid UTF-8 so we never echo raw bytes via
-	// KeepFirstLast's "window >= runeCount → return v" short path.
 	if !utf8.ValidString(v) {
+		return SameLengthMask(v, c)
+	}
+	if utf8.RuneCountInString(v) <= 4 {
 		return SameLengthMask(v, c)
 	}
 	return KeepFirstLast(v, 2, 2, c)

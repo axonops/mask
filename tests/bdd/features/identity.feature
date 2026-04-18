@@ -14,7 +14,7 @@ Feature: Identity masking rules
       | input                        | expected                       |
       | alice@example.com            | a****@example.com              |
       | bob.smith+work@company.co.uk | b*************@company.co.uk   |
-      | x@y.com                      | x@y.com                        |
+      | x@y.com                      | *@y.com                        |
       | not-an-email                 | ************                   |
       | @example.com                 | ************                   |
       | alice@                       | ******                         |
@@ -73,6 +73,7 @@ Feature: Identity masking rules
       | Apt 3                         | *****                       |
       | 42 N                          | 42 *                        |
       | 1 NE                          | 1 **                        |
+      | 42                            | **                          |
 
   Scenario Outline: Mask dates of birth
     Given a fresh masker
@@ -98,7 +99,8 @@ Feature: Identity masking rules
       | johndoe42 | jo******* |
       | admin     | ad***     |
       | alice_42  | al******  |
-      | x         | x         |
+      | x         | *         |
+      | ab        | **        |
       |           |           |
 
   Scenario Outline: Mask passport numbers
@@ -112,6 +114,9 @@ Feature: Identity masking rules
       | 123456789  | *****6789   |
       | gb1234567  | gb*****67   |
       | 1A234567   | ****4567    |
+      | GB         | **          |
+      | 1234       | ****        |
+      | GBCD       | ****        |
 
   Scenario Outline: Mask driver licence numbers
     Given a fresh masker
@@ -136,7 +141,8 @@ Feature: Identity masking rules
       | AB123456CD   | AB******CD   |
       | 佐藤1234太郎 | 佐藤****太郎 |
       | 123456789    | 12*****89    |
-      | ABCD         | ABCD         |
+      | ABCD         | ****         |
+      | AB1          | ***          |
       |              |              |
 
   Scenario Outline: Every identity rule returns empty on empty input
