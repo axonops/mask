@@ -15,82 +15,128 @@
 package mask_test
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/axonops/mask"
 )
 
-// ExampleApply shows the simplest possible usage — apply a rule to a value
-// and print the result. A per-instance Masker is used here so the example
-// does not mutate the package-level registry.
+// ExampleApply shows the simplest usage: look up a built-in rule by name
+// and mask a value with it. The default mask character is `*` and every
+// built-in rule fails closed on input it cannot parse — the original value
+// is never returned.
 func ExampleApply() {
-	m := mask.New()
-	_ = m.Register("apply_example_rule", func(s string) string {
-		if len(s) == 0 {
-			return s
-		}
-		return string(s[0]) + "***"
-	})
-
-	fmt.Println(m.Apply("apply_example_rule", "secret"))
-	// Output: s***
+	fmt.Println(mask.Apply("email_address", "alice@example.com"))
+	// Output: a****@example.com
 }
 
-// ExampleRegister shows how to add a custom masking rule and use it. A
-// per-instance Masker keeps the package-level registry clean.
-func ExampleRegister() {
-	m := mask.New()
-	if err := m.Register("uppercase_example", strings.ToUpper); err != nil && !errors.Is(err, mask.ErrDuplicateRule) {
-		panic(err)
-	}
-
-	fmt.Println(m.Apply("uppercase_example", "secret"))
-	// Output: SECRET
-}
-
-// ExampleApply_unknownRule demonstrates the fail-closed contract: unknown
-// rules never return the original value.
+// ExampleApply_unknownRule demonstrates the fail-closed contract for
+// unknown rule names: Apply always returns [FullRedactMarker] rather than
+// the original value. This is the same behaviour consumers can rely on
+// for every rule in the catalogue.
 func ExampleApply_unknownRule() {
 	fmt.Println(mask.Apply("no_such_rule", "alice@example.com"))
 	// Output: [REDACTED]
 }
 
-// ExampleMasker_isolation shows that two [mask.Masker] instances have
-// independent registries.
-func ExampleMasker_isolation() {
-	a := mask.New()
-	b := mask.New()
+// ExampleRegister adds a custom masking rule to the package-level
+// registry and applies it. The registry is process-global; pick rule
+// names that cannot collide with the built-in catalogue.
+func ExampleRegister() {
+	// Reverse is a trivial custom rule — real rules would wrap one of
+	// the utility primitives in this package (KeepFirstN, KeepLastN,
+	// KeepFirstLast, PreserveDelimiters, etc.).
+	reverse := func(v string) string {
+		runes := []rune(v)
+		for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+			runes[i], runes[j] = runes[j], runes[i]
+		}
+		return string(runes)
+	}
 
-	_ = a.Register("isolated_rule_a", strings.ToUpper)
-
-	fmt.Println("a has rule:", a.HasRule("isolated_rule_a"))
-	fmt.Println("b has rule:", b.HasRule("isolated_rule_a"))
-	// Output:
-	// a has rule: true
-	// b has rule: false
+	if err := mask.Register("example_reverse", reverse); err != nil {
+		panic(err)
+	}
+	fmt.Println(mask.Apply("example_reverse", "hello"))
+	// Output: olleh
 }
 
-// ExampleNew_withMaskChar shows how to override the mask character for an
-// instance. Built-in rules read the configured character at apply time.
+// ExampleNew_withMaskChar constructs an isolated [Masker] with a custom
+// mask character. Built-in rules read the configured character at apply
+// time, so changing the mask character affects every subsequent call on
+// that instance.
 func ExampleNew_withMaskChar() {
-	m := mask.New(mask.WithMaskChar('X'))
-	// Without built-in rules in place the example focuses on demonstrating
-	// option handling; later phases will show real masked output.
-	fmt.Println(m.Apply("no_such_rule_yet", "value"))
-	// Output: [REDACTED]
+	m := mask.New(mask.WithMaskChar('#'))
+	fmt.Println(m.Apply("us_ssn", "123-45-6789"))
+	// Output: ###-##-6789
 }
 
-// ExampleDescribe shows runtime discovery of a rule's metadata.
-func ExampleDescribe() {
-	m := mask.New()
-	_ = m.Register("discoverable_example", strings.ToUpper)
+// ExampleSetMaskChar overrides the default mask character used by the
+// package-level registry. The defer resets it so other tests in the same
+// process see the original default — production callers typically set
+// it once during program initialisation and never change it.
+func ExampleSetMaskChar() {
+	defer mask.SetMaskChar(mask.DefaultMaskChar)
 
-	info, ok := m.Describe("discoverable_example")
+	mask.SetMaskChar('#')
+	fmt.Println(mask.Apply("us_ssn", "123-45-6789"))
+	// Output: ###-##-6789
+}
+
+// ExampleKeepFirstN calls the utility primitive directly without going
+// through the registry. Useful when writing a custom rule that needs a
+// keep-first window with a specific preservation count.
+func ExampleKeepFirstN() {
+	fmt.Println(mask.KeepFirstN("Sensitive", 4, '*'))
+	// Output: Sens*****
+}
+
+// ExampleKeepFirstNFunc builds a parametric masking rule via the factory
+// and registers it under a custom name. The factory captures the
+// [DefaultMaskChar] at construction — callers who need per-instance
+// mask-character customisation should register a closure directly.
+func ExampleKeepFirstNFunc() {
+	m := mask.New()
+	if err := m.Register("my_token", mask.KeepFirstNFunc(4)); err != nil {
+		panic(err)
+	}
+	fmt.Println(m.Apply("my_token", "SensitiveToken"))
+	// Output: Sens**********
+}
+
+// ExampleDescribe prints the metadata registered with a built-in rule.
+// Use [Rules] together with Describe to iterate the full catalogue at
+// runtime — consumers building dashboards or configuration UIs often
+// do this to enumerate available rules.
+func ExampleDescribe() {
+	info, ok := mask.Describe("email_address")
 	fmt.Println("found:", ok)
 	fmt.Println("name:", info.Name)
+	fmt.Println("category:", info.Category)
+	fmt.Println("jurisdiction:", info.Jurisdiction)
 	// Output:
 	// found: true
-	// name: discoverable_example
+	// name: email_address
+	// category: identity
+	// jurisdiction: global
+}
+
+// ExampleApply_structuredLogRedaction shows a realistic use case: masking
+// several fields of a structured log line before writing it out. Each
+// field is routed to the rule that fits its semantic.
+func ExampleApply_structuredLogRedaction() {
+	fields := []struct{ rule, value string }{
+		{"email_address", "alice@example.com"},
+		{"payment_card_pan", "4111-1111-1111-1111"},
+		{"us_ssn", "123-45-6789"},
+		{"ipv4_address", "192.168.1.42"},
+		{"jwt_token", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc"},
+	}
+
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		out = append(out, f.rule+"="+mask.Apply(f.rule, f.value))
+	}
+	fmt.Println(strings.Join(out, " "))
+	// Output: email_address=a****@example.com payment_card_pan=4111-11**-****-1111 us_ssn=***-**-6789 ipv4_address=192.168.*.* jwt_token=eyJh****.****.****.
 }

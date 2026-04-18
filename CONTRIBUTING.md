@@ -48,6 +48,10 @@ Every PR MUST:
 
 CI runs the same gates as `make check`. If CI fails on your PR, fix the root cause — do not add suppressions or `//nolint` directives without an issue reference.
 
+### Review workflow
+
+Before opening a PR, run the full quality gate (`make check`). Internally this project uses several review passes — code review, security review, documentation review, performance review, and a test-analyst pass — before every merge. Contributors are expected to address findings from those passes the same way they address CI failures: fix the root cause in the same PR rather than deferring to a follow-up.
+
 ## Testing
 
 - Unit tests live beside the code in external (`package mask_test`) black-box style.

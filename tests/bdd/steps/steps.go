@@ -89,6 +89,9 @@ func Register(sc *godog.ScenarioContext) {
 	sc.Step(`^masker "([^"]+)" does not have rule "([^"]+)"$`, w.maskerDoesNotHaveRule)
 	sc.Step(`^the describe result is present$`, w.describePresent)
 	sc.Step(`^the describe result name is "([^"]+)"$`, w.describeName)
+	sc.Step(`^the describe result category is "([^"]+)"$`, w.describeCategory)
+	sc.Step(`^the describe result jurisdiction is "([^"]+)"$`, w.describeJurisdiction)
+	sc.Step(`^the describe result description contains "([^"]+)"$`, w.describeDescriptionContains)
 	sc.Step(`^the listed rules contain, in order, "([^"]+)", "([^"]+)", "([^"]+)"$`, w.listedRulesInOrder)
 
 	// Primitives feature steps — share the World so "a fresh masker" and
@@ -273,6 +276,27 @@ func (w *World) describePresent() error {
 func (w *World) describeName(expected string) error {
 	if w.lastDescribe.Name != expected {
 		return fmt.Errorf("expected describe name %q, got %q", expected, w.lastDescribe.Name)
+	}
+	return nil
+}
+
+func (w *World) describeCategory(expected string) error {
+	if w.lastDescribe.Category != expected {
+		return fmt.Errorf("expected describe category %q, got %q", expected, w.lastDescribe.Category)
+	}
+	return nil
+}
+
+func (w *World) describeJurisdiction(expected string) error {
+	if w.lastDescribe.Jurisdiction != expected {
+		return fmt.Errorf("expected describe jurisdiction %q, got %q", expected, w.lastDescribe.Jurisdiction)
+	}
+	return nil
+}
+
+func (w *World) describeDescriptionContains(substr string) error {
+	if !strings.Contains(w.lastDescribe.Description, substr) {
+		return fmt.Errorf("expected describe description to contain %q, got %q", substr, w.lastDescribe.Description)
 	}
 	return nil
 }
