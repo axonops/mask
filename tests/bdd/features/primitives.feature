@@ -131,24 +131,51 @@ Feature: Utility primitives
       | SHA3_512 | sha3-512  | 25     |
 
   Scenario Outline: Deterministic hash with a salt matches an independent HMAC reference vector
-    When I compute DeterministicHashWith on "hello" using algorithm "<algo>" and salt "k"
+    When I compute DeterministicHashWith on "hello" using algorithm "<algo>" and salt "k" version "v1"
     Then the result is exactly "<expected>"
 
     Examples:
-      | algo     | expected                  |
-      | SHA256   | sha256:406e4b43f87095aa   |
-      | SHA512   | sha512:86b6102b754ae558   |
-      | SHA3_256 | sha3-256:f3ac848aab5f2471 |
-      | SHA3_512 | sha3-512:f4b5180b78087d99 |
+      | algo     | expected                     |
+      | SHA256   | sha256:v1:406e4b43f87095aa   |
+      | SHA512   | sha512:v1:86b6102b754ae558   |
+      | SHA3_256 | sha3-256:v1:f3ac848aab5f2471 |
+      | SHA3_512 | sha3-512:v1:f4b5180b78087d99 |
+
+  Scenario Outline: Salt version is emitted between the algorithm prefix and the digest
+    When I compute DeterministicHashWith on "hello" using algorithm "<algo>" and salt "k" version "<version>"
+    Then the result starts with "<prefix>"
+
+    Examples:
+      | algo     | version   | prefix            |
+      | SHA256   | v1        | sha256:v1:        |
+      | SHA512   | v1        | sha512:v1:        |
+      | SHA3_256 | 2026-01   | sha3-256:2026-01: |
+      | SHA3_512 | v_1.2-rc  | sha3-512:v_1.2-rc: |
 
   Scenario: Deterministic hash with different salts produces different outputs
-    When I compute DeterministicHashWith on "alice@example.com" with salt "a"
-    And I also compute DeterministicHashWith on "alice@example.com" with salt "b"
+    When I compute DeterministicHashWith on "alice@example.com" with salt "a" version "v1"
+    And I also compute DeterministicHashWith on "alice@example.com" with salt "b" version "v1"
     Then the two results differ
 
   Scenario: Deterministic hash salt does not appear in the masked output
-    When I compute DeterministicHashWith on "SEKRET-value-SEKRET" with salt "SEKRET"
+    When I compute DeterministicHashWith on "SEKRET-value-SEKRET" with salt "SEKRET" version "v1"
     Then the result does not contain "SEKRET"
+
+  Scenario: Deterministic hash with an empty version fails closed
+    When I compute DeterministicHashWith on "hello" with salt "k" version ""
+    Then the result is exactly "[REDACTED]"
+
+  Scenario Outline: Deterministic hash with a non-conforming version fails closed
+    When I compute DeterministicHashWith on "hello" with salt "k" version "<version>"
+    Then the result is exactly "[REDACTED]"
+
+    Examples:
+      | version                            |
+      | v:1                                |
+      | v 1                                |
+      | v/1                                |
+      | café                               |
+      | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  |
 
   Scenario: Nullify returns an empty string
     Given a fresh masker

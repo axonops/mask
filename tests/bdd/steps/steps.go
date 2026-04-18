@@ -104,9 +104,9 @@ func Register(sc *godog.ScenarioContext) {
 	sc.Step(`^I use FixedReplacementFunc with replacement "([^"]*)" on "([^"]*)"$`, w.useFixedReplacement)
 	sc.Step(`^I use ReducePrecision on "([^"]*)" with decimals (-?\d+) and char "([^"]+)"$`, w.useReducePrecision)
 	sc.Step(`^I compute DeterministicHashWith on "([^"]*)" using algorithm "([^"]+)"$`, w.useDeterministicHashAlgo)
-	sc.Step(`^I compute DeterministicHashWith on "([^"]*)" using algorithm "([^"]+)" and salt "([^"]*)"$`, w.useDeterministicHashAlgoSalt)
-	sc.Step(`^I compute DeterministicHashWith on "([^"]*)" with salt "([^"]*)"$`, w.useDeterministicHashSalt)
-	sc.Step(`^I also compute DeterministicHashWith on "([^"]*)" with salt "([^"]*)"$`, w.useDeterministicHashSaltSecond)
+	sc.Step(`^I compute DeterministicHashWith on "([^"]*)" using algorithm "([^"]+)" and salt "([^"]*)" version "([^"]*)"$`, w.useDeterministicHashAlgoSaltVersion)
+	sc.Step(`^I compute DeterministicHashWith on "([^"]*)" with salt "([^"]*)" version "([^"]*)"$`, w.useDeterministicHashSaltVersion)
+	sc.Step(`^I also compute DeterministicHashWith on "([^"]*)" with salt "([^"]*)" version "([^"]*)"$`, w.useDeterministicHashSaltVersionSecond)
 
 	sc.Step(`^every result is identical$`, w.everyResultIsIdentical)
 	sc.Step(`^the result starts with "([^"]+)"$`, w.theResultStartsWith)

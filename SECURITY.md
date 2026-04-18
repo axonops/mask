@@ -22,12 +22,15 @@ The `mask` library is currently in pre-release (`v0.x`). Only the most recent `v
 - Thread safety under the documented contract (`Register` at init, `Apply` concurrent thereafter).
 - Use of `crypto/sha256` for `deterministic_hash` — never MD5 or SHA-1.
 
+**Salt rotation and versioning.** The `deterministic_hash` primitive's `WithSalt(salt, version)` option requires both a salt and a version string. The version is emitted on the wire (`<algo>:<version>:<hex16>`) so downstream consumers can identify which salt generation a hash was computed with. Rotating the salt MUST coincide with changing the version — hashes computed with different versions are not comparable. A non-conforming version or a missing version with a non-empty salt is a fail-closed misconfiguration: every subsequent `Apply` returns `[REDACTED]` rather than producing a hash indistinguishable from the unsalted path. The salt itself is never logged, echoed in output, or exposed via `Describe`; the version, by design, is.
+
 **Out of scope:**
 
 - Guaranteeing anonymisation. `deterministic_hash` is **pseudonymisation**, not anonymisation — same input always produces the same output, so the hash remains a linkable identifier.
 - Validating that callers use the correct rule for their data. The library masks; it does not detect.
-- Protecting against memory disclosure through unrelated channels (process dumps, swap, etc.).
+- Protecting against memory disclosure through unrelated channels (process dumps, swap, etc.). Salt and version both live in process memory and may appear in core dumps or goroutine stacks.
 - Side-channel timing analysis. Masking is not a cryptographic primitive.
+- Managing salt-version registries, rotation policies, or re-hashing historical corpora on version change. The library emits the version; the operator decides when and how to rotate.
 
 ## Reporting a vulnerability
 
