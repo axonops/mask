@@ -30,7 +30,7 @@ jobs:
       - name: Vet
         run: make vet
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           version: v2.5.0
       - name: Module tidy check
