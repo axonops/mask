@@ -164,11 +164,18 @@ func (m *Masker) ensureInit() {
 }
 
 // setMaskChar is the internal mask-character setter used by [WithMaskChar] and
-// by the package-level [SetMaskChar]. The getter used by built-in rules lives
-// in the file that introduces them (Phase 3).
+// by the package-level [SetMaskChar].
 func (m *Masker) setMaskChar(c rune) {
 	m.ensureInit()
 	m.maskCharAtomic.Store(c)
+}
+
+// maskChar returns the mask rune currently configured on this Masker.
+// Built-in registrars close over the Masker and call maskChar inside the
+// produced RuleFunc so that a later WithMaskChar or SetMaskChar call takes
+// effect on every subsequent Apply without requiring re-registration.
+func (m *Masker) maskChar() rune {
+	return m.maskCharAtomic.Load()
 }
 
 // Apply masks value using the named rule.

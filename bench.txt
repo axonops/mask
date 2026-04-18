@@ -1,0 +1,37 @@
+# Baseline benchmarks for github.com/axonops/mask
+#
+# Regenerate this file via:
+#   go test -bench=. -benchmem -run=^$ . > bench.txt
+#
+# Captured: Phase 3 (utility primitives landing — issue #3)
+# Host: Apple M2 / darwin-arm64 / Go 1.26
+#
+# Intended use: benchstat golden — future CI runs benchstat bench.txt new.txt
+# and fails on regressions. Integration of that CI job is tracked separately.
+#
+goos: darwin
+goarch: arm64
+pkg: github.com/axonops/mask
+cpu: Apple M2
+BenchmarkFullRedact-8                        	1000000000	         0.3307 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSameLengthMask_1000-8               	  365866	      3122 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkKeepFirstN_16-8                     	22014561	        53.94 ns/op	      16 B/op	       1 allocs/op
+BenchmarkKeepFirstN_1000-8                   	  382159	      3257 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkKeepLastN_16-8                      	18178408	        68.03 ns/op	      16 B/op	       1 allocs/op
+BenchmarkKeepLastN_1000-8                    	  323806	      3692 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkKeepFirstLast_16-8                  	20918738	        58.03 ns/op	      16 B/op	       1 allocs/op
+BenchmarkKeepFirstLast_1000-8                	  299095	      3972 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkTruncateVisible_16-8                	277720428	         4.371 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTruncateVisible_1000-8              	276125895	         4.320 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPreserveDelimiters_Email-8          	12818646	        93.47 ns/op	      24 B/op	       1 allocs/op
+BenchmarkPreserveDelimitersFunc_Email-8      	10956343	       109.1 ns/op	      24 B/op	       1 allocs/op
+BenchmarkReplaceRegexFunc_1000-8             	   44373	     25269 ns/op	    4635 B/op	      11 allocs/op
+BenchmarkDeterministicHash_1000-8            	 2181520	       557.1 ns/op	    1080 B/op	       3 allocs/op
+BenchmarkDeterministicHash_Salted_1000-8     	 1465852	       814.1 ns/op	    1576 B/op	       9 allocs/op
+BenchmarkDeterministicHash_SHA512_1000-8     	 1349864	       871.5 ns/op	    1112 B/op	       3 allocs/op
+BenchmarkDeterministicHash_SHA3_256_1000-8   	  832321	      1419 ns/op	    1088 B/op	       3 allocs/op
+BenchmarkReducePrecision_NumericShort-8      	32811463	        36.47 ns/op	      16 B/op	       1 allocs/op
+BenchmarkReducePrecision_NumericLong-8       	  346722	      3520 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkReducePrecision_Fallback-8          	35827980	        33.48 ns/op	       8 B/op	       1 allocs/op
+PASS
+ok  	github.com/axonops/mask	27.607s
