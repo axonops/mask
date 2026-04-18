@@ -1,0 +1,71 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - gocyclo
+    - gocritic
+    - revive
+    - unconvert
+    - unparam
+    - bodyclose
+    - goconst
+    - prealloc
+    - nolintlint
+    - copyloopvar
+  settings:
+    gocyclo:
+      min-complexity: 10
+    misspell:
+      locale: UK
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+        - name: var-naming
+        - name: package-comments
+        - name: if-return
+        - name: error-return
+        - name: error-naming
+        - name: error-strings
+        - name: errorf
+        - name: unused-parameter
+          disabled: true
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - gocritic
+          - unparam
+          - goconst
+      - path: tests/bdd/
+        linters:
+          - gocyclo
+          - gocritic
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/axonops/mask
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
