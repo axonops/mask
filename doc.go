@@ -42,7 +42,7 @@
 // library predictable and safe by default.
 //
 // Primitives and domain rules are separate layers. Generic building blocks
-// such as keep_first_n, same_length_mask and deterministic_hash are exposed
+// such as [KeepFirstN], [SameLengthMask] and [DeterministicHash] are exposed
 // both as registered rules and as Go helper functions; domain rules such as
 // payment_card_pan, email_address and us_ssn are thin wrappers over the
 // primitives with format-aware parsing.
@@ -111,7 +111,8 @@
 //
 // # Further reading
 //
-//   - README: https://github.com/axonops/mask#readme
+//   - README (rule catalogue tables, regulatory positioning): https://github.com/axonops/mask#readme
+//   - Authoritative rule-by-rule specification: https://github.com/axonops/mask/blob/main/docs/v0.9.0-requirements.md
 //   - Contributing guidance: https://github.com/axonops/mask/blob/main/CONTRIBUTING.md
 //   - Vulnerability disclosure policy: https://github.com/axonops/mask/blob/main/SECURITY.md
 package mask

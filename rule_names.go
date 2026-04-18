@@ -24,7 +24,9 @@ package mask
 // built-in registry one-for-one. Adding a new built-in rule without
 // declaring the matching constant here fails the build.
 
-// Utility primitives registered as named rules.
+// Utility primitive rules registered as named masking rules. Use
+// these constants in calls to [Apply] for compile-time safety
+// against typos in rule names.
 const (
 	RuleFullRedact        = "full_redact"
 	RuleSameLengthMask    = "same_length_mask"
@@ -32,7 +34,9 @@ const (
 	RuleDeterministicHash = "deterministic_hash"
 )
 
-// Global identity rules.
+// Global identity rules covering personal identifiers that are not
+// specific to a single jurisdiction (names, email addresses, dates
+// of birth, passport numbers, and so on).
 const (
 	RuleEmailAddress        = "email_address"
 	RulePersonName          = "person_name"
@@ -47,7 +51,8 @@ const (
 	RuleTaxIdentifier       = "tax_identifier"
 )
 
-// Country-specific identity rules.
+// Country-specific identity rules for national identifiers tied to
+// a particular jurisdiction (US SSN, UK NINO, IN Aadhaar, and so on).
 const (
 	RuleUSSSN            = "us_ssn"
 	RuleCASIN            = "ca_sin"
@@ -65,7 +70,8 @@ const (
 	RuleESDNINIFNIE      = "es_dni_nif_nie"
 )
 
-// Financial rules.
+// Financial rules for payment-card data, bank account identifiers,
+// routing codes, and monetary amounts.
 const (
 	RulePaymentCardPAN       = "payment_card_pan"
 	RulePaymentCardPANFirst6 = "payment_card_pan_first6"
@@ -80,7 +86,9 @@ const (
 	RuleMonetaryAmount       = "monetary_amount"
 )
 
-// Health rules.
+// Health rules for protected health information: medical record
+// numbers, health plan beneficiary identifiers, device UDIs,
+// diagnosis codes, and free-text prescription strings.
 const (
 	RuleMedicalRecordNumber     = "medical_record_number"
 	RuleHealthPlanBeneficiaryID = "health_plan_beneficiary_id"
@@ -89,7 +97,9 @@ const (
 	RulePrescriptionText        = "prescription_text"
 )
 
-// Technology rules.
+// Technology rules for infrastructure and application identifiers:
+// network addresses, URLs, credentials, tokens, keys, connection
+// strings, and UUIDs.
 const (
 	RuleIPv4Address      = "ipv4_address"
 	RuleIPv6Address      = "ipv6_address"
@@ -107,7 +117,8 @@ const (
 	RuleUUID             = "uuid"
 )
 
-// Telecom rules.
+// Telecom rules for subscriber and device identifiers: phone
+// numbers, IMEI, IMSI, and MSISDN values.
 const (
 	RulePhoneNumber       = "phone_number"
 	RuleMobilePhoneNumber = "mobile_phone_number"
@@ -116,7 +127,9 @@ const (
 	RuleMSISDN            = "msisdn"
 )
 
-// Location rules.
+// Location rules for postal codes and geographic coordinates —
+// individual latitude and longitude values as well as
+// comma-separated latitude/longitude pairs.
 const (
 	RulePostalCode     = "postal_code"
 	RuleGeoLatitude    = "geo_latitude"

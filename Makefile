@@ -87,6 +87,22 @@ security: ## Run govulncheck
 release-check: ## Validate GoReleaser config without releasing
 	$(GORELEASER) check
 
+.PHONY: llms-full
+llms-full: ## Regenerate llms-full.txt from its canonical sources
+	@./scripts/gen-llms-full.sh
+
+.PHONY: llms-full-check
+llms-full-check: ## Fail if llms-full.txt is out of date
+	@cp llms-full.txt llms-full.txt.bak
+	@trap 'mv -f llms-full.txt.bak llms-full.txt 2>/dev/null || true' EXIT; \
+	./scripts/gen-llms-full.sh >/dev/null; \
+	if ! diff -q llms-full.txt llms-full.txt.bak >/dev/null; then \
+		echo "llms-full.txt drift — run 'make llms-full' and commit the result"; \
+		exit 1; \
+	fi; \
+	rm -f llms-full.txt.bak; \
+	trap - EXIT
+
 .PHONY: clean
 clean: ## Remove generated test and coverage artefacts
 	$(GO) clean -testcache

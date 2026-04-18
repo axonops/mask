@@ -128,6 +128,8 @@ func Register(sc *godog.ScenarioContext) {
 	sc.Step(`^the two results differ$`, w.theTwoResultsDiffer)
 	sc.Step(`^the replace result is "([^"]*)" and the error is absent$`, w.replaceResultIsAndErrAbsent)
 	sc.Step(`^the replace result is empty and the error is present$`, w.replaceResultEmptyAndErrPresent)
+
+	RegisterDocumentationSteps(sc, w)
 }
 
 func reverse(s string) string {
