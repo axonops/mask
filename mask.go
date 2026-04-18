@@ -40,7 +40,7 @@ var (
 
 	// ErrInvalidRule is returned by [Register] when a rule name does not match
 	// ^[a-z][a-z0-9_]*$ or when the supplied RuleFunc is nil.
-	ErrInvalidRule = errors.New("mask: invalid rule")
+	ErrInvalidRule = errors.New("mask: rule is invalid")
 )
 
 // ruleNamePattern defines the accepted grammar for rule names: lowercase

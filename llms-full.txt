@@ -781,7 +781,8 @@ leaving the core [Apply] signature untouched.
 
 # Further reading
 
-  - README: https://github.com/axonops/mask#readme
+  - README (rule catalogue tables, regulatory positioning): https://github.com/axonops/mask#readme
+  - Authoritative rule-by-rule specification: https://github.com/axonops/mask/blob/main/docs/v0.9.0-requirements.md
   - Contributing guidance: https://github.com/axonops/mask/blob/main/CONTRIBUTING.md
   - Vulnerability disclosure policy: https://github.com/axonops/mask/blob/main/SECURITY.md
 
@@ -1919,7 +1920,10 @@ signature untouched.
 
 # Further reading
 
-  - README: https://github.com/axonops/mask#readme
+  - README (rule catalogue tables, regulatory positioning):
+    https://github.com/axonops/mask#readme
+  - Authoritative rule-by-rule specification:
+    https://github.com/axonops/mask/blob/main/docs/v0.9.0-requirements.md
   - Contributing guidance:
     https://github.com/axonops/mask/blob/main/CONTRIBUTING.md
   - Vulnerability disclosure policy:
@@ -2057,7 +2061,7 @@ var (
 
 	// ErrInvalidRule is returned by [Register] when a rule name does not match
 	// ^[a-z][a-z0-9_]*$ or when the supplied RuleFunc is nil.
-	ErrInvalidRule = errors.New("mask: invalid rule")
+	ErrInvalidRule = errors.New("mask: rule is invalid")
 )
     Sentinel errors returned by Register. Apply never returns an error;
     it degrades to FullRedactMarker when a rule is unknown.
