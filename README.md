@@ -284,6 +284,8 @@ m := mask.New(mask.WithMaskChar('#'))
 
 Built-in rules read the configured character at apply time, so changes are picked up on the next call. The `password` rule honours the configured character for the 8-rune mask output.
 
+> **Factory vs. closure for custom rules.** Factories such as `KeepFirstNFunc`, `KeepLastNFunc`, and `KeepFirstLastFunc` capture `DefaultMaskChar` at construction time and ignore later `SetMaskChar` / `WithMaskChar` overrides. If your custom rule must react to the configured character, register a closure that reads `m.MaskChar()` (or the package-level `mask.MaskChar()`) at apply time. See [`docs/extending.md`](./docs/extending.md#3-honour-per-instance-mask-character-config) for the pattern.
+
 ### Deterministic hashing (salt and version)
 
 `deterministic_hash` is registered by default with no salt. For production pseudonymisation you MUST configure keyed hashing via `WithKeyedSalt(salt, version)` — the salt and version are validated atomically, so you cannot accidentally ship with one half configured:
@@ -302,13 +304,22 @@ Do not hard-code the salt — load it from a secret store or environment variabl
 
 ## 🎯 Custom Rules
 
-A custom rule is a `func(string) string` registered under a name. The one-liner case is this:
+A custom rule is a `func(string) string` registered under a name. The most common shapes are already one-liners:
 
 ```go
 func init() {
+    // Keep the first N runes, mask the rest.
     _ = mask.Register("employee_id", mask.KeepFirstNFunc(9))
+
+    // Keep the first and last N runes — typical account-number shape.
+    _ = mask.Register("account_id", mask.KeepFirstLastFunc(3, 4))
+
+    // Keep the last N runes.
+    _ = mask.Register("internal_ref", mask.KeepLastNFunc(4))
 }
 // mask.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
+// mask.Apply("account_id",  "ACME-1234-5678") → "ACM********5678"
+// mask.Apply("internal_ref","REF-2025-001234") → "***********1234"
 ```
 
 For the other four patterns — closures, per-instance mask-char config, deterministic hashing with salt + version, fully custom `RuleFunc` — see [`docs/extending.md`](./docs/extending.md).

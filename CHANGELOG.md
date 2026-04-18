@@ -8,6 +8,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes.
 
+## Upgrading
+
+While the project is pre-1.0 (`v0.x`) every minor version MAY include
+breaking changes. Pin a specific tag in `go.mod` and treat every minor
+bump as a manual review step: read the release notes for the target
+version, update your `Register` / `DeterministicHashFunc` call sites
+where the public API has changed, run your test suite with
+`-race`, and confirm the new version against the `make check` gate
+before rolling to production. From `v1.0.0` onwards the library
+commits to the standard Go semver compatibility promise — breaking
+changes only in a new major version.
+
 ## [0.9.0] — 2026-04-18
 
 Initial public release.
