@@ -16,8 +16,10 @@ package mask_test
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,6 +28,13 @@ import (
 
 	"github.com/axonops/mask"
 )
+
+// packageLevelTestSeq supplies a monotonic suffix for tests that
+// register rules against the package-level registry. The package
+// registry has no Deregister method by design (registration is an
+// init-time concern); `-count=N` reruns would therefore collide on
+// a fixed name.
+var packageLevelTestSeq atomic.Uint64
 
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m)
@@ -202,7 +211,9 @@ func TestSetMaskChar_AppliesGlobally(t *testing.T) {
 func TestPackageLevel_RegisterApplyHasRuleDescribe(t *testing.T) {
 	// Intentionally NOT calling t.Parallel — the package-level registry is
 	// shared state; running serially keeps the naming stable across tests.
-	const name = "package_level_register_apply_rule"
+	// Unique suffix per invocation so -count=N reruns don't collide.
+	name := "package_level_register_apply_rule_" +
+		strconv.FormatUint(packageLevelTestSeq.Add(1), 10)
 	require.NoError(t, mask.Register(name, reverse))
 
 	assert.Equal(t, "cba", mask.Apply(name, "abc"))
