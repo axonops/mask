@@ -68,7 +68,6 @@ func TestLLMs_FullTxtExists_AndIncludesSpecifiedSections(t *testing.T) {
 		"# SECURITY.md",
 		"# docs/rules.md",
 		"# docs/extending.md",
-		"# docs/v0.9.0-requirements.md",
 		"# Full godoc reference (go doc -all)",
 	}
 	for _, header := range required {

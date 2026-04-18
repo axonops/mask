@@ -1,6 +1,6 @@
 # mask
 
-> `github.com/axonops/mask` is a pure-function string-masking library for Go. It redacts PII, PCI, and PHI in strings before they reach logs, dashboards, or persistent storage. Composable primitives (`KeepFirstN`, `DeterministicHash`, `SameLengthMask`, …) are wrapped by 68 built-in domain rules (`email_address`, `payment_card_pan`, `us_ssn`, `ipv4_address`, `uuid`, `medical_record_number`, …). Zero runtime dependencies — stdlib only. Every rule is fail-closed: unknown rule names return `[REDACTED]` and malformed input returns a same-length mask. The API never returns an error from `Apply`.
+> `github.com/axonops/mask` is a pure-function string-masking library for Go. It redacts PII, PCI, and PHI in strings before they reach logs, dashboards, or persistent storage. Composable primitives (`KeepFirstN`, `DeterministicHash`, `SameLengthMask`, …) are wrapped by 60+ built-in domain rules (`email_address`, `payment_card_pan`, `us_ssn`, `ipv4_address`, `uuid`, `medical_record_number`, …). Zero runtime dependencies — stdlib only. Every rule is fail-closed: unknown rule names return `[REDACTED]` and malformed input returns a same-length mask. The API never returns an error from `Apply`. Call `mask.Rules()` at runtime for the live count.
 
 ## Core concepts
 
@@ -96,17 +96,17 @@ _ = mask.Register("user_id", mask.DeterministicHashFunc(
 
 ## Rule catalogue
 
-Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static references in [README.md](./README.md) rule tables and [docs/v0.9.0-requirements.md](./docs/v0.9.0-requirements.md).
+Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static references in [docs/rules.md](./docs/rules.md).
 
-68 rules total — 4 utility primitives plus 64 domain rules, including 25 identity rules (11 global + 14 country-specific). Rules within each group below are listed alphabetically.
+60+ built-in rules across seven groupings. Rules within each group below are listed alphabetically. For the live set call `mask.Rules()` and `mask.Describe(name)` at runtime.
 
-- **Utility primitives** (4): `deterministic_hash`, `full_redact`, `nullify`, `same_length_mask`.
-- **Identity — global** (11): `date_of_birth`, `driver_license_number`, `email_address`, `family_name`, `generic_national_id`, `given_name`, `passport_number`, `person_name`, `street_address`, `tax_identifier`, `username`.
-- **Identity — country-specific** (14): `au_medicare_number`, `br_cnpj`, `br_cpf`, `ca_sin`, `cn_resident_id`, `es_dni_nif_nie`, `in_aadhaar`, `in_pan`, `mx_curp`, `mx_rfc`, `sg_nric_fin`, `uk_nino`, `us_ssn`, `za_national_id`.
-- **Financial** (11): `bank_account_number`, `iban`, `monetary_amount`, `payment_card_cvv`, `payment_card_pan`, `payment_card_pan_first6`, `payment_card_pan_last4`, `payment_card_pin`, `swift_bic`, `uk_sort_code`, `us_aba_routing_number`.
-- **Health** (5): `diagnosis_code`, `health_plan_beneficiary_id`, `medical_device_identifier`, `medical_record_number`, `prescription_text`.
-- **Technology** (14): `api_key`, `bearer_token`, `connection_string`, `database_dsn`, `hostname`, `ipv4_address`, `ipv6_address`, `jwt_token`, `mac_address`, `password`, `private_key_pem`, `url`, `url_credentials`, `uuid`.
-- **Telecom + location** (9): `geo_coordinates`, `geo_latitude`, `geo_longitude`, `imei`, `imsi`, `mobile_phone_number`, `msisdn`, `phone_number`, `postal_code`.
+- **Utility primitives**: `deterministic_hash`, `full_redact`, `nullify`, `same_length_mask`.
+- **Identity — global**: `date_of_birth`, `driver_license_number`, `email_address`, `family_name`, `generic_national_id`, `given_name`, `passport_number`, `person_name`, `street_address`, `tax_identifier`, `username`.
+- **Identity — country-specific**: `au_medicare_number`, `br_cnpj`, `br_cpf`, `ca_sin`, `cn_resident_id`, `es_dni_nif_nie`, `in_aadhaar`, `in_pan`, `mx_curp`, `mx_rfc`, `sg_nric_fin`, `uk_nino`, `us_ssn`, `za_national_id`.
+- **Financial**: `bank_account_number`, `iban`, `monetary_amount`, `payment_card_cvv`, `payment_card_pan`, `payment_card_pan_first6`, `payment_card_pan_last4`, `payment_card_pin`, `swift_bic`, `uk_sort_code`, `us_aba_routing_number`.
+- **Health**: `diagnosis_code`, `health_plan_beneficiary_id`, `medical_device_identifier`, `medical_record_number`, `prescription_text`.
+- **Technology**: `api_key`, `bearer_token`, `connection_string`, `database_dsn`, `hostname`, `ipv4_address`, `ipv6_address`, `jwt_token`, `mac_address`, `password`, `private_key_pem`, `url`, `url_credentials`, `uuid`.
+- **Telecom + location**: `geo_coordinates`, `geo_latitude`, `geo_longitude`, `imei`, `imsi`, `mobile_phone_number`, `msisdn`, `phone_number`, `postal_code`.
 
 ## Common mistakes to avoid
 
@@ -120,9 +120,8 @@ Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static ref
 
 ## Further reading
 
-- [`llms-full.txt`](./llms-full.txt) — complete source bundle for agents that want the full corpus. Section order: `llms.txt`, `README.md`, package godoc (`doc.go`), `CONTRIBUTING.md`, `SECURITY.md`, `docs/v0.9.0-requirements.md`, full `go doc -all` reference.
+- [`llms-full.txt`](./llms-full.txt) — complete source bundle for agents that want the full corpus. Section order: `llms.txt`, `README.md`, package godoc (`doc.go`), `CONTRIBUTING.md`, `SECURITY.md`, `docs/rules.md`, `docs/extending.md`, full `go doc -all` reference.
 - [`README.md`](./README.md) — human-facing documentation with regulatory positioning (PCI / HIPAA / GDPR), worked custom-rule examples, and a full rule table.
-- [`docs/v0.9.0-requirements.md`](./docs/v0.9.0-requirements.md) — authoritative rule-by-rule spec.
 - [`SECURITY.md`](./SECURITY.md) — threat model and disclosure.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — contribution, testing, and release policy.
 - [pkg.go.dev/github.com/axonops/mask](https://pkg.go.dev/github.com/axonops/mask) — godoc.

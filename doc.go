@@ -111,8 +111,9 @@
 //
 // # Further reading
 //
-//   - README (rule catalogue tables, regulatory positioning): https://github.com/axonops/mask#readme
-//   - Authoritative rule-by-rule specification: https://github.com/axonops/mask/blob/main/docs/v0.9.0-requirements.md
+//   - README (regulatory positioning, Quick Start): https://github.com/axonops/mask#readme
+//   - Rule catalogue: https://github.com/axonops/mask/blob/main/docs/rules.md
+//   - Custom rules and primitives: https://github.com/axonops/mask/blob/main/docs/extending.md
 //   - Contributing guidance: https://github.com/axonops/mask/blob/main/CONTRIBUTING.md
 //   - Vulnerability disclosure policy: https://github.com/axonops/mask/blob/main/SECURITY.md
 package mask

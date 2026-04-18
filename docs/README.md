@@ -8,7 +8,7 @@ Deep-dive documentation for `github.com/axonops/mask`. The project [README](../R
 
 | File | What you'll find |
 |---|---|
-| [`rules.md`](./rules.md) | The full rule catalogue — all 68 rules across seven categories, with descriptions and `input → output` examples. |
+| [`rules.md`](./rules.md) | The full rule catalogue — every built-in rule, across seven categories, with descriptions and `input → output` examples. |
 | [`extending.md`](./extending.md) | Utility primitives (direct-call signatures, factory signatures, registered names) and five custom-rule patterns from one-liner factories to fully custom `RuleFunc` implementations. |
 
 ## Elsewhere

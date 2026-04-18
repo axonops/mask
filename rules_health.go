@@ -14,10 +14,10 @@
 
 package mask
 
-// Health-category rules implement the 5 healthcare masks from
-// docs/v0.9.0-requirements.md §"Healthcare". Each rule preserves the
-// spec's expected shape, fails closed on malformed input, and honours
-// the configured mask character at apply time.
+// Health-category rules implement the healthcare masks documented
+// in docs/rules.md §"Health". Each rule preserves the expected shape,
+// fails closed on malformed input, and honours the configured mask
+// character at apply time.
 //
 // Regulatory note: these rules are pseudonymisation, not HIPAA Safe
 // Harbor de-identification. Retaining the last 4 runes of an MRN or a

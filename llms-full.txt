@@ -18,7 +18,7 @@ committed file is out of date relative to its sources.
 
 # mask
 
-> `github.com/axonops/mask` is a pure-function string-masking library for Go. It redacts PII, PCI, and PHI in strings before they reach logs, dashboards, or persistent storage. Composable primitives (`KeepFirstN`, `DeterministicHash`, `SameLengthMask`, …) are wrapped by 68 built-in domain rules (`email_address`, `payment_card_pan`, `us_ssn`, `ipv4_address`, `uuid`, `medical_record_number`, …). Zero runtime dependencies — stdlib only. Every rule is fail-closed: unknown rule names return `[REDACTED]` and malformed input returns a same-length mask. The API never returns an error from `Apply`.
+> `github.com/axonops/mask` is a pure-function string-masking library for Go. It redacts PII, PCI, and PHI in strings before they reach logs, dashboards, or persistent storage. Composable primitives (`KeepFirstN`, `DeterministicHash`, `SameLengthMask`, …) are wrapped by 60+ built-in domain rules (`email_address`, `payment_card_pan`, `us_ssn`, `ipv4_address`, `uuid`, `medical_record_number`, …). Zero runtime dependencies — stdlib only. Every rule is fail-closed: unknown rule names return `[REDACTED]` and malformed input returns a same-length mask. The API never returns an error from `Apply`. Call `mask.Rules()` at runtime for the live count.
 
 ## Core concepts
 
@@ -114,17 +114,17 @@ _ = mask.Register("user_id", mask.DeterministicHashFunc(
 
 ## Rule catalogue
 
-Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static references in [README.md](./README.md) rule tables and [docs/v0.9.0-requirements.md](./docs/v0.9.0-requirements.md).
+Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static references in [docs/rules.md](./docs/rules.md).
 
-68 rules total — 4 utility primitives plus 64 domain rules, including 25 identity rules (11 global + 14 country-specific). Rules within each group below are listed alphabetically.
+60+ built-in rules across seven groupings. Rules within each group below are listed alphabetically. For the live set call `mask.Rules()` and `mask.Describe(name)` at runtime.
 
-- **Utility primitives** (4): `deterministic_hash`, `full_redact`, `nullify`, `same_length_mask`.
-- **Identity — global** (11): `date_of_birth`, `driver_license_number`, `email_address`, `family_name`, `generic_national_id`, `given_name`, `passport_number`, `person_name`, `street_address`, `tax_identifier`, `username`.
-- **Identity — country-specific** (14): `au_medicare_number`, `br_cnpj`, `br_cpf`, `ca_sin`, `cn_resident_id`, `es_dni_nif_nie`, `in_aadhaar`, `in_pan`, `mx_curp`, `mx_rfc`, `sg_nric_fin`, `uk_nino`, `us_ssn`, `za_national_id`.
-- **Financial** (11): `bank_account_number`, `iban`, `monetary_amount`, `payment_card_cvv`, `payment_card_pan`, `payment_card_pan_first6`, `payment_card_pan_last4`, `payment_card_pin`, `swift_bic`, `uk_sort_code`, `us_aba_routing_number`.
-- **Health** (5): `diagnosis_code`, `health_plan_beneficiary_id`, `medical_device_identifier`, `medical_record_number`, `prescription_text`.
-- **Technology** (14): `api_key`, `bearer_token`, `connection_string`, `database_dsn`, `hostname`, `ipv4_address`, `ipv6_address`, `jwt_token`, `mac_address`, `password`, `private_key_pem`, `url`, `url_credentials`, `uuid`.
-- **Telecom + location** (9): `geo_coordinates`, `geo_latitude`, `geo_longitude`, `imei`, `imsi`, `mobile_phone_number`, `msisdn`, `phone_number`, `postal_code`.
+- **Utility primitives**: `deterministic_hash`, `full_redact`, `nullify`, `same_length_mask`.
+- **Identity — global**: `date_of_birth`, `driver_license_number`, `email_address`, `family_name`, `generic_national_id`, `given_name`, `passport_number`, `person_name`, `street_address`, `tax_identifier`, `username`.
+- **Identity — country-specific**: `au_medicare_number`, `br_cnpj`, `br_cpf`, `ca_sin`, `cn_resident_id`, `es_dni_nif_nie`, `in_aadhaar`, `in_pan`, `mx_curp`, `mx_rfc`, `sg_nric_fin`, `uk_nino`, `us_ssn`, `za_national_id`.
+- **Financial**: `bank_account_number`, `iban`, `monetary_amount`, `payment_card_cvv`, `payment_card_pan`, `payment_card_pan_first6`, `payment_card_pan_last4`, `payment_card_pin`, `swift_bic`, `uk_sort_code`, `us_aba_routing_number`.
+- **Health**: `diagnosis_code`, `health_plan_beneficiary_id`, `medical_device_identifier`, `medical_record_number`, `prescription_text`.
+- **Technology**: `api_key`, `bearer_token`, `connection_string`, `database_dsn`, `hostname`, `ipv4_address`, `ipv6_address`, `jwt_token`, `mac_address`, `password`, `private_key_pem`, `url`, `url_credentials`, `uuid`.
+- **Telecom + location**: `geo_coordinates`, `geo_latitude`, `geo_longitude`, `imei`, `imsi`, `mobile_phone_number`, `msisdn`, `phone_number`, `postal_code`.
 
 ## Common mistakes to avoid
 
@@ -138,9 +138,8 @@ Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static ref
 
 ## Further reading
 
-- [`llms-full.txt`](./llms-full.txt) — complete source bundle for agents that want the full corpus. Section order: `llms.txt`, `README.md`, package godoc (`doc.go`), `CONTRIBUTING.md`, `SECURITY.md`, `docs/v0.9.0-requirements.md`, full `go doc -all` reference.
+- [`llms-full.txt`](./llms-full.txt) — complete source bundle for agents that want the full corpus. Section order: `llms.txt`, `README.md`, package godoc (`doc.go`), `CONTRIBUTING.md`, `SECURITY.md`, `docs/rules.md`, `docs/extending.md`, full `go doc -all` reference.
 - [`README.md`](./README.md) — human-facing documentation with regulatory positioning (PCI / HIPAA / GDPR), worked custom-rule examples, and a full rule table.
-- [`docs/v0.9.0-requirements.md`](./docs/v0.9.0-requirements.md) — authoritative rule-by-rule spec.
 - [`SECURITY.md`](./SECURITY.md) — threat model and disclosure.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — contribution, testing, and release policy.
 - [pkg.go.dev/github.com/axonops/mask](https://pkg.go.dev/github.com/axonops/mask) — godoc.
@@ -220,7 +219,7 @@ mask.Apply("iban",             "GB82WEST12345698765432") // "GB82**************5
 mask.Apply("no_such_rule",     "anything")            // "[REDACTED]"   ← fail closed
 ```
 
-> **68 built-in rules · 7 categories · 14 jurisdictions.** PCI DSS display modes for PANs. HIPAA pseudonymisation caveats for clinical identifiers. GDPR Art. 4(5) salted hashing for user IDs. Every regulation-aware rule is documented next to the code that delivers it — no spelunking required.
+> **60+ built-in rules across seven categories, covering identifiers in more than a dozen jurisdictions.** PCI DSS display modes for PANs. HIPAA pseudonymisation caveats for clinical identifiers. GDPR Art. 4(5) salted hashing for user IDs. Every regulation-aware rule is documented next to the code that delivers it — no spelunking required.
 
 ---
 
@@ -230,7 +229,7 @@ mask.Apply("no_such_rule",     "anything")            // "[REDACTED]"   ← fail
 
 | Feature | Description | Docs |
 |---|---|---|
-| 📋 Rich built-in rule catalogue | 68 rules across identity, financial, health, technology, telecom, and country-specific categories | [Built-in Rules](#-built-in-rules) |
+| 📋 Rich built-in rule catalogue | 60+ rules across identity, financial, health, technology, telecom, and country-specific categories | [Built-in Rules](#-built-in-rules) |
 | 🧩 Composable primitives | `KeepFirstN`, `KeepLastN`, `KeepFirstLast`, `DeterministicHash`, `ReplaceRegex`, `ReducePrecision`, and more — every primitive is exposed both as a direct-call helper and as a factory `RuleFunc` | [Primitives](#-utility-primitives) |
 | 🌍 Unicode correct | Rune-aware masking for international names, addresses, and free-text content | [Unicode correctness](#unicode-correctness) |
 | 🛡 Fail closed | Unknown rule returns `[REDACTED]`; malformed input returns a same-length mask; the original value is never echoed | [Fail Closed](#-fail-closed) |
@@ -255,7 +254,7 @@ Every Go project starts with a one-line regex and a TODO. Three outages and an a
 |---|---|---|---|---|
 | Ad-hoc `strings.Replace` | No | N/A | No | No — original leaks through |
 | Hand-rolled regex | Partial — author-dependent | Partial | No | No — non-match returns original |
-| **`github.com/axonops/mask`** | **Yes** — 68 format-specific rules | **Yes** — rune-aware by default | **Yes** — identity, financial, health, tech, telecom, country-specific | **Yes** — unknown rule ⇒ `[REDACTED]`, malformed input ⇒ same-length mask |
+| **`github.com/axonops/mask`** | **Yes** — 60+ format-specific rules | **Yes** — rune-aware by default | **Yes** — identity, financial, health, tech, telecom, country-specific | **Yes** — unknown rule ⇒ `[REDACTED]`, malformed input ⇒ same-length mask |
 
 </div>
 
@@ -346,17 +345,17 @@ For the full catalogue, see [Built-in Rules](#-built-in-rules) or call `mask.Rul
 
 ## 📚 Built-in Rules
 
-**68 rules registered out of the box** across seven categories. Every rule is fail-closed, honours the configured mask character, and has a concrete `input → output` example in its godoc.
+**60+ rules registered out of the box** across seven categories. Every rule is fail-closed, honours the configured mask character, and has a concrete `input → output` example in its godoc.
 
-| Category | Count | Examples |
-|---|---|---|
-| Utility primitives | 4 | `full_redact`, `same_length_mask`, `nullify`, `deterministic_hash` |
-| Identity — global | 11 | `email_address`, `person_name`, `date_of_birth`, `passport_number` |
-| Identity — country-specific | 14 | `us_ssn`, `uk_nino`, `in_aadhaar`, `br_cpf`, `mx_curp` |
-| Financial | 11 | `payment_card_pan`, `iban`, `swift_bic`, `uk_sort_code` |
-| Health | 5 | `medical_record_number`, `diagnosis_code`, `prescription_text` |
-| Technology | 14 | `ipv4_address`, `url`, `jwt_token`, `uuid`, `password` |
-| Telecom + location | 9 | `phone_number`, `imei`, `msisdn`, `postal_code`, `geo_coordinates` |
+| Category | Examples |
+|---|---|
+| Utility primitives | `full_redact`, `same_length_mask`, `nullify`, `deterministic_hash` |
+| Identity — global | `email_address`, `person_name`, `date_of_birth`, `passport_number` |
+| Identity — country-specific | `us_ssn`, `uk_nino`, `in_aadhaar`, `br_cpf`, `mx_curp` |
+| Financial | `payment_card_pan`, `iban`, `swift_bic`, `uk_sort_code` |
+| Health | `medical_record_number`, `diagnosis_code`, `prescription_text` |
+| Technology | `ipv4_address`, `url`, `jwt_token`, `uuid`, `password` |
+| Telecom + location | `phone_number`, `imei`, `msisdn`, `postal_code`, `geo_coordinates` |
 
 👉 **Full catalogue with `input → output` examples for every rule: [`docs/rules.md`](./docs/rules.md)**
 
@@ -635,8 +634,9 @@ leaving the core [Apply] signature untouched.
 
 # Further reading
 
-  - README (rule catalogue tables, regulatory positioning): https://github.com/axonops/mask#readme
-  - Authoritative rule-by-rule specification: https://github.com/axonops/mask/blob/main/docs/v0.9.0-requirements.md
+  - README (regulatory positioning, Quick Start): https://github.com/axonops/mask#readme
+  - Rule catalogue: https://github.com/axonops/mask/blob/main/docs/rules.md
+  - Custom rules and primitives: https://github.com/axonops/mask/blob/main/docs/extending.md
   - Contributing guidance: https://github.com/axonops/mask/blob/main/CONTRIBUTING.md
   - Vulnerability disclosure policy: https://github.com/axonops/mask/blob/main/SECURITY.md
 
@@ -694,7 +694,7 @@ Every PR MUST:
 
 CI runs the same gates as `make check`. If CI fails on your PR, fix the root cause — do not add suppressions or `//nolint` directives without an issue reference.
 
-Documentation changes that touch `README.md`, `doc.go`, `CONTRIBUTING.md`, `SECURITY.md`, `llms.txt`, or `docs/v0.9.0-requirements.md` MUST also regenerate `llms-full.txt` by running `make llms-full` and including the updated `llms-full.txt` in the **same commit** as the documentation change. CI enforces this via the `llms-full.txt is up to date` job.
+Documentation changes that touch `README.md`, `doc.go`, `CONTRIBUTING.md`, `SECURITY.md`, `llms.txt`, `docs/rules.md`, or `docs/extending.md` MUST also regenerate `llms-full.txt` by running `make llms-full` and including the updated `llms-full.txt` in the **same commit** as the documentation change. CI enforces this via the `llms-full.txt is up to date` job.
 
 ### Review workflow
 
@@ -707,7 +707,7 @@ Before opening a PR, run the full quality gate (`make check`). Internally this p
 - Every masking rule and every primitive has at least one `Scenario Outline` with `Examples` covering canonical, formatted, malformed, empty, and (where applicable) unicode inputs.
 - Benchmarks live in `*_bench_test.go` files and call `b.ReportAllocs()`.
 
-See `CLAUDE.md` (developer-local, not checked into the repo) and the `docs/v0.9.0-requirements.md` spec for the authoritative testing requirements.
+See `CLAUDE.md` (developer-local, not checked into the repo) for the authoritative project-specific testing requirements.
 
 ## Code standards
 
@@ -769,7 +769,7 @@ The `mask` library follows a `v0.x` versioning scheme. Only the most recent `v0.
 
 **In scope:**
 
-- Correctness of masking rules against the spec in `docs/v0.9.0-requirements.md`.
+- Correctness of masking rules against their documented behaviour in [`docs/rules.md`](./docs/rules.md).
 - Fail-closed behaviour: the library MUST NEVER return the original unmasked value when a rule cannot parse its input.
 - No leakage of the unmasked input through error messages, panics, or logs.
 - Unicode correctness: no byte-level splitting that could produce partially masked output.
@@ -817,17 +817,17 @@ Once a fix is released, the advisory is published on GitHub and the fix is refer
 
 <sub>← [Back to README](../README.md) · **Rule Catalogue** · [Extending](./extending.md)</sub>
 
-Full catalogue of the 68 rules registered with every `*Masker` out of the box. Every rule is fail-closed and honours the configured mask character (`SetMaskChar` / `WithMaskChar`). Use `mask.Rules()` to list every registered name and `mask.Describe(name)` to retrieve a rule's category, jurisdiction, and description at runtime.
+Full catalogue of the built-in rules registered with every `*Masker` out of the box — currently 60+ across seven categories. Every rule is fail-closed and honours the configured mask character (`SetMaskChar` / `WithMaskChar`). Use `mask.Rules()` to list every registered name and `mask.Describe(name)` to retrieve a rule's category, jurisdiction, and description at runtime.
 
 ## Table of contents
 
-- [Utility primitives (rules)](#utility-primitives-rules) — 4 rules
-- [Identity](#identity) — 11 global rules
-- [Country-specific identity](#country-specific-identity) — 14 jurisdiction-qualified rules
-- [Financial](#financial) — 11 payment-card, banking, and tax rules
-- [Health](#health) — 5 healthcare identifier and clinical-content rules
-- [Technology](#technology) — 14 infrastructure and application-security rules
-- [Telecom and location](#telecom-and-location) — 9 phone, mobile, postcode and geographic rules
+- [Utility primitives (rules)](#utility-primitives-rules) — general-purpose masking building blocks
+- [Identity](#identity) — personal identifiers common to most jurisdictions
+- [Country-specific identity](#country-specific-identity) — jurisdiction-qualified IDs (SSN, NINO, Aadhaar, CPF, CURP, …)
+- [Financial](#financial) — payment-card, banking, and tax identifiers
+- [Health](#health) — healthcare identifiers and clinical content
+- [Technology](#technology) — infrastructure and application-security fields
+- [Telecom and location](#telecom-and-location) — phone, mobile, postcode and geographic data
 
 ## Utility primitives (rules)
 
@@ -1183,867 +1183,6 @@ Both forms are supported. The library's own tests and examples use string litera
 
 ---
 
-# docs/v0.9.0-requirements.md
-
-# mask v0.9.0 — Requirements
-
-## Overview
-
-`github.com/axonops/mask` is a standalone Go string-masking library. Its job is `string → masked string` with a rich set of built-in rules, composable utility primitives, and support for custom masking rules.
-
-This document is the authoritative source for masking rule definitions, naming conventions, preservation semantics, and the starter catalog. All implementation, documentation, and testing must conform to this specification.
-
-## Design Principles
-
-### 1. Separation of Detection and Masking
-
-A masking rule defines what to preserve and what to redact, even when the input string is malformed. The library does NOT validate input — it masks it. Optional validation may be layered on top for stricter modes or test fixtures, but the core masking function always returns a result, never an error for built-in rules.
-
-### 2. Explicit, Composable Preservation Semantics
-
-Generic primitives (`full_redact`, `keep_first_n`, `keep_last_n`, `keep_first_last`, `replace_regex`, `deterministic_hash`, etc.) are the foundation. Domain-specific rules are thin wrappers over these primitives with format-aware parsing. This separation means new domain rules are trivial to add.
-
-### 3. Format Preservation
-
-Preserve formatting where it materially helps operators or users recognise the data type, unless a regulation suggests stronger concealment. For example, PAN masking preserves separators (dashes, spaces) between digit groups. HIPAA de-identification guidance is more conservative for directly identifying healthcare fields.
-
-### 4. Fail Closed
-
-When a masking rule cannot parse the input (e.g., `payment_card_pan` receives a string that isn't a card number), it falls back to a stronger mask (full redact or `same_length_mask`), never returns the original unmasked value. A predictable fallback policy is easier to test and safer than throwing errors.
-
-### 5. Jurisdiction-Qualified Naming
-
-Use `<jurisdiction>_<artifact>` for country-specific identifiers: `us_ssn`, `ca_sin`, `uk_nino`, `in_aadhaar`. Use `<standard>_<artifact>` for standard formats: `payment_card_pan`, `iban`. Use generic fallback labels only when there is no materially different country behaviour.
-
-The naming convention is lowercase `snake_case` throughout. This ensures consistency, code-generation safety, and readability in configuration files.
-
-### 6. Identifier Rules vs Content Rules
-
-Identifier rules mask a single atomic value: `us_ssn`, `iban`, `email_address`. Content rules mask sensitive subcomponents within a structured string: `url`, `database_dsn`, `connection_string`, `jwt_token`. Content rules must parse the structure and target only the sensitive parts.
-
-## API Specification
-
-### Package-Level Functions (Global Registry)
-
-```go
-// Apply masks value using the named built-in or registered rule.
-// Returns the masked string. If the rule is unknown, returns a
-// full-redact result — never the original value.
-func Apply(rule string, value string) string
-
-// Register adds a custom masking rule to the global registry.
-// Returns an error if the rule name is already registered.
-// Must be called during program initialisation, before concurrent
-// use of Apply. This is the same contract as database/sql.Register.
-func Register(name string, fn func(string) string) error
-
-// SetMaskChar sets the default mask character for the global registry.
-// Default is '*'.
-func SetMaskChar(c rune)
-```
-
-### Per-Instance API
-
-```go
-// New creates a new Masker instance with all built-in rules pre-registered.
-// Options configure instance-specific behaviour.
-func New(opts ...Option) *Masker
-
-// Option configures a Masker instance.
-type Option func(*Masker)
-
-// WithMaskChar sets the mask character for this instance.
-func WithMaskChar(c rune) Option
-
-// Masker provides an isolated masking registry.
-type Masker struct { ... }
-
-// Apply masks value using the named rule from this instance's registry.
-func (m *Masker) Apply(rule string, value string) string
-
-// Register adds a custom masking rule to this instance's registry.
-func (m *Masker) Register(name string, fn func(string) string) error
-```
-
-### Thread Safety Contract
-
-`Register` (both global and per-instance) must not be called concurrently with `Apply`. Call `Register` during program initialisation. After initialisation, the registry is read-only and `Apply` is safe for concurrent use. All built-in maskers are stateless pure functions. This is the same contract as `database/sql.Register`.
-
-### Mask Character
-
-The default mask character is `*` (U+002A). It can be overridden globally via `SetMaskChar` or per-instance via `WithMaskChar`. All built-in rules must use the configured mask character, not hardcode `*`.
-
-## Naming Model
-
-### Convention
-
-All rule labels use lowercase `snake_case`. Country-specific rules use `<country_code>_<artifact>` prefix. Standard-specific rules use descriptive domain names.
-
-### Label Changes from Common Conventions
-
-| Common label | This library's label | Rationale |
-|---|---|---|
-| `ssn` | `us_ssn` | SSN is US-specific; avoids conflation with other national IDs |
-| `sin` | `ca_sin` | Canadian Social Insurance Number; jurisdiction-qualified |
-| `nino` | `uk_nino` | UK National Insurance Number; jurisdiction-qualified |
-| `sort_code` | `uk_sort_code` | UK-specific banking identifier |
-| `routing_number` | `us_aba_routing_number` | US ABA routing number; jurisdiction-qualified |
-| `name` | `person_name` | Avoids ambiguity with other "name" concepts |
-| `first_name` | `given_name` | International terminology |
-| `last_name` | `family_name` | International terminology |
-| `drivers_licence` | `driver_license_number` | Normalised spelling, explicit "number" |
-| `credit_card` | `payment_card_pan` | PCI DSS terminology |
-| `cvv` | `payment_card_cvv` | Scoped to payment card domain |
-| `medical_record` | `medical_record_number` | HIPAA terminology |
-| `health_plan_id` | `health_plan_beneficiary_id` | HIPAA terminology |
-| `jwt` | `jwt_token` | Explicit that this is a token rule |
-| `dsn` | `database_dsn` | Distinguishes from other DSN meanings |
-| `phone` | `phone_number` | Explicit |
-| `coordinates` | `geo_coordinates` | Scoped to geography domain |
-
-Generic labels `generic_national_id`, `tax_identifier`, `mobile_phone_number`, and `monetary_amount` are documented as **fallback policies** — users should prefer the most specific country-aware rule available.
-
-## Core Rule Schema
-
-Each masking rule is documented with:
-
-| Field | Description |
-|---|---|
-| `name` | Canonical label used in `mask.Apply` |
-| `aliases` | Alternative names that resolve to this rule (if any) |
-| `category` | identity, financial, health, technology, telecom, utility |
-| `jurisdiction` | Country/region, or "global" |
-| `preserve` | What segments are kept visible (e.g., `first=6,last=4`) |
-| `replacement` | How masked characters are rendered |
-| `preserve_separators` | Whether formatting characters (dashes, spaces, dots) are kept |
-| `fallback_behavior` | What happens when input cannot be parsed |
-| `examples` | At least 3 input/output pairs |
-| `regulatory_context` | PCI DSS, HIPAA, GDPR references where applicable |
-
----
-
-## Masking Rule Catalog
-
-### Personal and Identity
-
-#### `email_address`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** First character of local part; full domain (including TLD); `@` separator
-- **Mask:** Remaining local part characters
-- **Preserve separators:** Yes (`@`, `.`)
-- **Fallback:** If no `@` found, apply `same_length_mask`
-- **Regulatory context:** HIPAA identifier; GDPR personal data
-- **Examples:**
-  - `alice@example.com` → `a****@example.com`
-  - `bob.smith+work@company.co.uk` → `b*************@company.co.uk`
-  - `x@y.com` → `x@y.com` (single-char local part — nothing to mask)
-  - `not-an-email` → `*************` (fallback)
-
-#### `person_name`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** First grapheme of each whitespace-separated token; spaces, hyphens, apostrophes between tokens
-- **Mask:** Remaining graphemes of each token
-- **Note:** Must use grapheme-aware logic, not byte count, for international names
-- **Fallback:** `same_length_mask`
-- **Examples:**
-  - `John Doe` → `J*** D**`
-  - `María García-López` → `M**** G*****-L****`
-  - `佐藤太郎` → `佐*太*` (two-token CJK name)
-
-#### `given_name`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** First grapheme only
-- **Examples:**
-  - `Alice` → `A****`
-  - `María` → `M****`
-
-#### `family_name`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** First grapheme only
-- **Examples:**
-  - `Smith` → `S****`
-  - `O'Brien` → `O******`
-
-#### `street_address`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** House/building number if leading digits detected; trailing street type if recognised (St, Road, Ave, etc.)
-- **Mask:** Street name body
-- **Fallback:** `same_length_mask`
-- **Regulatory context:** HIPAA Safe Harbor treats street address elements as identifiers
-- **Examples:**
-  - `42 Wallaby Way` → `42 ******* Way`
-  - `1600 Pennsylvania Avenue NW` → `1600 ************ Avenue NW`
-
-#### `date_of_birth`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** Year only by default; full redact in strict mode
-- **Mask:** Month and day
-- **Regulatory context:** HIPAA Safe Harbor treats date elements below year as identifying
-- **Examples:**
-  - `1985-03-15` → `1985-**-**`
-  - `15/03/1985` → `**/****/1985`
-  - `March 15, 1985` → `***** **, 1985`
-
-#### `username`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** First 2 graphemes
-- **Examples:**
-  - `johndoe42` → `jo********`
-  - `admin` → `ad***`
-
-#### `passport_number`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** Issuing-country prefix if present (first 2 chars); last 2-4 chars
-- **Mask:** Middle characters
-- **Note:** Passport formats vary widely; do not overclaim format validation
-- **Examples:**
-  - `GB1234567` → `GB*****67`
-  - `123456789` → `*****6789`
-
-#### `driver_license_number`
-- **Category:** Identity
-- **Jurisdiction:** Global
-- **Preserve:** First 2 and last 2-4 characters; separators
-- **Note:** Formats are highly local; treat as semi-structured strings
-- **Examples:**
-  - `DL-1234-5678` → `DL-****-5678`
-  - `SMITH901015JN9AA` → `SM**********9AA`
-
-#### `generic_national_id`
-- **Category:** Identity
-- **Jurisdiction:** Global (fallback)
-- **Preserve:** First 2 and last 2 characters
-- **Note:** Use sparingly — prefer country-specific rules. National IDs vary widely.
-- **Examples:**
-  - `AB123456CD` → `AB******CD`
-
-#### `tax_identifier`
-- **Category:** Identity
-- **Jurisdiction:** Global (fallback)
-- **Preserve:** Last 3-4 characters; known country prefix or checksum suffix if format requires
-- **Note:** Global TIN formats vary significantly
-- **Examples:**
-  - `12-3456789` → `**-***6789`
-
-#### `us_ssn`
-- **Category:** Identity
-- **Jurisdiction:** United States
-- **Preserve:** Last 4 digits; canonical `AAA-GG-SSSS` separators if present
-- **Regulatory context:** US-specific; governed by SSA regulations
-- **Examples:**
-  - `123-45-6789` → `***-**-6789`
-  - `123456789` → `*****6789`
-
-#### `ca_sin`
-- **Category:** Identity
-- **Jurisdiction:** Canada
-- **Preserve:** Last 3 digits; formatting if present
-- **Examples:**
-  - `123-456-789` → `***-***-789`
-  - `123456789` → `******789`
-
-#### `uk_nino`
-- **Category:** Identity
-- **Jurisdiction:** United Kingdom
-- **Preserve:** Prefix letters (first 2) and suffix letter (last 1); mask numeric body
-- **Note:** UK NINO has structured alpha/numeric components: `AB123456C`
-- **Examples:**
-  - `AB123456C` → `AB******C`
-  - `AB 12 34 56 C` → `AB ** ** ** C`
-
-#### `in_aadhaar`
-- **Category:** Identity
-- **Jurisdiction:** India
-- **Preserve:** Last 4 digits only; grouping if present
-- **Note:** India explicitly offers "masked Aadhaar" showing only last 4 digits
-- **Examples:**
-  - `1234 5678 9012` → `**** **** 9012`
-  - `123456789012` → `********9012`
-
-#### `in_pan`
-- **Category:** Identity
-- **Jurisdiction:** India
-- **Preserve:** First 3 characters and last 1-2 characters
-- **Note:** Indian PAN is a common tax identifier format: `ABCDE1234F`
-- **Examples:**
-  - `ABCDE1234F` → `ABC*****4F`
-
-#### `au_medicare_number`
-- **Category:** Identity
-- **Jurisdiction:** Australia
-- **Preserve:** Last 3-4 digits
-- **Examples:**
-  - `2123 45670 1` → `**** ****0 1`
-
-#### `sg_nric_fin`
-- **Category:** Identity
-- **Jurisdiction:** Singapore
-- **Preserve:** Prefix letter and suffix letter; mask numeric body
-- **Note:** NRIC/FIN has structured leading and trailing letters: `S1234567A`
-- **Examples:**
-  - `S1234567A` → `S*******A`
-
-#### `br_cpf`
-- **Category:** Identity
-- **Jurisdiction:** Brazil
-- **Preserve:** Last 2-4 digits; punctuation if present
-- **Note:** CPF is a widely used personal taxpayer identifier: `123.456.789-09`
-- **Examples:**
-  - `123.456.789-09` → `***.***.***-09`
-  - `12345678909` → `*******8909`
-
-#### `br_cnpj`
-- **Category:** Identity
-- **Jurisdiction:** Brazil
-- **Preserve:** Last 4 digits; punctuation if present
-- **Note:** CNPJ is the business taxpayer identifier: `12.345.678/0001-95`
-- **Examples:**
-  - `12.345.678/0001-95` → `**.***.***/****-95`
-
-#### `mx_curp`
-- **Category:** Identity
-- **Jurisdiction:** Mexico
-- **Preserve:** First 4 and last 2-4 characters
-- **Note:** CURP is a structured personal identifier (18 characters)
-- **Examples:**
-  - `GAPA850101HDFRRL09` → `GAPA**********L09`
-
-#### `mx_rfc`
-- **Category:** Identity
-- **Jurisdiction:** Mexico
-- **Preserve:** First 3-4 and last 2-3 characters
-- **Note:** RFC is the Mexican tax identifier
-- **Examples:**
-  - `GAPA8501014T3` → `GAP*******4T3`
-
-#### `cn_resident_id`
-- **Category:** Identity
-- **Jurisdiction:** China
-- **Preserve:** First 6 (region code) and last 4 characters
-- **Note:** PRC resident identity card numbers are structured 18-digit identifiers
-- **Examples:**
-  - `110101199003074578` → `110101********4578`
-
-#### `za_national_id`
-- **Category:** Identity
-- **Jurisdiction:** South Africa
-- **Preserve:** First 6 (date of birth) and last 4 characters
-- **Examples:**
-  - `8501015009087` → `850101***9087`
-
-#### `es_dni_nif_nie`
-- **Category:** Identity
-- **Jurisdiction:** Spain
-- **Preserve:** Leading letter/prefix and trailing control character; mask numeric body
-- **Note:** Spain uses several related personal/tax identifier schemes
-- **Examples:**
-  - `12345678Z` → `********Z`
-  - `X1234567L` → `X*******L`
-
----
-
-### Financial
-
-#### `payment_card_pan`
-- **Category:** Financial
-- **Jurisdiction:** Global (PCI DSS)
-- **Preserve:** First 6 digits (BIN/IIN) and last 4 digits; separators (dashes, spaces)
-- **Regulatory context:** PCI DSS commonly limits displayed PAN to first 6 and last 4 at most
-- **Fallback:** If string is not 13-19 digits (after stripping separators), apply `same_length_mask`
-- **Examples:**
-  - `4111222233334444` → `411122******4444`
-  - `4111-2222-3333-4444` → `4111-22**-****-4444`
-  - `371449635398431` → `371449*****8431` (AMEX 15-digit)
-
-#### `payment_card_pan_first6`
-- **Category:** Financial
-- **Jurisdiction:** Global (PCI DSS)
-- **Preserve:** First 6 digits only; separators
-- **Examples:**
-  - `4111222233334444` → `411122**********`
-  - `4111-2222-3333-4444` → `4111-22**-****-****`
-
-#### `payment_card_pan_last4`
-- **Category:** Financial
-- **Jurisdiction:** Global (PCI DSS)
-- **Preserve:** Last 4 digits only; separators
-- **Examples:**
-  - `4111222233334444` → `************4444`
-  - `4111-2222-3333-4444` → `****-****-****-4444`
-
-#### `payment_card_cvv`
-- **Category:** Financial
-- **Jurisdiction:** Global (PCI DSS)
-- **Preserve:** Nothing — replacement is length-preserving using the configured mask character, matching the example shapes below. This is deliberately NOT `[REDACTED]` so the column width is preserved when the field appears in fixed-width operator displays.
-- **Length-leak note:** Length preservation reveals card family (3 digits → Visa/MC/Discover, 4 digits → AMEX). Consumers that need to hide card family must register `full_redact` under their own rule name.
-- **Regulatory context:** Sensitive Authentication Data; must not be retained after authorisation (a retention concern the library cannot enforce — the library masks, callers control storage).
-- **Examples:**
-  - `123` → `***`
-  - `1234` → `****`
-
-#### `payment_card_pin`
-- **Category:** Financial
-- **Jurisdiction:** Global
-- **Preserve:** Nothing — length-preserving using the configured mask character, same rationale as `payment_card_cvv`. Not `[REDACTED]`.
-- **Examples:**
-  - `1234` → `****`
-  - `123456` → `******`
-
-#### `bank_account_number`
-- **Category:** Financial
-- **Jurisdiction:** Global
-- **Preserve:** Last 4 digits; separators if present
-- **Examples:**
-  - `12345678` → `****5678`
-  - `1234-5678-9012` → `****-****-9012`
-
-#### `uk_sort_code`
-- **Category:** Financial
-- **Jurisdiction:** United Kingdom
-- **Preserve:** First 2 digits; separators
-- **Examples:**
-  - `12-34-56` → `12-**-**`
-  - `123456` → `12****`
-
-#### `us_aba_routing_number`
-- **Category:** Financial
-- **Jurisdiction:** United States
-- **Preserve:** Last 4 digits
-- **Examples:**
-  - `021000021` → `*****0021`
-
-#### `iban`
-- **Category:** Financial
-- **Jurisdiction:** Global (ISO 13616)
-- **Preserve:** Country code (first 2), check digits (next 2), and last 4; grouping spaces if present
-- **Examples:**
-  - `GB82WEST12345698765432` → `GB82***************5432`
-  - `GB82 WEST 1234 5698 7654 32` → `GB82 **** **** **** ***4 32`
-  - `DE89370400440532013000` → `DE89***************3000`
-
-#### `swift_bic`
-- **Category:** Financial
-- **Jurisdiction:** Global (ISO 9362)
-- **Preserve:** Bank code (first 4); optionally country code (next 2)
-- **Examples:**
-  - `BARCGB2L` → `BARC****`
-  - `DEUTDEFF500` → `DEUT*******`
-
-#### `monetary_amount`
-- **Category:** Financial
-- **Jurisdiction:** Global
-- **Preserve:** Nothing by default — full redact
-- **Note:** Amount masking is contextual and policy-driven. Default is full redact. Consumers may register custom rules for range bucketing or precision reduction.
-- **Examples:**
-  - `$1,234.56` → `[REDACTED]`
-  - `€99.99` → `[REDACTED]`
-
----
-
-### Healthcare
-
-#### `medical_record_number`
-- **Category:** Health
-- **Jurisdiction:** Global (HIPAA)
-- **Preserve:** Last 4 characters in operational mode; full redact in strict mode
-- **Regulatory context:** HIPAA identifier
-- **Examples:**
-  - `MRN-123456789` → `MRN-*****6789`
-  - `123456789` → `*****6789`
-
-#### `health_plan_beneficiary_id`
-- **Category:** Health
-- **Jurisdiction:** Global (HIPAA)
-- **Preserve:** Last 4 characters; full redact in strict mode
-- **Regulatory context:** Explicitly listed HIPAA terminology
-- **Examples:**
-  - `HPB-987654321` → `HPB-*****4321`
-
-#### `medical_device_identifier`
-- **Category:** Health
-- **Jurisdiction:** Global (HIPAA)
-- **Preserve:** Last 4 characters
-- **Regulatory context:** Device identifiers and serial numbers are HIPAA identifiers when tied to individuals
-- **Examples:**
-  - `DEV-SN-12345678` → `DEV-SN-****5678`
-
-#### `diagnosis_code`
-- **Category:** Health
-- **Jurisdiction:** Global
-- **Preserve:** Nothing — full redact by default
-- **Note:** Diagnosis codes are clinical data. Full redact is safer but not always necessary. ICD codes are not inherently direct identifiers.
-- **Examples:**
-  - `J45.20` → `[REDACTED]`
-  - `E11.9` → `[REDACTED]`
-
-#### `prescription_text`
-- **Category:** Health
-- **Jurisdiction:** Global
-- **Preserve:** Nothing — full redact by default
-- **Note:** Prescription contents may expose conditions and should be treated conservatively
-- **Examples:**
-  - `Metformin 500mg twice daily` → `[REDACTED]`
-
----
-
-### Technology and Infrastructure
-
-#### `ipv4_address`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** First 2 octets by default; mask last 2 octets
-- **Regulatory context:** IP addresses are HIPAA identifiers and personal data in many privacy regimes
-- **Examples:**
-  - `192.168.1.42` → `192.168.*.*`
-  - `10.0.0.1` → `10.0.*.*`
-
-#### `ipv6_address`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** Routed prefix (first 4 hextets); mask interface identifier (last 4 hextets)
-- **Examples:**
-  - `2001:0db8:85a3:0000:0000:8a2e:0370:7334` → `2001:0db8:85a3:0000:****:****:****:****`
-  - `fe80::1` → `fe80::****`
-
-#### `mac_address`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** OUI (first 3 octets); mask device-specific last 3 octets
-- **Note:** Preserves vendor recognition while hiding device identity
-- **Examples:**
-  - `AA:BB:CC:DD:EE:FF` → `AA:BB:CC:**:**:**`
-  - `AA-BB-CC-DD-EE-FF` → `AA-BB-CC-**-**-**`
-
-#### `hostname`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** First label only; mask remaining labels
-- **Examples:**
-  - `web-01.prod.example.com` → `web-01.*.*.***`
-  - `db-master` → `db-master`
-
-#### `url`
-- **Category:** Technology (Content Rule)
-- **Jurisdiction:** Global
-- **Preserve:** Scheme, host, and optional port; mask path segments, query values, and fragment
-- **Note:** URL subcomponents often contain secrets or identifiers. Parse with `net/url` and mask components.
-- **Examples:**
-  - `https://example.com/users/42?token=abc` → `https://example.com/*****/****?token=****`
-  - `http://localhost:8080/api/v1` → `http://localhost:8080/****/***`
-
-#### `url_credentials`
-- **Category:** Technology (Content Rule)
-- **Jurisdiction:** Global
-- **Preserve:** Scheme and host; fully redact userinfo
-- **Examples:**
-  - `https://admin:s3cret@db.example.com/mydb` → `https://****:****@db.example.com/mydb`
-
-#### `api_key`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** Short prefix (first 4 chars) and last 4 chars; support provider-aware prefixes like `sk_`, `pk_`
-- **Examples:**
-  - `sk_live_abc123def456ghi789` → `sk_l****...****i789`
-  - `AKIAIOSFODNN7EXAMPLE` → `AKIA************MPLE`
-
-#### `jwt_token`
-- **Category:** Technology (Content Rule)
-- **Jurisdiction:** Global
-- **Preserve:** Token type indicator and optionally first few chars of header segment; redact payload and signature entirely
-- **Note:** JWT payload is only base64url-encoded, not encrypted; exposing it leaks claims
-- **Examples:**
-  - `eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U` → `eyJh****.****.****.`
-
-#### `bearer_token`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** Auth scheme and at most first 6-8 chars of token; redact rest
-- **Examples:**
-  - `Bearer eyJhbGciOiJIUzI1NiJ9.xxx.yyy` → `Bearer eyJhbG****...`
-  - `Bearer abc123def456` → `Bearer abc123****...`
-
-#### `password`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** Nothing — fixed replacement independent of source length
-- **Note:** Length leakage can be undesirable for secrets
-- **Examples:**
-  - `MyP@ssw0rd!` → `********`
-  - `x` → `********`
-
-#### `private_key_pem`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** Nothing — full redact with constant marker
-- **Note:** Never partially reveal key material
-- **Examples:**
-  - `-----BEGIN RSA PRIVATE KEY-----\nMIIE...` → `[REDACTED]`
-
-#### `connection_string`
-- **Category:** Technology (Content Rule)
-- **Jurisdiction:** Global
-- **Preserve:** Protocol, host, port, database/service name; redact username, password, token, secret query params
-- **Examples:**
-  - `postgresql://admin:s3cret@db.example.com:5432/myapp` → `postgresql://****:****@db.example.com:5432/myapp`
-  - `mongodb+srv://user:pass@cluster.mongodb.net/db` → `mongodb+srv://****:****@cluster.mongodb.net/db`
-
-#### `database_dsn`
-- **Category:** Technology (Content Rule)
-- **Jurisdiction:** Global
-- **Preserve:** Driver/network/location; redact password and secret params
-- **Examples:**
-  - `user:password@tcp(localhost:3306)/dbname` → `****:****@tcp(localhost:3306)/dbname`
-
-#### `uuid`
-- **Category:** Technology
-- **Jurisdiction:** Global
-- **Preserve:** First 8 and last 4 characters; mask middle groups
-- **Note:** UUIDs can still be unique identifiers even when partially masked. Do not call this anonymisation.
-- **Examples:**
-  - `550e8400-e29b-41d4-a716-446655440000` → `550e8400-****-****-****-********0000`
-
----
-
-### Telecommunications and Location
-
-#### `phone_number`
-- **Category:** Telecom
-- **Jurisdiction:** Global
-- **Preserve:** Country code (if present) and last 2-4 digits; mask middle digits; preserve separators
-- **Note:** Normalise conceptually to E.164 when possible; handle international numbers with country-code awareness
-- **Examples:**
-  - `+44 7911 123456` → `+44 **** **3456`
-  - `(555) 123-4567` → `(***) ***-4567`
-  - `+1-800-555-0199` → `+1-***-***-0199`
-
-#### `mobile_phone_number`
-- **Category:** Telecom
-- **Jurisdiction:** Global
-- **Preserve:** Same as `phone_number` unless a local jurisdiction needs separate semantics
-- **Note:** Prefer one international abstraction unless business rules differ
-- **Examples:**
-  - `07911 123456` → `07*** ***456`
-
-#### `imei`
-- **Category:** Telecom
-- **Jurisdiction:** Global
-- **Preserve:** Last 4 digits; optionally preserve TAC (first 8) in telecom operations mode
-- **Examples:**
-  - `353456789012345` → `***********2345`
-
-#### `imsi`
-- **Category:** Telecom
-- **Jurisdiction:** Global
-- **Preserve:** MCC/MNC prefix (first 5-6 digits) and last 2-4; mask subscriber body
-- **Examples:**
-  - `310260123456789` → `31026*******6789`
-
-#### `msisdn`
-- **Category:** Telecom
-- **Jurisdiction:** Global
-- **Preserve:** Country code and last 4; mask middle
-- **Examples:**
-  - `447911123456` → `44*****3456`
-
-#### `postal_code`
-- **Category:** Location
-- **Jurisdiction:** Global (country-aware precision reduction)
-- **Preserve:** Country-aware: keep outward code in UK, first 3 digits in US ZIP
-- **Regulatory context:** HIPAA Safe Harbor has specific rules for geographic subdivisions
-- **Examples:**
-  - `SW1A 2AA` → `SW1A ***` (UK — keep outward code)
-  - `94103` → `941**` (US — keep first 3)
-  - `M5V 2T6` → `M5V ***` (Canada — keep FSA)
-
-#### `geo_latitude`
-- **Category:** Location
-- **Jurisdiction:** Global
-- **Preserve:** Reduced precision (2-3 decimal places by default)
-- **Examples:**
-  - `37.7749295` → `37.77***`
-  - `-33.8688197` → `-33.87***`
-
-#### `geo_longitude`
-- **Category:** Location
-- **Jurisdiction:** Global
-- **Preserve:** Reduced precision (2-3 decimal places by default)
-- **Examples:**
-  - `-122.4194155` → `-122.42***`
-
-#### `geo_coordinates`
-- **Category:** Location
-- **Jurisdiction:** Global
-- **Preserve:** Reduced both coordinates together; preserve pair formatting
-- **Note:** Coordinate pairs should be masked atomically
-- **Examples:**
-  - `37.7749,-122.4194` → `37.77***,-122.42***`
-
----
-
-### Utility Primitives
-
-These are the composable building blocks. All domain rules above are thin wrappers over these primitives.
-
-#### `full_redact`
-- Replace entire value with a fixed string: `[REDACTED]`
-
-#### `same_length_mask`
-- Replace every character with the mask character, preserving length
-- Example: `Hello` → `*****`
-
-#### `keep_first_n`
-- Preserve first N characters, mask the rest
-- Parameter: `n` (integer)
-- Example (n=4): `SensitiveData` → `Sens*********`
-
-#### `keep_last_n`
-- Preserve last N characters, mask the rest
-- Parameter: `n` (integer)
-- Example (n=4): `SensitiveData` → `*********Data`
-
-#### `keep_first_last`
-- Preserve first N and last M characters, mask the middle
-- Parameters: `first` (integer), `last` (integer)
-- Example (first=4, last=4): `SensitiveData123` → `Sens********a123`
-
-#### `preserve_delimiters`
-- Mask characters but preserve delimiter/separator characters (configurable)
-- Used internally by domain rules for format preservation
-
-#### `replace_regex`
-- Apply a regex substitution to mask matching portions
-- Parameters: `pattern` (regex), `replacement` (string)
-- Note: Regex must be compiled at init time, not per-call
-
-#### `truncate_visible`
-- Show first N characters with no mask characters appended
-- Parameter: `n` (integer)
-- Example (n=4): `SensitiveData` → `Sens`
-
-#### `deterministic_hash`
-- Replace value with a truncated cryptographic digest, prefixed with the algorithm name.
-- **Default:** SHA-256, no salt, first 16 hex chars prefixed with `sha256:`.
-- Built-in rule `deterministic_hash` applies the default.
-- Example: `alice@example.com` → `sha256:a1b2c3d4e5f6a7b8`
-- Note: This is pseudonymisation, NOT anonymisation. Same input always produces same output, enabling correlation without exposure.
-- **Security:** MUST use an approved cryptographic hash. Supported algorithms (stdlib only): SHA-256 (default), SHA-512, SHA3-256, SHA3-512. MD5 and SHA-1 are forbidden.
-
-##### Configurable variants
-
-Two optional parameters are exposed via functional options on the direct-call parametric variant and the factory:
-
-1. **Algorithm selection** — `WithAlgorithm(HashAlgorithm)` where `HashAlgorithm` is an enum with values `SHA256` (default), `SHA512`, `SHA3_256`, `SHA3_512`. The output prefix changes with the algorithm: `sha256:`, `sha512:`, `sha3-256:`, `sha3-512:`.
-2. **Salt and version** — `WithSalt(salt string)` and `WithSaltVersion(version string)`. Both options are required when the caller wants keyed hashing. When a non-empty salt is supplied, the value is hashed as `HMAC(salt, value)` using the selected algorithm and the output is `<algo>:<version>:<first-16-hex>`. HMAC is chosen over concatenation because it is the standard primitive for keyed hashing and sidesteps length-extension concerns for SHA-2 family algorithms.
-
-   - **Version requirement.** The version string is emitted on the wire so a downstream consumer can identify which salt generation produced a given hash. Without a version, rotating the salt would silently invalidate every stored hash with no way to tell which hashes belong to which salt. The version is therefore mandatory alongside a non-empty salt.
-   - **Version grammar.** `^[A-Za-z0-9._-]{1,32}$` — alphanumerics plus `.`, `-`, `_`, 1 to 32 bytes. Colons, whitespace, non-ASCII, and any other character are rejected.
-   - **Fail-closed on misconfiguration.** A non-empty salt paired with an empty or non-conforming version sets a sticky misconfiguration flag on the rule; every subsequent `Apply` returns `[REDACTED]`. This policy is deliberate: silent collapse to unsalted would produce hashes indistinguishable from the unsalted path, inverting the safety property. Once set, the flag cannot be cleared by later options within the same factory call.
-   - **Empty salt path.** `WithSalt("")` is the unsalted path. The primitive emits `<algo>:<first-16-hex>` with no version; any `WithSaltVersion` option is ignored when no salt is in effect.
-   - **Rotation.** The salt MUST remain constant for the lifetime of the process. If operators rotate the salt, they MUST change the version too. Downstream consumers comparing hashes across salt rotations should match on the (algorithm, version) tuple — hashes with different versions are not comparable even when the underlying value is identical.
-
-The built-in registered rule `deterministic_hash` continues to use SHA-256 with no salt (equivalent to `DeterministicHashFunc()` with zero options). Consumers who want a salted or alternative-algorithm variant register a named rule via the factory, e.g.:
-
-```go
-m.Register("hashed_email", mask.DeterministicHashFunc(
-    mask.WithSalt(os.Getenv("MASK_SALT")),
-    mask.WithSaltVersion("v1"),
-    mask.WithAlgorithm(mask.SHA512),
-))
-```
-
-Output shape examples:
-- Unsalted: `alice@example.com` → `sha256:ff8d9819fc0e12bf`
-- Salted: `alice@example.com` → `sha256:v1:<hex16>` (where `<hex16>` is the first 16 hex chars of HMAC-SHA256("MASK_SALT", "alice@example.com"))
-- Misconfigured: any input → `[REDACTED]`
-
-`HashAlgorithm.String()` returns the prefix form (`"sha256"`, `"sha512"`, `"sha3-256"`, `"sha3-512"`) and is the authoritative source for the output prefix — the emitter and the stringer share one table.
-
-#### `nullify`
-- Replace value with empty string
-
-#### `fixed_replacement`
-- Replace value with a caller-specified fixed string regardless of input
-- Parameter: `replacement` (string)
-- Example (replacement="N/A"): `anything` → `N/A`
-
-#### `reduce_precision`
-- For numeric strings, reduce decimal precision
-- Parameter: `decimals` (integer)
-- Example (decimals=2): `37.7749295` → `37.77***`
-
----
-
-## Regulatory Anchors
-
-### PCI DSS
-The clearest anchor for payment-card display rules. Supports the common first-6/last-4 display limit for PAN. Treats CVV and PIN as Sensitive Authentication Data that must never be retained after authorisation.
-
-### HIPAA Safe Harbor
-The clearest anchor for healthcare-oriented direct identifiers. The 18 HIPAA identifiers include: names, geographic subdivisions smaller than a state (with limited exceptions), date elements below year, phone numbers, fax numbers, email addresses, Social Security numbers, medical record numbers, health plan beneficiary numbers, account numbers, certificate/license numbers, vehicle identifiers/serial numbers, device identifiers/serial numbers, web URLs, IP addresses, biometric identifiers, full-face photographs, and any other unique identifying number, characteristic, or code.
-
-### GDPR
-Does not prescribe a universal character-level masking formula, but strongly supports data minimisation and risk-reduction measures. Country-specific identifiers and partial masking are best framed as privacy engineering controls, not legal safe harbours. The library should document masking as a configurable protective transformation, not as a guarantee of anonymisation.
-
----
-
-## Implementation Guidance
-
-### Two-Layer Architecture
-
-1. **Rule layer** — each rule declares its normalisation and preservation behaviour
-2. **Executor layer** — applies Unicode-aware masking, preserves chosen delimiters, and fails closed to a stronger mask when parsing fails
-
-### Unicode Awareness
-
-- Use `[]rune` or grapheme-aware iteration for character counting
-- Never assume 1 character = 1 byte
-- `person_name`, `given_name`, `family_name` must handle CJK, Arabic, Devanagari, etc.
-- Test with international input for every rule that processes text (not just numbers)
-
-### Testing Requirements
-
-Each masking rule must have fixtures covering:
-1. **Canonical input** — standard, well-formatted value
-2. **Formatted input** — same value with different separator style
-3. **Malformed input** — value that doesn't match expected format (triggers fallback)
-4. **Already-masked input** — value containing mask characters
-5. **Unicode input** — international characters where applicable
-6. **Empty input** — empty string
-7. **Very long input** — 1000+ character string
-
-For content/container rules (URL, DSN, JWT), additionally test:
-8. **Parseable input** — well-formed structure
-9. **Non-parseable input** — malformed structure (triggers fallback)
-
-### CI/CD Requirements
-
-- **CI workflow** runs on every PR and push to main: format check, vet, lint, test (unit + BDD), coverage, module hygiene, security scan
-- **Release workflow** triggered only through CI — never local tags
-- **GoReleaser** for release automation
-- **Dependabot** for dependency updates
-- Cross-platform build verification: `linux/amd64`, `darwin/arm64`, `windows/amd64`
-
----
-
-## Module Specification
-
-- **Module:** `github.com/axonops/mask`
-- **Go version:** 1.26+
-- **Runtime dependencies:** zero (stdlib only)
-- **Test dependencies:** `testify`, `godog`, `goleak`
-- **License:** Apache 2.0
-- **Structure:** Single module, single package, no sub-modules, no binaries
-
----
-
 # Full godoc reference (go doc -all)
 
 package mask // import "github.com/axonops/mask"
@@ -2144,10 +1283,11 @@ signature untouched.
 
 # Further reading
 
-  - README (rule catalogue tables, regulatory positioning):
+  - README (regulatory positioning, Quick Start):
     https://github.com/axonops/mask#readme
-  - Authoritative rule-by-rule specification:
-    https://github.com/axonops/mask/blob/main/docs/v0.9.0-requirements.md
+  - Rule catalogue: https://github.com/axonops/mask/blob/main/docs/rules.md
+  - Custom rules and primitives:
+    https://github.com/axonops/mask/blob/main/docs/extending.md
   - Contributing guidance:
     https://github.com/axonops/mask/blob/main/CONTRIBUTING.md
   - Vulnerability disclosure policy:

@@ -15,7 +15,7 @@ The `mask` library follows a `v0.x` versioning scheme. Only the most recent `v0.
 
 **In scope:**
 
-- Correctness of masking rules against the spec in `docs/v0.9.0-requirements.md`.
+- Correctness of masking rules against their documented behaviour in [`docs/rules.md`](./docs/rules.md).
 - Fail-closed behaviour: the library MUST NEVER return the original unmasked value when a rule cannot parse its input.
 - No leakage of the unmasked input through error messages, panics, or logs.
 - Unicode correctness: no byte-level splitting that could produce partially masked output.
