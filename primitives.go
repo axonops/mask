@@ -405,6 +405,84 @@ func PreserveDelimitersFunc(delim string) RuleFunc {
 	}
 }
 
+// keepFirstLastNonSep emits v with non-separator runes masked except the
+// first `first` and last `last` non-separator runes. Separators (as
+// determined by isSep) are emitted verbatim. Inputs whose non-separator
+// count is less than or equal to first+last fall back to
+// [SameLengthMask] — the rule fails closed rather than echoing the
+// input when the keep window would span the whole value.
+//
+// One allocation: the output [strings.Builder] is grown to len(v).
+// The helper is unexported and shared by the separator-preserving
+// financial and identity rules.
+func keepFirstLastNonSep(v string, first, last int, c rune, isSep func(rune) bool) string {
+	if v == "" {
+		return ""
+	}
+	first, last = clampNonNeg(first), clampNonNeg(last)
+	nonsep := countNonSep(v, isSep)
+	if nonsep <= first+last {
+		return SameLengthMask(v, c)
+	}
+	return buildKeepFirstLastNonSep(v, first, nonsep-last, c, isSep)
+}
+
+// keepFirstLastNonSepCounted is a variant of keepFirstLastNonSep for
+// callers that have already counted non-separator runes while doing their
+// own validation (for example the IBAN validator). Skips the redundant
+// second count pass. The caller MUST pass the correct count.
+func keepFirstLastNonSepCounted(v string, first, last, nonsep int, c rune, isSep func(rune) bool) string {
+	if v == "" {
+		return ""
+	}
+	first, last = clampNonNeg(first), clampNonNeg(last)
+	if nonsep <= first+last {
+		return SameLengthMask(v, c)
+	}
+	return buildKeepFirstLastNonSep(v, first, nonsep-last, c, isSep)
+}
+
+// clampNonNeg returns n or zero when n is negative.
+func clampNonNeg(n int) int {
+	if n < 0 {
+		return 0
+	}
+	return n
+}
+
+// countNonSep returns the number of runes in v that do not satisfy isSep.
+func countNonSep(v string, isSep func(rune) bool) int {
+	n := 0
+	for _, r := range v {
+		if !isSep(r) {
+			n++
+		}
+	}
+	return n
+}
+
+// buildKeepFirstLastNonSep emits the masked string. tailStart is the
+// non-separator index (inclusive) from which runes are preserved as the
+// trailing keep window.
+func buildKeepFirstLastNonSep(v string, first, tailStart int, c rune, isSep func(rune) bool) string {
+	var b strings.Builder
+	b.Grow(len(v))
+	seen := 0
+	for _, r := range v {
+		if isSep(r) {
+			b.WriteRune(r)
+			continue
+		}
+		if seen < first || seen >= tailStart {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune(c)
+		}
+		seen++
+	}
+	return b.String()
+}
+
 // byteOffsetAtRune returns the byte index in s where the rune at position idx
 // begins. idx must be in the range [0, RuneCount(s)] — an idx equal to the
 // rune count returns len(s). The caller is responsible for clamping.
@@ -470,7 +548,7 @@ func registerPrimitives(m *Masker) {
 			Name:         "full_redact",
 			Category:     "utility",
 			Jurisdiction: "global",
-			Description:  "replaces any value with the constant [REDACTED]",
+			Description:  "Replaces any value with the constant [REDACTED]. Example: anything → [REDACTED].",
 		})
 
 	m.mustRegisterBuiltin("same_length_mask",
@@ -479,7 +557,7 @@ func registerPrimitives(m *Masker) {
 			Name:         "same_length_mask",
 			Category:     "utility",
 			Jurisdiction: "global",
-			Description:  "replaces every rune of the input with the configured mask character, preserving length",
+			Description:  "Replaces every character of the input with the configured mask character, preserving length. Example: Hello → *****.",
 		})
 
 	m.mustRegisterBuiltin("nullify",
@@ -488,7 +566,7 @@ func registerPrimitives(m *Masker) {
 			Name:         "nullify",
 			Category:     "utility",
 			Jurisdiction: "global",
-			Description:  "replaces any value with the empty string",
+			Description:  "Replaces any value with the empty string. Example: anything → (empty string).",
 		})
 
 	m.mustRegisterBuiltin("deterministic_hash",
@@ -497,7 +575,7 @@ func registerPrimitives(m *Masker) {
 			Name:         "deterministic_hash",
 			Category:     "utility",
 			Jurisdiction: "global",
-			Description:  "replaces the value with a truncated SHA-256 digest (sha256:<first-16-hex>); pseudonymisation only",
+			Description:  "Replaces the value with a truncated SHA-256 digest (sha256:<first-16-hex>); pseudonymisation only, not anonymisation. Example: alice@example.com → sha256:ff8d9819fc0e12bf.",
 		})
 }
 

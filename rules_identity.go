@@ -465,46 +465,19 @@ func isLicenseSeparator(r rune) bool {
 //
 // WARNING: the same country/issuer-prefix leakage as `passport_number`
 // applies — the leading 2 characters can identify a state or issuer.
+// (The documented "first 2 + last 3-or-4" semantics live on the function
+// above; this implementation delegates to the shared separator-preserving
+// helper.)
 func maskDriverLicense(v string, c rune) string {
-	if v == "" {
-		return ""
-	}
-	// Count non-separator runes first.
-	nonsep := 0
-	for _, r := range v {
-		if !isLicenseSeparator(r) {
-			nonsep++
-		}
-	}
-	first := 2
+	nonsep := countNonSep(v, isLicenseSeparator)
+	// Long-format licences (≥ 13 non-sep runes) keep the last 3 to
+	// match the spec's SMITH901015JN9AA example; shorter dashed formats
+	// keep the last 4.
 	last := 4
 	if nonsep >= 13 {
 		last = 3
 	}
-	if nonsep <= first+last {
-		// Every non-separator rune is in the keep set; return unchanged.
-		return v
-	}
-
-	var b strings.Builder
-	b.Grow(len(v))
-	seen := 0
-	// preserveThreshold is the non-separator index from which the tail
-	// keep-window starts (inclusive).
-	tailStart := nonsep - last
-	for _, r := range v {
-		if isLicenseSeparator(r) {
-			b.WriteRune(r)
-			continue
-		}
-		if seen < first || seen >= tailStart {
-			b.WriteRune(r)
-		} else {
-			b.WriteRune(c)
-		}
-		seen++
-	}
-	return b.String()
+	return keepFirstLastNonSepCounted(v, 2, last, nonsep, c, isLicenseSeparator)
 }
 
 // maskGenericNationalID is the fallback rule for national IDs that are
@@ -518,41 +491,18 @@ func maskGenericNationalID(v string, c rune) string {
 // `/`) are preserved verbatim. The last 4 non-separator runes are kept
 // (or the last 3 if the input has fewer than 8 non-separator runes);
 // everything else non-separator is masked.
+// Empty input and inputs with too few non-separator runes are handled by
+// the shared helper, which falls back to same-length mask rather than
+// echoing the value.
 func maskTaxIdentifier(v string, c rune) string {
-	if v == "" {
-		return ""
-	}
-	nonsep := 0
-	for _, r := range v {
-		if !isLicenseSeparator(r) {
-			nonsep++
-		}
-	}
+	nonsep := countNonSep(v, isLicenseSeparator)
+	// Short inputs (fewer than 8 non-sep runes) keep the last 3;
+	// longer inputs keep the last 4.
 	last := 4
 	if nonsep < 8 {
 		last = 3
 	}
-	if nonsep <= last {
-		return v
-	}
-	tailStart := nonsep - last
-
-	var b strings.Builder
-	b.Grow(len(v))
-	seen := 0
-	for _, r := range v {
-		if isLicenseSeparator(r) {
-			b.WriteRune(r)
-			continue
-		}
-		if seen >= tailStart {
-			b.WriteRune(r)
-		} else {
-			b.WriteRune(c)
-		}
-		seen++
-	}
-	return b.String()
+	return keepFirstLastNonSepCounted(v, 0, last, nonsep, c, isLicenseSeparator)
 }
 
 // registerIdentityRules wires every rule in this file against m. Invoked
@@ -563,77 +513,77 @@ func registerIdentityRules(m *Masker) {
 		func(v string) string { return maskEmail(v, m.maskChar()) },
 		RuleInfo{
 			Name: "email_address", Category: "identity", Jurisdiction: "global",
-			Description: "keeps the first character of the local part and the full domain; falls back to same-length mask on malformed input",
+			Description: "Keeps the first character of the local part and the full domain; falls back to same-length mask on malformed input. Example: alice@example.com → a****@example.com.",
 		})
 
 	m.mustRegisterBuiltin("person_name",
 		func(v string) string { return maskPersonName(v, m.maskChar()) },
 		RuleInfo{
 			Name: "person_name", Category: "identity", Jurisdiction: "global",
-			Description: "keeps the first rune of each separator-delimited token, preserving whitespace, hyphen and apostrophe separators",
+			Description: "Keeps the first character of each separator-delimited token and preserves whitespace, hyphen, and apostrophe separators. Example: John Doe → J*** D**.",
 		})
 
 	m.mustRegisterBuiltin("given_name",
 		func(v string) string { return maskGivenOrFamilyName(v, m.maskChar()) },
 		RuleInfo{
 			Name: "given_name", Category: "identity", Jurisdiction: "global",
-			Description: "keeps the first rune of the input",
+			Description: "Keeps the first character of the input. Example: Alice → A****.",
 		})
 
 	m.mustRegisterBuiltin("family_name",
 		func(v string) string { return maskGivenOrFamilyName(v, m.maskChar()) },
 		RuleInfo{
 			Name: "family_name", Category: "identity", Jurisdiction: "global",
-			Description: "keeps the first rune of the input",
+			Description: "Keeps the first character of the input. Example: Smith → S****.",
 		})
 
 	m.mustRegisterBuiltin("street_address",
 		func(v string) string { return maskStreet(v, m.maskChar()) },
 		RuleInfo{
 			Name: "street_address", Category: "identity", Jurisdiction: "global",
-			Description: "keeps the leading house number and recognised trailing street type; masks the street-name body; falls back to same-length mask when neither signal is present",
+			Description: "Keeps the leading house number and the recognised trailing street type; masks the street-name body; falls back to same-length mask when neither signal is present. Example: 42 Wallaby Way → 42 ******* Way.",
 		})
 
 	m.mustRegisterBuiltin("date_of_birth",
 		func(v string) string { return maskDateOfBirth(v, m.maskChar()) },
 		RuleInfo{
 			Name: "date_of_birth", Category: "identity", Jurisdiction: "global",
-			Description: "preserves the year and masks month and day in three common formats; does not satisfy HIPAA Safe Harbor on its own",
+			Description: "Preserves the year and masks month and day in three common formats; does not satisfy HIPAA Safe Harbor on its own. Example: 1985-03-15 → 1985-**-**.",
 		})
 
 	m.mustRegisterBuiltin("username",
 		func(v string) string { return maskUsername(v, m.maskChar()) },
 		RuleInfo{
 			Name: "username", Category: "identity", Jurisdiction: "global",
-			Description: "keeps the first two runes of the input",
+			Description: "Keeps the first two characters of the input. Example: johndoe42 → jo*******.",
 		})
 
 	m.mustRegisterBuiltin("passport_number",
 		func(v string) string { return maskPassport(v, m.maskChar()) },
 		RuleInfo{
 			Name: "passport_number", Category: "identity", Jurisdiction: "global",
-			Description: "keeps a two-letter country prefix and the last two chars when an alpha prefix is present; otherwise keeps the last four chars",
+			Description: "Keeps a two-letter country prefix and the last two characters when an alpha prefix is present; otherwise keeps the last four characters. Example: GB1234567 → GB*****67.",
 		})
 
 	m.mustRegisterBuiltin("driver_license_number",
 		func(v string) string { return maskDriverLicense(v, m.maskChar()) },
 		RuleInfo{
 			Name: "driver_license_number", Category: "identity", Jurisdiction: "global",
-			Description: "keeps the first two and last three-or-four non-separator runes while preserving separators",
+			Description: "Keeps the first two and the last three-or-four non-separator characters while preserving separators. Example: DL-1234-5678 → DL-****-5678.",
 		})
 
 	m.mustRegisterBuiltin("generic_national_id",
 		func(v string) string { return maskGenericNationalID(v, m.maskChar()) },
 		RuleInfo{
 			Name: "generic_national_id", Category: "identity", Jurisdiction: "global (fallback)",
-			Description: "keeps the first two and last two runes; use sparingly — prefer country-specific rules",
+			Description: "Keeps the first two and the last two characters; use sparingly — prefer country-specific rules. Example: AB123456CD → AB******CD.",
 		})
 
 	m.mustRegisterBuiltin("tax_identifier",
 		func(v string) string { return maskTaxIdentifier(v, m.maskChar()) },
 		RuleInfo{
 			Name: "tax_identifier", Category: "identity", Jurisdiction: "global (fallback)",
-			Description: "keeps the last three or four non-separator runes while preserving separators",
+			Description: "Keeps the last three or four non-separator characters and preserves separators. Example: 12-3456789 → **-***6789.",
 		})
 }
 

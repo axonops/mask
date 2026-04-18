@@ -119,7 +119,7 @@ Feature: Identity masking rules
       | input            | expected            |
       | DL-1234-5678     | DL-****-5678        |
       | SMITH901015JN9AA | SM***********9AA    |
-      | A-B              | A-B                 |
+      | A-B              | ***                 |
 
   Scenario Outline: Mask generic national identifiers
     Given a fresh masker
