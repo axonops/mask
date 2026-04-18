@@ -239,11 +239,17 @@ func TestApply_DriverLicenseNumber(t *testing.T) {
 		// SM**********9AA (15 chars) — believed to be a spec typo; we follow
 		// the stronger length-preservation invariant here.
 		{"spec long length preserved", "SMITH901015JN9AA", "SM***********9AA"},
-		{"separators only", "---", "---"},
-		{"single separator", "A-B", "A-B"},
+		// Fail-closed: inputs whose non-separator count would be fully
+		// covered by the keep window now mask rather than echo. The
+		// SameLengthMask path replaces separator runes with the mask rune
+		// too, since once the rule has decided the whole input is too
+		// short to preserve structurally, preserving separators only
+		// would be misleading.
+		{"separators only fails closed", "---", "***"},
+		{"single separator fails closed", "A-B", "***"},
 		{"empty", "", ""},
-		{"only non separator short", "AB", "AB"},
-		{"space separated", "A B C D E", "A B C D E"}, // 5 non-sep < 6, all kept
+		{"only non separator short fails closed", "AB", "**"},
+		{"space separated fails closed", "A B C D E", "*********"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -279,10 +285,14 @@ func TestApply_TaxIdentifier(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"canonical", "12-3456789", "**-***6789"},
 		{"four digits", "1234", "*234"},
-		{"three digits keeps all", "123", "123"},
+		// Fail-closed: ≤ 3 non-separator runes means the keep window would
+		// span the full input, so the rule masks instead of echoing.
+		{"three digits fails closed", "123", "***"},
 		{"exactly eight keeps last four", "12345678", "****5678"},
 		{"empty", "", ""},
-		{"separators only", "--", "--"},
+		// 0 non-sep runes — SameLengthMask masks the separators too.
+		{"separators only fails closed", "--", "**"},
+
 		// 11 non-separator digits, rule keeps last 4 → "8", "9", "1", "0".
 		{"brazilian style cpf shape", "123.456.789-10", "***.***.*89-10"},
 	}

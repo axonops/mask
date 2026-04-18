@@ -90,8 +90,6 @@
 // # Further reading
 //
 //   - The full rule catalogue lives in docs/v0.9.0-requirements.md.
-//   - Short machine-readable summaries are in llms.txt and llms-full.txt at
-//     the repository root (added in a follow-up).
 //   - Contributing guidance is in CONTRIBUTING.md.
 //   - Vulnerability disclosure policy is in SECURITY.md.
 package mask
