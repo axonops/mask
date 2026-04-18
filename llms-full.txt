@@ -67,7 +67,7 @@ committed file is out of date relative to its sources.
 - `mask.KeepFirstNFunc(n)` / `mask.KeepLastNFunc(n)` / `mask.KeepFirstLastFunc(first, last)`
 - `mask.TruncateVisibleFunc(n)` / `mask.PreserveDelimitersFunc(delim)` / `mask.ReducePrecisionFunc(decimals)`
 - `mask.ReplaceRegexFunc(pattern, replacement) (RuleFunc, error)`
-- `mask.DeterministicHashFunc(opts ...HashOption) RuleFunc` — configure via `WithAlgorithm(mask.SHA256 | mask.SHA512)`, `WithSalt(salt)`, `WithSaltVersion(version)`. Default algorithm is SHA-256; output is `"<algo>:<version>:<16-hex>"` when salted, `"sha256:<16-hex>"` when unsalted.
+- `mask.DeterministicHashFunc(opts ...HashOption) RuleFunc` — configure via `WithAlgorithm(mask.SHA256 | mask.SHA512 | mask.SHA3_256 | mask.SHA3_512)`, `WithSalt(salt)`, `WithSaltVersion(version)`. Default algorithm is SHA-256; output is `"<algo>:<version>:<16-hex>"` when salted, `"<algo>:<16-hex>"` when unsalted.
 
 Factories capture `DefaultMaskChar` at construction. If your custom rule needs to honour `WithMaskChar` / `SetMaskChar`, register a closure that reads `m.MaskChar()` (per-instance) or `mask.MaskChar()` (package-level) at apply time.
 

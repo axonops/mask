@@ -21,9 +21,9 @@ import (
 	"unicode/utf8"
 )
 
-// Identity-category rules implement the 11 personal-identifier masks listed
-// in docs/v0.9.0-requirements.md §"Personal and Identity". Each rule is a
-// thin wrapper over primitives in primitives.go with format-aware parsing.
+// Identity-category rules implement the personal-identifier masks
+// documented in docs/rules.md §"Identity". Each rule is a thin wrapper
+// over primitives in primitives.go with format-aware parsing.
 //
 // Grapheme note: the spec asks for "grapheme-aware" handling on name rules.
 // The Go stdlib does not ship a grapheme-cluster iterator, so these rules
@@ -399,9 +399,9 @@ func maskDateOfBirth(v string, c rune) string {
 		return buildDOB(c, year, "-", mLen, "-", dLen, "")
 	}
 	if dLen, _, year, ok := parseDOBSlash(v); ok {
-		// Per spec, the middle group is always 4 stars regardless of the
-		// matched month width. See
-		// docs/v0.9.0-requirements.md §"date_of_birth" example.
+		// The middle group is always 4 mask runes regardless of the
+		// matched month width — see the date_of_birth row in
+		// docs/rules.md for the canonical examples.
 		return buildDOBPrefixedLiteral(c, dLen, "/", 4, "/", year)
 	}
 	if m := reDOBMonthName.FindStringSubmatch(v); m != nil {
