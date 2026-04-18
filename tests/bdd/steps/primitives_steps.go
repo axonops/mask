@@ -139,24 +139,21 @@ func (w *World) useDeterministicHashAlgoSaltVersion(v, algoLabel, salt, version 
 	}
 	w.lastResult = mask.DeterministicHashFunc(
 		mask.WithAlgorithm(algo),
-		mask.WithSalt(salt),
-		mask.WithSaltVersion(version),
+		mask.WithKeyedSalt(salt, version),
 	)(v)
 	return nil
 }
 
 func (w *World) useDeterministicHashSaltVersion(v, salt, version string) error {
 	w.lastResult = mask.DeterministicHashFunc(
-		mask.WithSalt(salt),
-		mask.WithSaltVersion(version),
+		mask.WithKeyedSalt(salt, version),
 	)(v)
 	return nil
 }
 
 func (w *World) useDeterministicHashSaltVersionSecond(v, salt, version string) error {
 	w.secondResult = mask.DeterministicHashFunc(
-		mask.WithSalt(salt),
-		mask.WithSaltVersion(version),
+		mask.WithKeyedSalt(salt, version),
 	)(v)
 	return nil
 }

@@ -157,8 +157,7 @@ For pseudonymisation — stable but opaque identifiers — register `Determinist
 ```go
 func init() {
 	_ = mask.Register("user_id", mask.DeterministicHashFunc(
-		mask.WithSalt(os.Getenv("MASK_SALT")),
-		mask.WithSaltVersion("v1"),
+		mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
 	))
 }
 
