@@ -342,6 +342,26 @@ func ReducePrecisionFunc(decimals int) RuleFunc {
 	}
 }
 
+// writeReducePrecision is the builder-sink variant of [ReducePrecision] used
+// by [maskGeoCoordinates] to avoid a per-half allocation when assembling the
+// combined lat,lon result. The caller MUST ensure v passes [isGeoMaskable] (or
+// an equivalent pre-check): v is a valid plain decimal with a fractional
+// portion at least decimals+1 digits long so that at least one digit will be
+// masked. Passing an invalid or too-short v violates the precondition and
+// produces garbage output; this is acceptable because the only caller
+// (maskGeoCoordinates) guards with isGeoMaskable before calling.
+func writeReducePrecision(b *strings.Builder, v string, decimals int, c rune) {
+	// isGeoMaskable guarantees a single '.' exists and that cut < len(v),
+	// so the loops below always have work to do.
+	dot := strings.IndexByte(v, '.')
+	cut := dot + 1 + decimals
+	tail := len(v) - cut
+	b.WriteString(v[:cut])
+	for i := 0; i < tail; i++ {
+		b.WriteRune(c)
+	}
+}
+
 // KeepFirstNFunc returns a [RuleFunc] that keeps the first n runes, masking
 // the rest with [DefaultMaskChar]. See [KeepFirstN].
 //
