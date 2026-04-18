@@ -33,9 +33,8 @@ Every primitive is exposed both as a Go helper function (call it directly inside
 | `KeepFirstN` | `KeepFirstN(v string, n int, c rune) string` | `KeepFirstNFunc(n int) RuleFunc` | — |
 | `KeepLastN` | `KeepLastN(v string, n int, c rune) string` | `KeepLastNFunc(n int) RuleFunc` | — |
 | `KeepFirstLast` | `KeepFirstLast(v string, first, last int, c rune) string` | `KeepFirstLastFunc(first, last int) RuleFunc` | — |
-| `TruncateVisible` | `TruncateVisible(v string, n int) string` | `TruncateVisibleFunc(n int) RuleFunc` | — |
 | `PreserveDelimiters` | `PreserveDelimiters(v, delim string, c rune) string` | `PreserveDelimitersFunc(delim string) RuleFunc` | — |
-| `ReplaceRegex` | `ReplaceRegex(v, pattern, replacement string) (string, error)` | `ReplaceRegexFunc(pattern, replacement string) (RuleFunc, error)` | — |
+| `ReplaceRegex` | — | `ReplaceRegexFunc(pattern, replacement string) (RuleFunc, error)` | — |
 | `ReducePrecision` | `ReducePrecision(v string, decimals int, c rune) string` | `ReducePrecisionFunc(decimals int) RuleFunc` | — |
 | `DeterministicHash` | `DeterministicHash(v string) string` | `DeterministicHashFunc(opts ...HashOption) RuleFunc` | `deterministic_hash` |
 | `FixedReplacementFunc` | — | `FixedReplacementFunc(s string) RuleFunc` | — |
@@ -50,7 +49,6 @@ mask.SameLengthMask("Hello", '*')                         // → "*****"
 mask.KeepFirstN("Sensitive", 4, '*')                      // → "Sens*****"
 mask.KeepLastN("Sensitive", 4, '*')                       // → "*****tive"
 mask.KeepFirstLast("SensitiveData", 4, 4, '*')            // → "Sens*****Data"
-mask.TruncateVisible("Sensitive", 4)                      // → "Sens"    (not fail-closed — composition only)
 mask.PreserveDelimiters("ab-cd", "-", '*')                // → "**-**"
 mask.ReducePrecision("37.7749", 2, '*')                   // → "37.77**"
 mask.DeterministicHash("alice@example.com")               // → "sha256:ff8d9819fc0e12bf"
@@ -118,7 +116,7 @@ _ = mask.Register("free_text_digits", r)
 
 `ReplaceRegexFunc` returns `(nil, err)` on an invalid pattern — compile it once at init and panic fatally if it's wrong.
 
-Other factories in the same shape: `TruncateVisibleFunc(n)`, `PreserveDelimitersFunc(delim)`, `ReducePrecisionFunc(decimals)`, `FixedReplacementFunc(s)`, `DeterministicHashFunc(opts...)`.
+Other factories in the same shape: `PreserveDelimitersFunc(delim)`, `ReducePrecisionFunc(decimals)`, `FixedReplacementFunc(s)`, `DeterministicHashFunc(opts...)`.
 
 ### 2. Compose a primitive via a closure
 
@@ -157,8 +155,7 @@ For pseudonymisation — stable but opaque identifiers — register `Determinist
 ```go
 func init() {
 	_ = mask.Register("user_id", mask.DeterministicHashFunc(
-		mask.WithSalt(os.Getenv("MASK_SALT")),
-		mask.WithSaltVersion("v1"),
+		mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
 	))
 }
 

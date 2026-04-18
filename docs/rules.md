@@ -33,13 +33,13 @@ Personal and identity fields common to most jurisdictions. See [Country-specific
 |---|---|---|
 | `date_of_birth` | Preserves the year and masks month and day across three common formats (ISO, slash, month-name); separator style is unchanged. | `1985-03-15` → `1985-**-**` |
 | `driver_license_number` | Preserves the first 2 and last 3 or 4 non-separator characters of a driver licence number. | `DL-1234-5678` → `DL-****-5678` |
-| `email_address` | Preserves the first character of the local-part and the full domain; masks the rest of the local-part. | `alice@example.com` → `a****@example.com` |
+| `email_address` | Preserves the first character of the local-part and the **full domain**; masks the rest of the local-part. Single-rune local parts fail closed (the whole local-part is masked) so the identifier is never echoed. GDPR-aware consumers: the retained domain is itself personal data for many mail providers; wrap with `deterministic_hash` + `WithKeyedSalt` if you need Art. 4(5) pseudonymisation. | `alice@example.com` → `a****@example.com` |
 | `family_name` | Preserves the first character of the surname. | `Smith` → `S****` |
 | `generic_national_id` | Preserves the first 2 and last 2 characters; use sparingly — prefer country-specific rules where available. | `AB123456CD` → `AB******CD` |
 | `given_name` | Preserves the first character of the given name. | `Alice` → `A****` |
 | `passport_number` | Preserves a two-letter country prefix (if present) and the last 2 characters. | `GB1234567` → `GB*****67` |
 | `person_name` | Preserves the first initial of each space-separated name component. | `Alice Smith` → `A**** S****` |
-| `street_address` | Keeps the leading house number and recognised trailing street type; masks the street-name body. | `42 Wallaby Way` → `42 ******* Way` |
+| `street_address` | Keeps the leading house number and recognised trailing street type; masks the street-name body. Inputs with no street-name body AND no recognised trailing type (e.g. `"42"`, `"42 "`) fail closed to a same-length mask. | `42 Wallaby Way` → `42 ******* Way` |
 | `tax_identifier` | Preserves the last 3 or 4 non-separator characters; preserves separators. | `12-3456789` → `**-***6789` |
 | `username` | Preserves the first 2 characters of a username. | `johndoe42` → `jo*******` |
 
@@ -80,7 +80,7 @@ Payment-card, banking, and tax-identifier rules. The `payment_card_pan_first6`, 
 | `payment_card_pin` | Same-length mask; callers concerned about PIN-width leakage should register `full_redact` under this name. | `1234` → `****` |
 | `swift_bic` | Preserves the 4-character bank code; accepts 8- or 11-character uppercase ASCII alphanumerics. | `BARCGB2L` → `BARC****` |
 | `uk_sort_code` | Preserves the first 2 digits of a UK 6-digit sort code (the bank identifier); preserves separators. | `12-34-56` → `12-**-**` |
-| `us_aba_routing_number` | Preserves the last 4 digits of a 9-digit US ABA routing number. | `123456789` → `*****6789` |
+| `us_aba_routing_number` | Preserves the last 4 digits of a 9-digit US ABA routing number. | `021000021` → `*****0021` |
 
 ## Health
 

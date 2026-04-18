@@ -59,6 +59,15 @@ linters:
         linters:
           - gocyclo
           - gocritic
+      # SHA3_256 / SHA3_512 mirror the names in stdlib crypto
+      # (crypto.SHA3_256, crypto.SHA3_512) so callers switching
+      # between packages see identical spellings. Revive's ALL_CAPS
+      # rule is correct in general but is noise for this specific
+      # stdlib-conformance case.
+      - path: hash\.go
+        text: "var-naming: don't use ALL_CAPS"
+        linters:
+          - revive
 
 formatters:
   enable:

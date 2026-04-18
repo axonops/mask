@@ -206,47 +206,6 @@ func TestKeepFirstLast_Unicode(t *testing.T) {
 	assert.Equal(t, "佐**郎", mask.KeepFirstLast("佐藤太郎", 1, 1, '*'))
 }
 
-// ---------- TruncateVisible ----------
-
-// TestTruncateVisible_FailOpenBehaviourOnShortInput pins the documented
-// WARNING: TruncateVisible is a formatting helper, not fail-closed. For
-// n >= rune count the original value is returned. The warning in godoc is
-// prose; this test makes it a contract.
-func TestTruncateVisible_FailOpenBehaviourOnShortInput(t *testing.T) {
-	t.Parallel()
-	// n >= len: original returned verbatim (the fail-open property we document).
-	assert.Equal(t, "abc", mask.TruncateVisible("abc", 99))
-	assert.Equal(t, "abc", mask.TruncateVisible("abc", 3))
-	// Invalid UTF-8 passes through without panic and remains non-empty.
-	got := mask.TruncateVisible("\xff\xfe\xfd", 2)
-	assert.NotEmpty(t, got)
-	assert.NotEqual(t, "\xff\xfe\xfd", got)
-}
-
-func TestTruncateVisible_BasicAndUnicode(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name  string
-		input string
-		n     int
-		want  string
-	}{
-		{"n zero", "abcdef", 0, ""},
-		{"n negative", "abcdef", -1, ""},
-		{"n equals len", "abcdef", 6, "abcdef"},
-		{"n greater than len", "abcdef", 99, "abcdef"},
-		{"n less than len", "abcdef", 3, "abc"},
-		{"unicode muller", "Müller", 3, "Mül"},
-		{"cjk", "佐藤太郎", 2, "佐藤"},
-		{"empty input", "", 3, ""},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, mask.TruncateVisible(tc.input, tc.n))
-		})
-	}
-}
-
 // ---------- PreserveDelimiters ----------
 
 func TestPreserveDelimiters_Email(t *testing.T) {
@@ -295,18 +254,16 @@ func TestFactory_CapturesDefaultMaskChar(t *testing.T) {
 	keep := mask.KeepFirstNFunc(2)
 	keepLast := mask.KeepLastNFunc(2)
 	keepBoth := mask.KeepFirstLastFunc(1, 1)
-	trunc := mask.TruncateVisibleFunc(2)
 	pres := mask.PreserveDelimitersFunc("-")
 	redprec := mask.ReducePrecisionFunc(1)
 
 	mask.SetMaskChar('X')
 
 	// All factories above were constructed BEFORE SetMaskChar. The mask
-	// rune they emit must remain '*'. TruncateVisible emits no mask rune.
+	// rune they emit must remain '*'.
 	assert.Equal(t, "se****", keep("secret"))
 	assert.Equal(t, "****et", keepLast("secret"))
 	assert.Equal(t, "s****t", keepBoth("secret"))
-	assert.Equal(t, "se", trunc("secret"))
 	assert.Equal(t, "*-*", pres("a-b"))
 	assert.Equal(t, "37.7*", redprec("37.77"))
 
@@ -315,22 +272,22 @@ func TestFactory_CapturesDefaultMaskChar(t *testing.T) {
 	assert.Equal(t, "seXXXX", mask.KeepFirstN("secret", 2, 'X'))
 }
 
-// ---------- ReplaceRegex ----------
+// ---------- ReplaceRegexFunc ----------
 
-func TestReplaceRegex_InvalidPattern_ReturnsError(t *testing.T) {
+func TestReplaceRegexFunc_InvalidPattern_ReturnsError(t *testing.T) {
 	t.Parallel()
 	for _, p := range []string{"[a-", "(?P<name", "*"} {
 		t.Run(p, func(t *testing.T) {
-			_, err := mask.ReplaceRegex("irrelevant", p, "X")
+			_, err := mask.ReplaceRegexFunc(p, "X")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "mask: invalid regex pattern")
-			// Value must not be in the error.
+			// Pattern may appear; arbitrary callee data must not.
 			assert.NotContains(t, err.Error(), "irrelevant")
 		})
 	}
 }
 
-func TestReplaceRegex_HappyPaths(t *testing.T) {
+func TestReplaceRegexFunc_HappyPaths(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name                                  string
@@ -344,9 +301,9 @@ func TestReplaceRegex_HappyPaths(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := mask.ReplaceRegex(tc.input, tc.pattern, tc.replacement)
+			r, err := mask.ReplaceRegexFunc(tc.pattern, tc.replacement)
 			require.NoError(t, err)
-			assert.Equal(t, tc.expected, got)
+			assert.Equal(t, tc.expected, r(tc.input))
 		})
 	}
 }
@@ -429,13 +386,6 @@ func TestKeepFirstLastFunc_UsesDefaultMaskChar(t *testing.T) {
 	assert.Equal(t, "Se*********ta", r("SensitiveData"))
 }
 
-func TestTruncateVisibleFunc_TruncatesWithNoMark(t *testing.T) {
-	t.Parallel()
-	r := mask.TruncateVisibleFunc(3)
-	assert.Equal(t, "abc", r("abcdef"))
-	assert.Equal(t, "", r(""))
-}
-
 func TestPreserveDelimitersFunc_EmptyInput(t *testing.T) {
 	t.Parallel()
 	r := mask.PreserveDelimitersFunc("@.")
@@ -502,7 +452,7 @@ func TestDeterministicHash_WithSalt_UsesHMAC(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := mask.DeterministicHashFunc(mask.WithAlgorithm(tc.algo), mask.WithSalt(salt), mask.WithSaltVersion(version))(val)
+			got := mask.DeterministicHashFunc(mask.WithAlgorithm(tc.algo), mask.WithKeyedSalt(salt, version))(val)
 			h := hmac.New(tc.ctor, []byte(salt))
 			h.Write([]byte(val))
 			want := tc.prefix + ":" + version + ":" + hex.EncodeToString(h.Sum(nil)[:8])
@@ -513,7 +463,7 @@ func TestDeterministicHash_WithSalt_UsesHMAC(t *testing.T) {
 
 func TestDeterministicHashFunc_IncludesVersion(t *testing.T) {
 	t.Parallel()
-	out := mask.DeterministicHashFunc(mask.WithSalt("k"), mask.WithSaltVersion("v1"))("alice@example.com")
+	out := mask.DeterministicHashFunc(mask.WithKeyedSalt("k", "v1"))("alice@example.com")
 	// Must begin with the versioned prefix and be exactly 26 bytes long:
 	// "sha256:" (7) + "v1:" (3) + 16 hex = 26.
 	assert.True(t, strings.HasPrefix(out, "sha256:v1:"), "got %q", out)
@@ -522,7 +472,7 @@ func TestDeterministicHashFunc_IncludesVersion(t *testing.T) {
 
 func TestDeterministicHash_WithSalt_IsDeterministic(t *testing.T) {
 	t.Parallel()
-	r := mask.DeterministicHashFunc(mask.WithSalt("k"), mask.WithSaltVersion("v1"))
+	r := mask.DeterministicHashFunc(mask.WithKeyedSalt("k", "v1"))
 	first := r("alice@example.com")
 	for i := 0; i < 1000; i++ {
 		assert.Equal(t, first, r("alice@example.com"))
@@ -532,8 +482,8 @@ func TestDeterministicHash_WithSalt_IsDeterministic(t *testing.T) {
 func TestDeterministicHash_DifferentSalt_DifferentOutput(t *testing.T) {
 	t.Parallel()
 	const v = "alice@example.com"
-	a := mask.DeterministicHashFunc(mask.WithSalt("salt-a"), mask.WithSaltVersion("v1"))(v)
-	b := mask.DeterministicHashFunc(mask.WithSalt("salt-b"), mask.WithSaltVersion("v1"))(v)
+	a := mask.DeterministicHashFunc(mask.WithKeyedSalt("salt-a", "v1"))(v)
+	b := mask.DeterministicHashFunc(mask.WithKeyedSalt("salt-b", "v1"))(v)
 	assert.NotEqual(t, a, b)
 }
 
@@ -553,41 +503,45 @@ func TestDeterministicHash_DifferentVersions_DifferentOutputs(t *testing.T) {
 	}
 	for _, p := range pairs {
 		t.Run(p.left+"_vs_"+p.right, func(t *testing.T) {
-			a := mask.DeterministicHashFunc(mask.WithSalt(salt), mask.WithSaltVersion(p.left))(v)
-			b := mask.DeterministicHashFunc(mask.WithSalt(salt), mask.WithSaltVersion(p.right))(v)
+			a := mask.DeterministicHashFunc(mask.WithKeyedSalt(salt, p.left))(v)
+			b := mask.DeterministicHashFunc(mask.WithKeyedSalt(salt, p.right))(v)
 			assert.NotEqual(t, a, b)
 		})
 	}
 }
 
-func TestDeterministicHash_EmptySaltCollapsesToUnsalted(t *testing.T) {
+func TestDeterministicHash_EmptySaltFailsClosed(t *testing.T) {
 	t.Parallel()
-	// WithSalt("", anything) is the unsalted path — version is ignored
-	// when salt is empty. Output equals the plain DeterministicHash.
+	// WithKeyedSalt requires BOTH arguments; an empty salt is a
+	// misconfiguration regardless of the version value. Every subsequent
+	// Apply returns the full-redact marker verbatim.
 	const v = "alice@example.com"
-	for _, ver := range []string{"", "v1", "2026-01", "anything goes here"} {
+	for _, ver := range []string{"", "v1", "2026-01", "bad:version", "x"} {
 		t.Run("version="+ver, func(t *testing.T) {
-			withEmpty := mask.DeterministicHashFunc(mask.WithSalt(""), mask.WithSaltVersion(ver))(v)
-			unsalted := mask.DeterministicHash(v)
-			assert.Equal(t, unsalted, withEmpty)
+			got := mask.DeterministicHashFunc(mask.WithKeyedSalt("", ver))(v)
+			assert.Equal(t, mask.FullRedactMarker, got)
 		})
 	}
+	// For the unsalted path the caller simply omits WithKeyedSalt
+	// entirely — there is no "empty salt" option any more.
+	unsalted := mask.DeterministicHashFunc()(v)
+	assert.Equal(t, mask.DeterministicHash(v), unsalted)
 }
 
 func TestDeterministicHash_EmptyVersionFailsClosed(t *testing.T) {
 	t.Parallel()
-	// Non-empty salt + empty version → every Apply returns the full-redact
-	// marker verbatim. No prefix, no colon, no digest.
+	// Non-empty salt + empty version is a misconfiguration: every Apply
+	// returns the full-redact marker verbatim. No prefix, no colon, no
+	// digest.
 	salts := []string{"k", "SEKRET", "\x00", "佐藤", strings.Repeat("s", 1024)}
 	values := []string{"", "x", "alice@example.com", "佐藤太郎", "\xff\xfe", strings.Repeat("x", 1000), mask.FullRedactMarker}
 	for _, s := range salts {
 		for _, v := range values {
-			got := mask.DeterministicHashFunc(mask.WithSalt(s), mask.WithSaltVersion(""))(v)
+			got := mask.DeterministicHashFunc(mask.WithKeyedSalt(s, ""))(v)
 			assert.Equal(t, mask.FullRedactMarker, got, "salt=%q value=%q", s, v)
 		}
 	}
-	// Same via the factory.
-	r := mask.DeterministicHashFunc(mask.WithSalt("k"), mask.WithSaltVersion(""))
+	r := mask.DeterministicHashFunc(mask.WithKeyedSalt("k", ""))
 	for _, v := range values {
 		assert.Equal(t, mask.FullRedactMarker, r(v), "factory value=%q", v)
 	}
@@ -598,7 +552,7 @@ func TestDeterministicHash_VersionRejectsColon(t *testing.T) {
 	cases := []string{"v:1", ":", ":v1", "v1:", "v::v", "a:b:c"}
 	for _, ver := range cases {
 		t.Run(ver, func(t *testing.T) {
-			got := mask.DeterministicHashFunc(mask.WithSalt("k"), mask.WithSaltVersion(ver))("alice@example.com")
+			got := mask.DeterministicHashFunc(mask.WithKeyedSalt("k", ver))("alice@example.com")
 			assert.Equal(t, mask.FullRedactMarker, got)
 		})
 	}
@@ -619,7 +573,7 @@ func TestDeterministicHash_VersionCharsetEnforced(t *testing.T) {
 	}
 	for _, ver := range bad {
 		t.Run("bad_"+shortVersion(ver), func(t *testing.T) {
-			got := mask.DeterministicHashFunc(mask.WithSalt("k"), mask.WithSaltVersion(ver))("alice@example.com")
+			got := mask.DeterministicHashFunc(mask.WithKeyedSalt("k", ver))("alice@example.com")
 			assert.Equal(t, mask.FullRedactMarker, got)
 		})
 	}
@@ -631,7 +585,7 @@ func TestDeterministicHash_VersionCharsetEnforced(t *testing.T) {
 	}
 	for _, ver := range good {
 		t.Run("good_"+shortVersion(ver), func(t *testing.T) {
-			got := mask.DeterministicHashFunc(mask.WithSalt("k"), mask.WithSaltVersion(ver))("alice@example.com")
+			got := mask.DeterministicHashFunc(mask.WithKeyedSalt("k", ver))("alice@example.com")
 			assert.NotEqual(t, mask.FullRedactMarker, got)
 			assert.True(t, strings.HasPrefix(got, "sha256:"+ver+":"), "got %q", got)
 		})
@@ -658,13 +612,23 @@ func shortVersion(s string) string {
 	return string(out)
 }
 
-func TestDeterministicHash_StickyMisconfiguration(t *testing.T) {
+func TestDeterministicHash_InvalidThenValidAppliesLastWins(t *testing.T) {
 	t.Parallel()
-	// Misconfigured option followed by a valid one must still produce
-	// FullRedactMarker — the sticky flag cannot be cleared.
+	// The WithKeyedSalt(salt, version) option validates atomically per
+	// call and follows the documented last-wins contract: a valid call
+	// that comes after an invalid one clears the misconfigured flag.
 	got := mask.DeterministicHashFunc(
-		mask.WithSalt("k"), mask.WithSaltVersion("bad:version"),
-		mask.WithSalt("k"), mask.WithSaltVersion("v1"),
+		mask.WithKeyedSalt("k", "bad:version"),
+		mask.WithKeyedSalt("k", "v1"),
+	)("alice@example.com")
+	assert.True(t, strings.HasPrefix(got, "sha256:v1:"), "got %q", got)
+
+	// The reverse ordering — valid then invalid — must poison the
+	// factory so production is fail-closed rather than silently
+	// reverting to a prior-valid keying.
+	got = mask.DeterministicHashFunc(
+		mask.WithKeyedSalt("k", "v1"),
+		mask.WithKeyedSalt("k", "bad:version"),
 	)("alice@example.com")
 	assert.Equal(t, mask.FullRedactMarker, got)
 }
@@ -687,14 +651,22 @@ func TestDeterministicHash_OptionLastWins(t *testing.T) {
 	)("x")
 	assert.True(t, strings.HasPrefix(out, "sha256:"))
 
-	// Salt: setting salt+version then clearing salt to empty reverts
-	// to the unsalted path; a later version without a salt is ignored.
-	back := mask.DeterministicHashFunc(
-		mask.WithSalt("k"), mask.WithSaltVersion("v1"),
-		mask.WithSalt(""),
+	// Keyed salt: a later valid WithKeyedSalt overrides an earlier one
+	// — salt and version both take the last valid pair.
+	last := mask.DeterministicHashFunc(
+		mask.WithKeyedSalt("salt-a", "v1"),
+		mask.WithKeyedSalt("salt-b", "v2"),
 	)("x")
-	unsalted := mask.DeterministicHash("x")
-	assert.Equal(t, unsalted, back)
+	assert.True(t, strings.HasPrefix(last, "sha256:v2:"), "got %q", last)
+
+	// A later valid WithKeyedSalt clears the misconfigured flag set by
+	// an earlier invalid one — last-wins must not leave the factory
+	// permanently poisoned.
+	recovered := mask.DeterministicHashFunc(
+		mask.WithKeyedSalt("k", "bad:version"),
+		mask.WithKeyedSalt("k", "v1"),
+	)("x")
+	assert.True(t, strings.HasPrefix(recovered, "sha256:v1:"), "got %q", recovered)
 }
 
 func TestDeterministicHash_UnknownAlgorithmClampsToSHA256(t *testing.T) {
@@ -716,8 +688,8 @@ func TestHashAlgorithm_StringMatchesPrefix(t *testing.T) {
 		{mask.SHA512, "sha512"},
 		{mask.SHA3_256, "sha3-256"},
 		{mask.SHA3_512, "sha3-512"},
-		{mask.HashAlgorithm(99), "sha256"},
-		{mask.HashAlgorithm(-1), "sha256"},
+		{mask.HashAlgorithm(99), "HashAlgorithm(99)"},
+		{mask.HashAlgorithm(-1), "HashAlgorithm(-1)"},
 	}
 	for _, tc := range cases {
 		assert.Equal(t, tc.want, tc.algo.String())
@@ -737,7 +709,7 @@ func TestDeterministicHash_SaltNotLeakedInOutputOrDescribe(t *testing.T) {
 	const salt = "SEKRET"
 
 	m := mask.New()
-	require.NoError(t, m.Register("salted_hash", mask.DeterministicHashFunc(mask.WithSalt(salt), mask.WithSaltVersion("v1"))))
+	require.NoError(t, m.Register("salted_hash", mask.DeterministicHashFunc(mask.WithKeyedSalt(salt, "v1"))))
 
 	inputs := []string{
 		"",
@@ -781,7 +753,7 @@ func TestDeterministicHash_VersionDoesNotLeakSalt(t *testing.T) {
 	)
 
 	m := mask.New()
-	require.NoError(t, m.Register("salted_hash_v", mask.DeterministicHashFunc(mask.WithSalt(salt), mask.WithSaltVersion(version))))
+	require.NoError(t, m.Register("salted_hash_v", mask.DeterministicHashFunc(mask.WithKeyedSalt(salt, version))))
 
 	inputs := []string{
 		"",
@@ -819,7 +791,7 @@ func TestDeterministicHash_VersionDoesNotLeakSalt(t *testing.T) {
 
 func TestDeterministicHash_ConcurrentHashing(t *testing.T) {
 	t.Parallel()
-	r := mask.DeterministicHashFunc(mask.WithSalt("k"), mask.WithSaltVersion("v1"))
+	r := mask.DeterministicHashFunc(mask.WithKeyedSalt("k", "v1"))
 	want := r("alice@example.com")
 
 	const goroutines = 50
@@ -948,12 +920,11 @@ func TestPrimitives_InvalidUTF8NoPanic(t *testing.T) {
 	assert.NotPanics(t, func() { _ = mask.KeepFirstN(bad, 1, '*') })
 	assert.NotPanics(t, func() { _ = mask.KeepLastN(bad, 1, '*') })
 	assert.NotPanics(t, func() { _ = mask.KeepFirstLast(bad, 1, 1, '*') })
-	assert.NotPanics(t, func() { _ = mask.TruncateVisible(bad, 2) })
 	assert.NotPanics(t, func() { _ = mask.PreserveDelimiters(bad, "@", '*') })
 	assert.NotPanics(t, func() { _ = mask.ReducePrecision(bad, 2, '*') })
 	assert.NotPanics(t, func() { _ = mask.DeterministicHash(bad) })
 	assert.NotPanics(t, func() {
-		_ = mask.DeterministicHashFunc(mask.WithSalt("k"), mask.WithSaltVersion("v1"), mask.WithAlgorithm(mask.SHA3_512))(bad)
+		_ = mask.DeterministicHashFunc(mask.WithKeyedSalt("k", "v1"), mask.WithAlgorithm(mask.SHA3_512))(bad)
 	})
 }
 

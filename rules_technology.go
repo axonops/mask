@@ -20,8 +20,8 @@ import (
 	"unicode/utf8"
 )
 
-// Technology-category rules implement the 14 masks from
-// docs/v0.9.0-requirements.md §"Technology and Infrastructure".
+// Technology-category rules implement the infrastructure and
+// application-security masks documented in docs/rules.md §"Technology".
 // Every rule is fail-closed: malformed input routes to a
 // [SameLengthMask] over the whole value rather than echoing it.
 //

@@ -99,24 +99,6 @@ func BenchmarkKeepFirstLast_1000(b *testing.B) {
 	sink = s
 }
 
-func BenchmarkTruncateVisible_16(b *testing.B) {
-	b.ReportAllocs()
-	var s string
-	for i := 0; i < b.N; i++ {
-		s = mask.TruncateVisible(short16, 4)
-	}
-	sink = s
-}
-
-func BenchmarkTruncateVisible_1000(b *testing.B) {
-	b.ReportAllocs()
-	var s string
-	for i := 0; i < b.N; i++ {
-		s = mask.TruncateVisible(long1000, 4)
-	}
-	sink = s
-}
-
 func BenchmarkPreserveDelimiters_Email(b *testing.B) {
 	b.ReportAllocs()
 	var s string
@@ -162,7 +144,7 @@ func BenchmarkDeterministicHash_1000(b *testing.B) {
 }
 
 func BenchmarkDeterministicHash_Salted_1000(b *testing.B) {
-	r := mask.DeterministicHashFunc(mask.WithSalt("secretkey"), mask.WithSaltVersion("v1"))
+	r := mask.DeterministicHashFunc(mask.WithKeyedSalt("secretkey", "v1"))
 	b.ReportAllocs()
 	b.ResetTimer()
 	var s string

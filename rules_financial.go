@@ -14,10 +14,11 @@
 
 package mask
 
-// Financial-category rules implement the 11 payment-card, banking, and
-// monetary masks from docs/v0.9.0-requirements.md §"Financial". Each rule
-// preserves separators where the spec demands, falls closed on malformed
-// input, and reads the Masker's configured mask character at apply time.
+// Financial-category rules implement the payment-card, banking, and
+// monetary masks documented in docs/rules.md §"Financial". Each rule
+// preserves separators where the format demands, falls closed on
+// malformed input, and reads the Masker's configured mask character
+// at apply time.
 //
 // Regulatory note: payment_card_* rules are aligned with the PCI DSS
 // display-limit guidance of "at most the first 6 and last 4" — consumers

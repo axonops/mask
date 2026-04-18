@@ -98,13 +98,15 @@ func (w *World) usePreserveDelimiters(v, delim, ch string) error {
 	return nil
 }
 
-func (w *World) useTruncateVisible(v string, n int) error {
-	w.lastResult = mask.TruncateVisible(v, n)
-	return nil
-}
-
-func (w *World) useReplaceRegex(v, pattern, replacement string) error {
-	w.replaceResult, w.replaceErr = mask.ReplaceRegex(v, pattern, replacement)
+func (w *World) useReplaceRegexFunc(pattern, replacement, v string) error {
+	r, err := mask.ReplaceRegexFunc(pattern, replacement)
+	if err != nil {
+		w.replaceResult = ""
+		w.replaceErr = err
+		return nil
+	}
+	w.replaceResult = r(v)
+	w.replaceErr = nil
 	return nil
 }
 
@@ -139,24 +141,21 @@ func (w *World) useDeterministicHashAlgoSaltVersion(v, algoLabel, salt, version 
 	}
 	w.lastResult = mask.DeterministicHashFunc(
 		mask.WithAlgorithm(algo),
-		mask.WithSalt(salt),
-		mask.WithSaltVersion(version),
+		mask.WithKeyedSalt(salt, version),
 	)(v)
 	return nil
 }
 
 func (w *World) useDeterministicHashSaltVersion(v, salt, version string) error {
 	w.lastResult = mask.DeterministicHashFunc(
-		mask.WithSalt(salt),
-		mask.WithSaltVersion(version),
+		mask.WithKeyedSalt(salt, version),
 	)(v)
 	return nil
 }
 
 func (w *World) useDeterministicHashSaltVersionSecond(v, salt, version string) error {
 	w.secondResult = mask.DeterministicHashFunc(
-		mask.WithSalt(salt),
-		mask.WithSaltVersion(version),
+		mask.WithKeyedSalt(salt, version),
 	)(v)
 	return nil
 }

@@ -284,32 +284,42 @@ m := mask.New(mask.WithMaskChar('#'))
 
 Built-in rules read the configured character at apply time, so changes are picked up on the next call. The `password` rule honours the configured character for the 8-rune mask output.
 
+> **Factory vs. closure for custom rules.** Factories such as `KeepFirstNFunc`, `KeepLastNFunc`, and `KeepFirstLastFunc` capture `DefaultMaskChar` at construction time and ignore later `SetMaskChar` / `WithMaskChar` overrides. If your custom rule must react to the configured character, register a closure that reads `m.MaskChar()` (or the package-level `mask.MaskChar()`) at apply time. See [`docs/extending.md`](./docs/extending.md#3-honour-per-instance-mask-character-config) for the pattern.
+
 ### Deterministic hashing (salt and version)
 
-`deterministic_hash` is registered by default with no salt. For production pseudonymisation you MUST configure both a salt (`WithSalt`) AND a salt version (`WithSaltVersion`):
+`deterministic_hash` is registered by default with no salt. For production pseudonymisation you MUST configure keyed hashing via `WithKeyedSalt(salt, version)` — the salt and version are validated atomically, so you cannot accidentally ship with one half configured:
 
 ```go
 m := mask.New()
 _ = m.Register(
 	"user_id",
 	mask.DeterministicHashFunc(
-		mask.WithSalt("your-secret-salt"),
-		mask.WithSaltVersion("v1"),
+		mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
 	),
 )
 ```
 
-The output format is `<algo>:<version>:<hex16>` when a salt is configured, and `<algo>:<hex16>` otherwise. See [SECURITY.md](./SECURITY.md) for the full salt-rotation and versioning policy.
+Do not hard-code the salt — load it from a secret store or environment variable. Rotate the salt and bump the version together; downstream consumers can tell hashes from different generations apart by the `<algo>:<version>:<hex16>` output shape. The unsalted path (`DeterministicHashFunc()` with no options) emits `<algo>:<hex16>` and is only suitable for development and smoke tests. See [SECURITY.md](./SECURITY.md) for the full salt-rotation and versioning policy.
 
 ## 🎯 Custom Rules
 
-A custom rule is a `func(string) string` registered under a name. The one-liner case is this:
+A custom rule is a `func(string) string` registered under a name. The most common shapes are already one-liners:
 
 ```go
 func init() {
+    // Keep the first N runes, mask the rest.
     _ = mask.Register("employee_id", mask.KeepFirstNFunc(9))
+
+    // Keep the first and last N runes — typical account-number shape.
+    _ = mask.Register("account_id", mask.KeepFirstLastFunc(3, 4))
+
+    // Keep the last N runes.
+    _ = mask.Register("internal_ref", mask.KeepLastNFunc(4))
 }
 // mask.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
+// mask.Apply("account_id",  "ACME-1234-5678") → "ACM********5678"
+// mask.Apply("internal_ref","REF-2025-001234") → "***********1234"
 ```
 
 For the other four patterns — closures, per-instance mask-char config, deterministic hashing with salt + version, fully custom `RuleFunc` — see [`docs/extending.md`](./docs/extending.md).
@@ -322,7 +332,7 @@ Masking is one control in a broader compliance strategy — it is not a substitu
 |---|---|---|
 | PCI DSS display modes for PAN | Yes | `payment_card_pan`, `payment_card_pan_first6`, `payment_card_pan_last4` match the three common display modes. `payment_card_cvv` is same-length — CVV is Sensitive Authentication Data that MUST NOT be retained post-authorisation. |
 | HIPAA Safe Harbor de-identification | No | Identifier rules (including `medical_record_number`, `health_plan_beneficiary_id`) are pseudonymisation, not de-identification. Retained trailing digits combined with a date or ZIP remain re-identifiable. Register `full_redact` under the same rule name if you need Safe Harbor. |
-| GDPR pseudonymisation (Art. 4(5)) | Yes, with configured salt | `deterministic_hash` with `WithSalt(salt)` + `WithSaltVersion(version)` meets the GDPR definition. Salt management, rotation, and additional access controls are the operator's responsibility. |
+| GDPR pseudonymisation (Art. 4(5)) | Yes, with configured salt | `deterministic_hash` with `WithKeyedSalt(salt, version)` meets the GDPR definition. Salt management, rotation, and additional access controls are the operator's responsibility. |
 | GDPR anonymisation | No | No rule in this library is anonymisation — all preserved-window rules leak structure, and `deterministic_hash` is reversible given the input space. |
 
 ## 📖 API Reference

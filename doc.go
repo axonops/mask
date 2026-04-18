@@ -77,19 +77,19 @@
 // The deterministic_hash rule is registered by default with no salt. The
 // unsalted form is pseudonymisation for development and smoke tests only; it
 // is not suitable for GDPR Art. 4(5) pseudonymisation or any production use.
-// For production, re-register the rule with a configured salt and version:
+// For production, re-register the rule with a configured salt and version
+// via [WithKeyedSalt], which validates both arguments atomically:
 //
 //	m.Register("user_id",
 //	    mask.DeterministicHashFunc(
-//	        mask.WithSalt("your-secret-salt"),
-//	        mask.WithSaltVersion("v1"),
+//	        mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
 //	    ))
 //
-// Both options are required for keyed hashing. The version MUST match
-// `^[A-Za-z0-9._-]{1,32}$`. A non-conforming version or a missing version
-// paired with a non-empty salt is a sticky misconfiguration: every
-// subsequent Apply on that rule returns [FullRedactMarker]. This
-// fail-closed policy prevents an operator who typoed the version from
+// Both the salt and the version are required. The version MUST match
+// `^[A-Za-z0-9._-]{1,32}$`. An empty salt or a non-conforming version is a
+// misconfiguration: every subsequent Apply on that rule returns
+// [FullRedactMarker]. This fail-closed policy prevents an operator who
+// typoed the version (or forgot to supply a salt at deploy time) from
 // silently producing hashes indistinguishable from the unsalted path.
 // See SECURITY.md for the full salt-rotation and versioning policy.
 //

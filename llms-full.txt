@@ -22,7 +22,7 @@ committed file is out of date relative to its sources.
 
 ## Core concepts
 
-- **Two layers.** Utility primitives are Go functions (`KeepFirstN`, `KeepLastN`, `KeepFirstLast`, `PreserveDelimiters`, `ReplaceRegex`, `ReducePrecision`, `DeterministicHash`, `SameLengthMask`, `FullRedact`, `Nullify`, `TruncateVisible`). Domain rules are named strings registered against a `Masker` and invoked via `Apply(name, value)`.
+- **Two layers.** Utility primitives are Go functions (`KeepFirstN`, `KeepLastN`, `KeepFirstLast`, `PreserveDelimiters`, `ReducePrecision`, `DeterministicHash`, `SameLengthMask`, `FullRedact`, `Nullify`). Domain rules are named strings registered against a `Masker` and invoked via `Apply(name, value)`. Regex masking is factory-only via `ReplaceRegexFunc`.
 - **Fail-closed.** `Apply("no_such_rule", v)` returns `[REDACTED]`; a malformed input to a known rule (for example a 7-digit "PAN") returns a same-length mask. The original value is never echoed on error.
 - **Thread-safety contract.** `Register` MUST be called during program initialisation, before any goroutine calls `Apply`. After that, the registry is read-only and `Apply` is lock-free from any number of goroutines. Same model as `database/sql.Register`.
 - **Jurisdiction-qualified naming.** Country-specific identifiers use ISO-style prefixes — `us_ssn`, `uk_nino`, `in_aadhaar`, `br_cpf`. Generic rules (`phone_number`, `email_address`) have no prefix.
@@ -53,21 +53,19 @@ committed file is out of date relative to its sources.
 - `mask.Nullify(v) string` → `""`
 - `mask.SameLengthMask(v, c) string`
 - `mask.KeepFirstN(v, n, c) string` / `mask.KeepLastN` / `mask.KeepFirstLast(v, first, last, c)`
-- `mask.TruncateVisible(v, n) string` (not fail-closed — use only in composition)
 - `mask.PreserveDelimiters(v, delim, c) string`
-- `mask.ReplaceRegex(v, pattern, replacement) (string, error)`
 - `mask.ReducePrecision(v, decimals, c) string`
 - `mask.DeterministicHash(v) string` — returns `sha256:<16-hex>` (unsalted).
 
-> **WARNING** — `DeterministicHash` without a salt is pseudonymisation, not anonymisation. For production use configure `WithSalt` + `WithSaltVersion` on `DeterministicHashFunc` and register that as a rule. See the "Deterministic hashing" example below.
+> **WARNING** — `DeterministicHash` without a salt is pseudonymisation, not anonymisation. For production use configure `WithKeyedSalt(salt, version)` on `DeterministicHashFunc` and register that as a rule. See the "Deterministic hashing" example below.
 
 **Factory primitive helpers** (return a `RuleFunc` suitable for `Register`):
 
 - `mask.FixedReplacementFunc(s) RuleFunc`
 - `mask.KeepFirstNFunc(n)` / `mask.KeepLastNFunc(n)` / `mask.KeepFirstLastFunc(first, last)`
-- `mask.TruncateVisibleFunc(n)` / `mask.PreserveDelimitersFunc(delim)` / `mask.ReducePrecisionFunc(decimals)`
+- `mask.PreserveDelimitersFunc(delim)` / `mask.ReducePrecisionFunc(decimals)`
 - `mask.ReplaceRegexFunc(pattern, replacement) (RuleFunc, error)`
-- `mask.DeterministicHashFunc(opts ...HashOption) RuleFunc` — configure via `WithAlgorithm(mask.SHA256 | mask.SHA512)`, `WithSalt(salt)`, `WithSaltVersion(version)`. Default algorithm is SHA-256; output is `"<algo>:<version>:<16-hex>"` when salted, `"sha256:<16-hex>"` when unsalted.
+- `mask.DeterministicHashFunc(opts ...HashOption) RuleFunc` — configure via `WithAlgorithm(mask.SHA256 | mask.SHA512 | mask.SHA3_256 | mask.SHA3_512)` and `WithKeyedSalt(salt, version)`. Default algorithm is SHA-256; output is `"<algo>:<version>:<16-hex>"` when keyed, `"<algo>:<16-hex>"` when unsalted. An empty salt or a version that violates `^[A-Za-z0-9._-]{1,32}$` is a misconfiguration — the rule fails closed (emits `[REDACTED]` for every Apply) rather than silently downgrading.
 
 Factories capture `DefaultMaskChar` at construction. If your custom rule needs to honour `WithMaskChar` / `SetMaskChar`, register a closure that reads `m.MaskChar()` (per-instance) or `mask.MaskChar()` (package-level) at apply time.
 
@@ -106,8 +104,7 @@ func init() {
 
 ```go
 _ = mask.Register("user_id", mask.DeterministicHashFunc(
-	mask.WithSalt(os.Getenv("MASK_SALT")),
-	mask.WithSaltVersion("v1"),
+	mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
 ))
 // mask.Apply("user_id", "alice@example.com") → "sha256:v1:<hex16>"
 ```
@@ -133,7 +130,7 @@ Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static ref
 - **Calling `Register` concurrently with `Apply`.** Data race, detected by `go test -race`. Call `Register` at `init()` and never again.
 - **Expecting `Apply` to return an error.** It doesn't — it fails closed. Check `HasRule(name)` up front if you need to distinguish "rule exists" from "rule masked".
 - **Confusing `full_redact` and `same_length_mask`.** `full_redact` returns the constant `[REDACTED]` (length not preserved). `same_length_mask` returns a string of mask characters the same length as the input. Pick based on whether length leakage is acceptable.
-- **Treating `deterministic_hash` as anonymisation.** It is pseudonymisation — reversible given the input space. Always configure `WithSalt` + `WithSaltVersion` for production; the default unsalted form is for development only.
+- **Treating `deterministic_hash` as anonymisation.** It is pseudonymisation — reversible given the input space. Always configure `WithKeyedSalt(salt, version)` for production; the default unsalted form is for development only.
 - **Passing encoded userinfo through `url` when you mean `url_credentials`.** `url` masks paths, queries, fragments, and redacts userinfo defensively; `url_credentials` only redacts userinfo and preserves the rest. Use the rule that matches the semantic of your field.
 
 ## Further reading
@@ -434,32 +431,42 @@ m := mask.New(mask.WithMaskChar('#'))
 
 Built-in rules read the configured character at apply time, so changes are picked up on the next call. The `password` rule honours the configured character for the 8-rune mask output.
 
+> **Factory vs. closure for custom rules.** Factories such as `KeepFirstNFunc`, `KeepLastNFunc`, and `KeepFirstLastFunc` capture `DefaultMaskChar` at construction time and ignore later `SetMaskChar` / `WithMaskChar` overrides. If your custom rule must react to the configured character, register a closure that reads `m.MaskChar()` (or the package-level `mask.MaskChar()`) at apply time. See [`docs/extending.md`](./docs/extending.md#3-honour-per-instance-mask-character-config) for the pattern.
+
 ### Deterministic hashing (salt and version)
 
-`deterministic_hash` is registered by default with no salt. For production pseudonymisation you MUST configure both a salt (`WithSalt`) AND a salt version (`WithSaltVersion`):
+`deterministic_hash` is registered by default with no salt. For production pseudonymisation you MUST configure keyed hashing via `WithKeyedSalt(salt, version)` — the salt and version are validated atomically, so you cannot accidentally ship with one half configured:
 
 ```go
 m := mask.New()
 _ = m.Register(
 	"user_id",
 	mask.DeterministicHashFunc(
-		mask.WithSalt("your-secret-salt"),
-		mask.WithSaltVersion("v1"),
+		mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
 	),
 )
 ```
 
-The output format is `<algo>:<version>:<hex16>` when a salt is configured, and `<algo>:<hex16>` otherwise. See [SECURITY.md](./SECURITY.md) for the full salt-rotation and versioning policy.
+Do not hard-code the salt — load it from a secret store or environment variable. Rotate the salt and bump the version together; downstream consumers can tell hashes from different generations apart by the `<algo>:<version>:<hex16>` output shape. The unsalted path (`DeterministicHashFunc()` with no options) emits `<algo>:<hex16>` and is only suitable for development and smoke tests. See [SECURITY.md](./SECURITY.md) for the full salt-rotation and versioning policy.
 
 ## 🎯 Custom Rules
 
-A custom rule is a `func(string) string` registered under a name. The one-liner case is this:
+A custom rule is a `func(string) string` registered under a name. The most common shapes are already one-liners:
 
 ```go
 func init() {
+    // Keep the first N runes, mask the rest.
     _ = mask.Register("employee_id", mask.KeepFirstNFunc(9))
+
+    // Keep the first and last N runes — typical account-number shape.
+    _ = mask.Register("account_id", mask.KeepFirstLastFunc(3, 4))
+
+    // Keep the last N runes.
+    _ = mask.Register("internal_ref", mask.KeepLastNFunc(4))
 }
 // mask.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
+// mask.Apply("account_id",  "ACME-1234-5678") → "ACM********5678"
+// mask.Apply("internal_ref","REF-2025-001234") → "***********1234"
 ```
 
 For the other four patterns — closures, per-instance mask-char config, deterministic hashing with salt + version, fully custom `RuleFunc` — see [`docs/extending.md`](./docs/extending.md).
@@ -472,7 +479,7 @@ Masking is one control in a broader compliance strategy — it is not a substitu
 |---|---|---|
 | PCI DSS display modes for PAN | Yes | `payment_card_pan`, `payment_card_pan_first6`, `payment_card_pan_last4` match the three common display modes. `payment_card_cvv` is same-length — CVV is Sensitive Authentication Data that MUST NOT be retained post-authorisation. |
 | HIPAA Safe Harbor de-identification | No | Identifier rules (including `medical_record_number`, `health_plan_beneficiary_id`) are pseudonymisation, not de-identification. Retained trailing digits combined with a date or ZIP remain re-identifiable. Register `full_redact` under the same rule name if you need Safe Harbor. |
-| GDPR pseudonymisation (Art. 4(5)) | Yes, with configured salt | `deterministic_hash` with `WithSalt(salt)` + `WithSaltVersion(version)` meets the GDPR definition. Salt management, rotation, and additional access controls are the operator's responsibility. |
+| GDPR pseudonymisation (Art. 4(5)) | Yes, with configured salt | `deterministic_hash` with `WithKeyedSalt(salt, version)` meets the GDPR definition. Salt management, rotation, and additional access controls are the operator's responsibility. |
 | GDPR anonymisation | No | No rule in this library is anonymisation — all preserved-window rules leak structure, and `deterministic_hash` is reversible given the input space. |
 
 ## 📖 API Reference
@@ -600,19 +607,19 @@ configured character at apply time so changes are picked up immediately.
 The deterministic_hash rule is registered by default with no salt. The
 unsalted form is pseudonymisation for development and smoke tests only; it
 is not suitable for GDPR Art. 4(5) pseudonymisation or any production use.
-For production, re-register the rule with a configured salt and version:
+For production, re-register the rule with a configured salt and version
+via [WithKeyedSalt], which validates both arguments atomically:
 
 	m.Register("user_id",
 	    mask.DeterministicHashFunc(
-	        mask.WithSalt("your-secret-salt"),
-	        mask.WithSaltVersion("v1"),
+	        mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
 	    ))
 
-Both options are required for keyed hashing. The version MUST match
-`^[A-Za-z0-9._-]{1,32}$`. A non-conforming version or a missing version
-paired with a non-empty salt is a sticky misconfiguration: every
-subsequent Apply on that rule returns [FullRedactMarker]. This
-fail-closed policy prevents an operator who typoed the version from
+Both the salt and the version are required. The version MUST match
+`^[A-Za-z0-9._-]{1,32}$`. An empty salt or a non-conforming version is a
+misconfiguration: every subsequent Apply on that rule returns
+[FullRedactMarker]. This fail-closed policy prevents an operator who
+typoed the version (or forgot to supply a salt at deploy time) from
 silently producing hashes indistinguishable from the unsalted path.
 See SECURITY.md for the full salt-rotation and versioning policy.
 
@@ -776,9 +783,9 @@ The `mask` library follows a `v0.x` versioning scheme. Only the most recent `v0.
 - Thread safety under the documented contract (`Register` at init, `Apply` concurrent thereafter).
 - Use of `crypto/sha256` for `deterministic_hash` — never MD5 or SHA-1.
 
-**Salt rotation and versioning.** The `deterministic_hash` primitive takes its salt and version as independent options — `WithSalt(salt)` and `WithSaltVersion(version)` — both of which are required for keyed hashing. The version is emitted on the wire (`<algo>:<version>:<hex16>`) so downstream consumers can identify which salt generation a hash was computed with. Rotating the salt MUST coincide with changing the version — hashes computed with different versions are not comparable. A non-conforming version or a missing version paired with a non-empty salt is a fail-closed misconfiguration: every subsequent `Apply` returns `[REDACTED]` rather than producing a hash indistinguishable from the unsalted path. The salt itself is never logged, echoed in output, or exposed via `Describe`; the version, by design, is.
+**Salt rotation and versioning.** The `deterministic_hash` primitive takes its salt and version as a single atomic option — `WithKeyedSalt(salt, version)` — so keyed hashing cannot be half-configured. The version is emitted on the wire (`<algo>:<version>:<hex16>`) so downstream consumers can identify which salt generation a hash was computed with. Rotating the salt MUST coincide with changing the version — hashes computed with different versions are not comparable. An empty salt, a version that violates `^[A-Za-z0-9._-]{1,32}$`, or any other invalid argument is a fail-closed misconfiguration: every subsequent `Apply` returns `[REDACTED]` rather than producing a hash indistinguishable from the unsalted path. The salt itself is never logged, echoed in output, or exposed via `Describe`; the version, by design, is.
 
-**Unsalted default.** The built-in `deterministic_hash` rule is registered out of the box with no salt, so that `mask.Apply("deterministic_hash", v)` works in smoke tests without configuration. The unsalted path is NOT pseudonymisation for GDPR Art. 4(5) or HIPAA purposes and MUST NOT be used in production. Re-register the rule with `DeterministicHashFunc(WithSalt(...), WithSaltVersion(...))`, or register `full_redact` under the same name if hashing is not required. The default exists for ergonomics; production use requires an explicit configuration step.
+**Unsalted default.** The built-in `deterministic_hash` rule is registered out of the box with no salt, so that `mask.Apply("deterministic_hash", v)` works in smoke tests without configuration. The unsalted path is NOT pseudonymisation for GDPR Art. 4(5) or HIPAA purposes and MUST NOT be used in production. Re-register the rule with `DeterministicHashFunc(WithKeyedSalt(salt, version))`, or register `full_redact` under the same name if hashing is not required. The default exists for ergonomics; production use requires an explicit configuration step.
 
 **Out of scope:**
 
@@ -848,13 +855,13 @@ Personal and identity fields common to most jurisdictions. See [Country-specific
 |---|---|---|
 | `date_of_birth` | Preserves the year and masks month and day across three common formats (ISO, slash, month-name); separator style is unchanged. | `1985-03-15` → `1985-**-**` |
 | `driver_license_number` | Preserves the first 2 and last 3 or 4 non-separator characters of a driver licence number. | `DL-1234-5678` → `DL-****-5678` |
-| `email_address` | Preserves the first character of the local-part and the full domain; masks the rest of the local-part. | `alice@example.com` → `a****@example.com` |
+| `email_address` | Preserves the first character of the local-part and the **full domain**; masks the rest of the local-part. Single-rune local parts fail closed (the whole local-part is masked) so the identifier is never echoed. GDPR-aware consumers: the retained domain is itself personal data for many mail providers; wrap with `deterministic_hash` + `WithKeyedSalt` if you need Art. 4(5) pseudonymisation. | `alice@example.com` → `a****@example.com` |
 | `family_name` | Preserves the first character of the surname. | `Smith` → `S****` |
 | `generic_national_id` | Preserves the first 2 and last 2 characters; use sparingly — prefer country-specific rules where available. | `AB123456CD` → `AB******CD` |
 | `given_name` | Preserves the first character of the given name. | `Alice` → `A****` |
 | `passport_number` | Preserves a two-letter country prefix (if present) and the last 2 characters. | `GB1234567` → `GB*****67` |
 | `person_name` | Preserves the first initial of each space-separated name component. | `Alice Smith` → `A**** S****` |
-| `street_address` | Keeps the leading house number and recognised trailing street type; masks the street-name body. | `42 Wallaby Way` → `42 ******* Way` |
+| `street_address` | Keeps the leading house number and recognised trailing street type; masks the street-name body. Inputs with no street-name body AND no recognised trailing type (e.g. `"42"`, `"42 "`) fail closed to a same-length mask. | `42 Wallaby Way` → `42 ******* Way` |
 | `tax_identifier` | Preserves the last 3 or 4 non-separator characters; preserves separators. | `12-3456789` → `**-***6789` |
 | `username` | Preserves the first 2 characters of a username. | `johndoe42` → `jo*******` |
 
@@ -895,7 +902,7 @@ Payment-card, banking, and tax-identifier rules. The `payment_card_pan_first6`, 
 | `payment_card_pin` | Same-length mask; callers concerned about PIN-width leakage should register `full_redact` under this name. | `1234` → `****` |
 | `swift_bic` | Preserves the 4-character bank code; accepts 8- or 11-character uppercase ASCII alphanumerics. | `BARCGB2L` → `BARC****` |
 | `uk_sort_code` | Preserves the first 2 digits of a UK 6-digit sort code (the bank identifier); preserves separators. | `12-34-56` → `12-**-**` |
-| `us_aba_routing_number` | Preserves the last 4 digits of a 9-digit US ABA routing number. | `123456789` → `*****6789` |
+| `us_aba_routing_number` | Preserves the last 4 digits of a 9-digit US ABA routing number. | `021000021` → `*****0021` |
 
 ## Health
 
@@ -989,9 +996,8 @@ Every primitive is exposed both as a Go helper function (call it directly inside
 | `KeepFirstN` | `KeepFirstN(v string, n int, c rune) string` | `KeepFirstNFunc(n int) RuleFunc` | — |
 | `KeepLastN` | `KeepLastN(v string, n int, c rune) string` | `KeepLastNFunc(n int) RuleFunc` | — |
 | `KeepFirstLast` | `KeepFirstLast(v string, first, last int, c rune) string` | `KeepFirstLastFunc(first, last int) RuleFunc` | — |
-| `TruncateVisible` | `TruncateVisible(v string, n int) string` | `TruncateVisibleFunc(n int) RuleFunc` | — |
 | `PreserveDelimiters` | `PreserveDelimiters(v, delim string, c rune) string` | `PreserveDelimitersFunc(delim string) RuleFunc` | — |
-| `ReplaceRegex` | `ReplaceRegex(v, pattern, replacement string) (string, error)` | `ReplaceRegexFunc(pattern, replacement string) (RuleFunc, error)` | — |
+| `ReplaceRegex` | — | `ReplaceRegexFunc(pattern, replacement string) (RuleFunc, error)` | — |
 | `ReducePrecision` | `ReducePrecision(v string, decimals int, c rune) string` | `ReducePrecisionFunc(decimals int) RuleFunc` | — |
 | `DeterministicHash` | `DeterministicHash(v string) string` | `DeterministicHashFunc(opts ...HashOption) RuleFunc` | `deterministic_hash` |
 | `FixedReplacementFunc` | — | `FixedReplacementFunc(s string) RuleFunc` | — |
@@ -1006,7 +1012,6 @@ mask.SameLengthMask("Hello", '*')                         // → "*****"
 mask.KeepFirstN("Sensitive", 4, '*')                      // → "Sens*****"
 mask.KeepLastN("Sensitive", 4, '*')                       // → "*****tive"
 mask.KeepFirstLast("SensitiveData", 4, 4, '*')            // → "Sens*****Data"
-mask.TruncateVisible("Sensitive", 4)                      // → "Sens"    (not fail-closed — composition only)
 mask.PreserveDelimiters("ab-cd", "-", '*')                // → "**-**"
 mask.ReducePrecision("37.7749", 2, '*')                   // → "37.77**"
 mask.DeterministicHash("alice@example.com")               // → "sha256:ff8d9819fc0e12bf"
@@ -1074,7 +1079,7 @@ _ = mask.Register("free_text_digits", r)
 
 `ReplaceRegexFunc` returns `(nil, err)` on an invalid pattern — compile it once at init and panic fatally if it's wrong.
 
-Other factories in the same shape: `TruncateVisibleFunc(n)`, `PreserveDelimitersFunc(delim)`, `ReducePrecisionFunc(decimals)`, `FixedReplacementFunc(s)`, `DeterministicHashFunc(opts...)`.
+Other factories in the same shape: `PreserveDelimitersFunc(delim)`, `ReducePrecisionFunc(decimals)`, `FixedReplacementFunc(s)`, `DeterministicHashFunc(opts...)`.
 
 ### 2. Compose a primitive via a closure
 
@@ -1113,8 +1118,7 @@ For pseudonymisation — stable but opaque identifiers — register `Determinist
 ```go
 func init() {
 	_ = mask.Register("user_id", mask.DeterministicHashFunc(
-		mask.WithSalt(os.Getenv("MASK_SALT")),
-		mask.WithSaltVersion("v1"),
+		mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
 	))
 }
 
@@ -1250,20 +1254,21 @@ configured character at apply time so changes are picked up immediately.
 The deterministic_hash rule is registered by default with no salt.
 The unsalted form is pseudonymisation for development and smoke tests only;
 it is not suitable for GDPR Art. 4(5) pseudonymisation or any production use.
-For production, re-register the rule with a configured salt and version:
+For production, re-register the rule with a configured salt and version via
+WithKeyedSalt, which validates both arguments atomically:
 
     m.Register("user_id",
         mask.DeterministicHashFunc(
-            mask.WithSalt("your-secret-salt"),
-            mask.WithSaltVersion("v1"),
+            mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
         ))
 
-Both options are required for keyed hashing. The version MUST match
-`^[A-Za-z0-9._-]{1,32}$`. A non-conforming version or a missing version paired
-with a non-empty salt is a sticky misconfiguration: every subsequent Apply on
-that rule returns FullRedactMarker. This fail-closed policy prevents an operator
-who typoed the version from silently producing hashes indistinguishable from the
-unsalted path. See SECURITY.md for the full salt-rotation and versioning policy.
+Both the salt and the version are required. The version MUST match
+`^[A-Za-z0-9._-]{1,32}$`. An empty salt or a non-conforming version is a
+misconfiguration: every subsequent Apply on that rule returns FullRedactMarker.
+This fail-closed policy prevents an operator who typoed the version (or
+forgot to supply a salt at deploy time) from silently producing hashes
+indistinguishable from the unsalted path. See SECURITY.md for the full
+salt-rotation and versioning policy.
 
 # Non-goals
 
@@ -1459,10 +1464,7 @@ func DeterministicHash(v string) string
     For a keyed variant or a different algorithm, build a RuleFunc via
     DeterministicHashFunc and invoke it:
 
-        h := mask.DeterministicHashFunc(
-            mask.WithSalt("secret"),
-            mask.WithSaltVersion("v1"),
-        )("alice@example.com")
+        h := mask.DeterministicHashFunc(mask.WithKeyedSalt("secret", "v1"))("alice@example.com")
 
     Example: DeterministicHash("alice@example.com") → "sha256:ff8d9819fc0e12bf".
 
@@ -1561,16 +1563,6 @@ func Register(name string, fn RuleFunc) error
         err := mask.Register("my_token", mask.KeepFirstNFunc(4))
         // mask.Apply("my_token", "SensitiveToken") → "Sens**********".
 
-func ReplaceRegex(v, pattern, replacement string) (string, error)
-    ReplaceRegex applies the regex pattern to v and replaces every match with
-    replacement. Returns the original pattern compilation error if pattern is
-    malformed; the value argument is never included in the error message.
-
-    This function compiles pattern on every call. For hot-path use, call
-    ReplaceRegexFunc once and reuse the returned RuleFunc.
-
-    Example: ReplaceRegex("id-42", `\d+`, "N") → ("id-N", nil).
-
 func Rules() []string
     Rules returns the sorted list of rule names registered on the package-level
     registry. See Masker.Rules.
@@ -1595,22 +1587,6 @@ func SetMaskChar(c rune)
         mask.SetMaskChar('#')
         mask.Apply("us_ssn", "123-45-6789") // → "###-##-6789"
 
-func TruncateVisible(v string, n int) string
-    TruncateVisible keeps the first n runes of v and drops everything after —
-    no mask characters are appended, so the output is shorter than the input.
-    Values of n ≤ 0 produce the empty string; n ≥ the rune count of v returns v
-    unchanged. Unicode aware.
-
-    Example: TruncateVisible("Sensitive", 4) → "Sens".
-
-    WARNING: TruncateVisible is a formatting helper, not a masking primitive. It
-    does NOT fail closed — when n ≥ the rune count of v it returns v verbatim.
-    For example, TruncateVisible("abc", 99) returns "abc", the original value
-    unmasked. Use it only in composition with an actual masking primitive
-    (for example chained after KeepFirstN to clip a too-long visible prefix).
-    Registering TruncateVisible directly as a masking rule will produce data
-    leaks on short inputs.
-
 
 TYPES
 
@@ -1626,10 +1602,9 @@ const (
 	// SHA512 uses SHA-512. Output prefix "sha512".
 	SHA512
 	// SHA3_256 uses SHA3-256. Output prefix "sha3-256".
-	SHA3_256 //nolint:revive // matches stdlib crypto.SHA3_256
+	SHA3_256
 	// SHA3_512 uses SHA3-512. Output prefix "sha3-512".
-	SHA3_512 //nolint:revive // matches stdlib crypto.SHA3_512
-
+	SHA3_512
 )
     SHA3_256 and SHA3_512 deliberately mirror the stdlib crypto.SHA3_256 /
     crypto.SHA3_512 naming so callers switching between the two packages do not
@@ -1637,8 +1612,9 @@ const (
     is suppressed on those two lines for that reason.
 
 func (a HashAlgorithm) String() string
-    String returns the on-the-wire prefix for a. Values outside the defined
-    constants return the default "sha256".
+    String returns the on-the-wire prefix for a. Out-of-range values return a
+    "HashAlgorithm(N)" form mirroring stdlib reflect.Kind.String — a programmer
+    error is surfaced rather than silently clamped.
 
 type HashOption func(*hashConfig)
     HashOption configures the deterministic-hash primitives. Use with
@@ -1664,65 +1640,38 @@ func WithAlgorithm(a HashAlgorithm) HashOption
         h := mask.DeterministicHashFunc(mask.WithAlgorithm(mask.SHA512))
         h("alice@example.com") // → "sha512:<hex16>"
 
-func WithSalt(salt string) HashOption
-    WithSalt sets the HMAC salt for keyed hashing. Combine with WithSaltVersion
-    to enable keyed output: a salted hash without a configured version (or with
-    a version that violates the version grammar) is a misconfiguration and fails
-    closed on every subsequent Apply — see the package documentation for the
-    full policy.
+func WithKeyedSalt(salt, version string) HashOption
+    WithKeyedSalt configures keyed (HMAC) hashing in one atomic step.
+    Both salt and version are required; calling with either empty, or a version
+    that violates the version grammar, marks the configuration misconfigured and
+    every subsequent Apply returns FullRedactMarker — failing closed rather than
+    silently producing hashes that look unsalted or differ across deployments.
 
-    WithSalt("") is the unsalted path — the primitive emits
-    `<algo>:<first-16-hex>` with no version segment.
-
-    The salt itself is never logged, echoed in output, returned in error
-    messages, or exposed via Describe.
-
-    Operational note: salt values live in in-memory Go strings and may appear
-    in process core dumps or goroutine stacks. Protect the process, not the
-    library.
-
-    Example:
-
-        h := mask.DeterministicHashFunc(
-            mask.WithSalt("my-secret-salt"),
-            mask.WithSaltVersion("v1"),
-        )
-        h("alice@example.com") // → "sha256:v1:<hex16>"
-
-func WithSaltVersion(version string) HashOption
-    WithSaltVersion sets the salt-version identifier emitted on the wire
-    alongside the hash so downstream consumers can identify which salt
-    generation produced a given hash. Combine with WithSalt to enable keyed
-    hashing.
-
-    Output shape when both salt and version are configured:
+    Output shape when both are configured:
 
         <algo>:<version>:<first-16-hex>
 
-    For example, `DeterministicHashFunc(WithSalt("k"), WithSaltVersion("v1"))`
-    applied to "alice@example.com" emits `sha256:v1:<hex16>` where <hex16> is
-    the first 16 hex chars of HMAC-SHA256("k", "alice@example.com").
+    For example, `DeterministicHashFunc(WithKeyedSalt("k", "v1"))` applied to
+    `"alice@example.com"` emits `sha256:v1:<hex16>` where `<hex16>` is the first
+    16 hex chars of HMAC-SHA256("k", …).
 
     Version grammar: the version MUST match `^[A-Za-z0-9._-]{1,32}$`. Colons,
     whitespace, non-ASCII characters, other punctuation, and versions longer
-    than 32 bytes are rejected. A misconfiguration (salt set without a
-    conforming version, or a version set without a salt) sets a sticky flag
-    on the hashConfig and every subsequent Apply emits FullRedactMarker. This
-    fail-closed policy prevents an operator who typoed the version from silently
-    producing hashes indistinguishable from the unsalted path.
+    than 32 bytes are rejected as a misconfiguration.
 
-    Salt-rotation identification: if the operator changes the salt in their
-    process, the version MUST change too. Downstream consumers comparing hashes
-    across salt rotations should match on the (algorithm, version) tuple —
-    hashes with different versions are not comparable even when the underlying
-    value is identical.
+    Salt-rotation identification: if the operator changes the salt, the version
+    MUST change too. Downstream consumers comparing hashes across rotations
+    should match on the (algorithm, version) tuple — hashes with different
+    versions are not comparable even when the underlying value is identical.
+
+    Operational notes: the salt itself is never logged, echoed in output,
+    returned in error messages, or exposed via Describe. Salt values live in
+    in-memory Go strings and may appear in process core dumps or goroutine
+    stacks — protect the process, not the library.
 
     Example:
 
-        h := mask.DeterministicHashFunc(
-            mask.WithSalt("my-secret-salt"),
-            mask.WithSaltVersion("v1"),
-        )
+        h := mask.DeterministicHashFunc(mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"))
         h("alice@example.com") // → "sha256:v1:<hex16>"
 
 type Masker struct {
@@ -1895,8 +1844,7 @@ func DeterministicHashFunc(opts ...HashOption) RuleFunc
     Example:
 
         _ = m.Register("hashed_email", mask.DeterministicHashFunc(
-            mask.WithSalt(os.Getenv("MASK_SALT")),
-            mask.WithSaltVersion("v1"),
+            mask.WithKeyedSalt(os.Getenv("MASK_SALT"), "v1"),
             mask.WithAlgorithm(mask.SHA3_256),
         ))
 
@@ -1965,12 +1913,6 @@ func ReplaceRegexFunc(pattern, replacement string) (RuleFunc, error)
 
         r, _ := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
         r("Order #1234567 shipped") // → "Order #[REDACTED] shipped"
-
-func TruncateVisibleFunc(n int) RuleFunc
-    TruncateVisibleFunc builds a RuleFunc that truncates its input to the first
-    n runes. See TruncateVisible for boundary behaviour.
-
-    Example: TruncateVisibleFunc(4)("Sensitive") → "Sens".
 
 type RuleInfo struct {
 	// Name is the canonical label the rule is registered under.

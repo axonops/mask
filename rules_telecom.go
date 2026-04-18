@@ -52,13 +52,13 @@ const (
 // handling should route such fields through `phone_number` in
 // E.164 form instead.
 const (
+	// msisdnMinLen and msisdnMaxLen are inclusive bounds; inputs
+	// outside this range fail closed to SameLengthMask.
 	msisdnKeepFirst = 2
 	msisdnKeepLast  = 4
 	msisdnMinLen    = 10
 	msisdnMaxLen    = 15
 )
-
-// msisdnLen ranges are inclusive. Shorter inputs fail closed.
 
 // phoneKeepLast is the trailing digit window preserved by
 // `phone_number` after the country-code literal.
@@ -492,7 +492,7 @@ func registerTelecomRules(m *Masker) {
 	m.mustRegisterBuiltin("mobile_phone_number", phone,
 		RuleInfo{
 			Name: "mobile_phone_number", Category: "telecom", Jurisdiction: "global",
-			Description: "Currently a thin alias of `phone_number` — identical input-to-output behaviour. Exists so callers with mobile-specific schema naming can register that name without re-wrapping. Prefer `phone_number` unless you specifically need the mobile spelling; register a distinct custom rule if future jurisdictional divergence matters to your workload. Example: +44 7911 123456 → +44 **** **3456.",
+			Description: "Alias of `phone_number` — identical input-to-output behaviour. Exists so callers with mobile-specific schema naming can register that name without re-wrapping. Prefer `phone_number` for new code; register a distinct custom rule if mobile-specific masking matters to your workload. Example: +44 7911 123456 → +44 **** **3456.",
 		})
 	m.mustRegisterBuiltin("imei",
 		func(v string) string { return maskIMEI(v, m.maskChar()) },

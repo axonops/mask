@@ -48,17 +48,6 @@ func TestInternal_ClampNonNeg_Negative(t *testing.T) {
 	assert.Equal(t, 5, clampNonNeg(5), "positive passes through")
 }
 
-// TestInternal_HashSumUnsalted_DefaultBranch exercises the safety
-// fallback when an out-of-range HashAlgorithm is passed directly.
-// In normal use callers route through resolveAlgo, which clamps.
-func TestInternal_HashSumUnsalted_DefaultBranch(t *testing.T) {
-	t.Parallel()
-	// -1 is not in the known-algorithm range; the helper MUST fall
-	// back to SHA-256 rather than panic.
-	out := hashSumUnsalted(HashAlgorithm(-1), "x")
-	assert.Len(t, out, 32, "fallback must produce a 32-byte SHA-256 digest")
-}
-
 // TestInternal_ResolveAlgo_OutOfRange pins the resolveAlgo clamp
 // for values below zero and at-or-above the maximum.
 func TestInternal_ResolveAlgo_OutOfRange(t *testing.T) {

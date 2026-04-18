@@ -33,7 +33,7 @@ func TestApply_EmailAddress(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"canonical", "alice@example.com", "a****@example.com"},
 		{"plus subaddress", "bob.smith+work@company.co.uk", "b*************@company.co.uk"},
-		{"single char local", "x@y.com", "x@y.com"},
+		{"single char local fails closed", "x@y.com", "*@y.com"},
 		{"malformed no at", "not-an-email", "************"},
 		{"empty", "", ""},
 		{"empty local", "@example.com", "************"},
@@ -41,7 +41,7 @@ func TestApply_EmailAddress(t *testing.T) {
 		{"at only", "@", "*"},
 		{"multiple ats split on last", "a@b@c.com", "a**@c.com"},
 		{"preserve case in domain", "Alice@EXAMPLE.COM", "A****@EXAMPLE.COM"},
-		{"unicode local single rune", "佐@example.com", "佐@example.com"},
+		{"unicode local single rune", "佐@example.com", "*@example.com"},
 		{"unicode local multi rune", "佐藤@example.com", "佐*@example.com"},
 		{"already masked", "****@example.com", "****@example.com"},
 		{"whitespace only", "   ", "***"},
@@ -69,7 +69,7 @@ func TestApply_PersonName(t *testing.T) {
 		{"accented with hyphen", "María García-López", "M**** G*****-L****"},
 		{"apostrophe separator", "D'Angelo Smith", "D'A***** S****"},
 		{"empty", "", ""},
-		{"single rune", "A", "A"},
+		{"single rune fails closed", "A", "*"},
 		{"whitespace only", "  ", "**"},
 		{"double space preserved", "John  Doe", "J***  D**"},
 		{"leading separator", "-John", "-J***"},
@@ -99,7 +99,7 @@ func TestApply_GivenName(t *testing.T) {
 		{"accented", "María", "M****"},
 		{"cjk", "佐藤", "佐*"},
 		{"empty", "", ""},
-		{"single rune", "A", "A"},
+		{"single rune fails closed", "A", "*"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -114,9 +114,9 @@ func TestApply_FamilyName(t *testing.T) {
 	assert.Equal(t, "S****", m.Apply("family_name", "Smith"))
 	assert.Equal(t, "O******", m.Apply("family_name", "O'Brien"))
 	assert.Equal(t, "", m.Apply("family_name", ""))
-	// Single-rune input is returned unchanged (shared behaviour with
-	// given_name via the underlying KeepFirstN primitive).
-	assert.Equal(t, "A", m.Apply("family_name", "A"))
+	// Single-rune input fails closed to a same-length mask so the
+	// identifier is never echoed verbatim.
+	assert.Equal(t, "*", m.Apply("family_name", "A"))
 }
 
 // ---------- street_address ----------
@@ -130,7 +130,8 @@ func TestApply_StreetAddress(t *testing.T) {
 		{"no suffix keep leading digits", "42 Main", "42 ****"},
 		{"suffix at start not recognised", "Way 42", "******"},
 		{"empty", "", ""},
-		{"digits only", "42", "42"},
+		{"digits only fails closed", "42", "**"},
+		{"digits with trailing space fails closed", "42 ", "***"},
 		{"case insensitive suffix", "42 Wallaby way", "42 ******* way"},
 		{"suffix trailing period tolerated", "42 Wallaby St.", "42 ******* St."},
 		{"no signals fallback", "Apt 3", "*****"},
@@ -194,8 +195,8 @@ func TestApply_Username(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"canonical", "johndoe42", "jo*******"},
 		{"short", "admin", "ad***"},
-		{"two runes returns unchanged", "ab", "ab"},
-		{"single rune returns unchanged", "a", "a"},
+		{"two runes fails closed", "ab", "**"},
+		{"single rune fails closed", "a", "*"},
 		{"empty", "", ""},
 	}
 	for _, tc := range cases {
@@ -217,7 +218,9 @@ func TestApply_PassportNumber(t *testing.T) {
 		{"mixed prefix falls to numeric branch", "1A234567", "****4567"},
 		{"single digit prefix numeric branch", "A1234567", "****4567"},
 		{"all digits short", "12345", "*2345"},
-		{"shorter than keep window", "GB", "GB"},
+		{"alpha prefix shorter than keep window fails closed", "GB", "**"},
+		{"numeric shorter than keep window fails closed", "1234", "****"},
+		{"alpha prefix four runes fails closed", "GBCD", "****"},
 		{"empty", "", ""},
 	}
 	for _, tc := range cases {
@@ -266,7 +269,8 @@ func TestApply_GenericNationalID(t *testing.T) {
 	m := mask.New()
 	cases := []struct{ name, in, want string }{
 		{"canonical", "AB123456CD", "AB******CD"},
-		{"four runes returns unchanged", "ABCD", "ABCD"},
+		{"four runes fails closed", "ABCD", "****"},
+		{"three runes fails closed", "AB1", "***"},
 		{"five runes one masked", "ABCDE", "AB*DE"},
 		{"cjk", "佐藤1234太郎", "佐藤****太郎"},
 		{"empty", "", ""},

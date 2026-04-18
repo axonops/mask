@@ -191,3 +191,28 @@ func TestHealth_MaskCharOverride(t *testing.T) {
 		})
 	}
 }
+
+// TestAllRules_SmallInputFailsClosed sweeps every registered rule with
+// inputs of rune counts 0 through 5 and asserts the output never equals
+// the input (except for empty input, which is always permitted to map
+// to empty). This would have caught the identity fail-open bugs fixed
+// in the phase-A commit on first run — keep it as a guard against any
+// future rule forgetting its length-guard.
+func TestAllRules_SmallInputFailsClosed(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	corpus := []string{"", "a", "1", "ab", "12", "abc", "1234", "ABCDE"}
+	for _, name := range m.Rules() {
+		t.Run(name, func(t *testing.T) {
+			for _, in := range corpus {
+				out := m.Apply(name, in)
+				if in == "" {
+					// Empty input is always allowed to map to empty.
+					continue
+				}
+				assert.NotEqualf(t, in, out,
+					"rule %q echoed short input %q — fail-closed contract broken", name, in)
+			}
+		})
+	}
+}
