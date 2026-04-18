@@ -1,37 +1,151 @@
-# Baseline benchmarks for github.com/axonops/mask
+# mask benchmark baseline (regenerated before every release)
 #
-# Regenerate this file via:
-#   go test -bench=. -benchmem -run=^$ . > bench.txt
-#
-# Captured: Phase 3 (utility primitives landing — issue #3)
-# Host: Apple M2 / darwin-arm64 / Go 1.26
-#
-# Intended use: benchstat golden — future CI runs benchstat bench.txt new.txt
-# and fails on regressions. Integration of that CI job is tracked separately.
-#
+# Scope: every utility primitive plus every domain rule exposed via Apply.
+# Regenerate with 'make bench > bench.txt', strip ANSI and 'PASS'/'ok' trailers,
+# and commit in the same PR as any performance-affecting change.
+# CI consumes this file via the benchstat regression guard (see issue #17).
+
 goos: darwin
 goarch: arm64
 pkg: github.com/axonops/mask
 cpu: Apple M2
-BenchmarkFullRedact-8                        	1000000000	         0.3307 ns/op	       0 B/op	       0 allocs/op
-BenchmarkSameLengthMask_1000-8               	  365866	      3122 ns/op	    1024 B/op	       1 allocs/op
-BenchmarkKeepFirstN_16-8                     	22014561	        53.94 ns/op	      16 B/op	       1 allocs/op
-BenchmarkKeepFirstN_1000-8                   	  382159	      3257 ns/op	    1024 B/op	       1 allocs/op
-BenchmarkKeepLastN_16-8                      	18178408	        68.03 ns/op	      16 B/op	       1 allocs/op
-BenchmarkKeepLastN_1000-8                    	  323806	      3692 ns/op	    1024 B/op	       1 allocs/op
-BenchmarkKeepFirstLast_16-8                  	20918738	        58.03 ns/op	      16 B/op	       1 allocs/op
-BenchmarkKeepFirstLast_1000-8                	  299095	      3972 ns/op	    1024 B/op	       1 allocs/op
-BenchmarkTruncateVisible_16-8                	277720428	         4.371 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTruncateVisible_1000-8              	276125895	         4.320 ns/op	       0 B/op	       0 allocs/op
-BenchmarkPreserveDelimiters_Email-8          	12818646	        93.47 ns/op	      24 B/op	       1 allocs/op
-BenchmarkPreserveDelimitersFunc_Email-8      	10956343	       109.1 ns/op	      24 B/op	       1 allocs/op
-BenchmarkReplaceRegexFunc_1000-8             	   44373	     25269 ns/op	    4635 B/op	      11 allocs/op
-BenchmarkDeterministicHash_1000-8            	 2181520	       557.1 ns/op	    1080 B/op	       3 allocs/op
-BenchmarkDeterministicHash_Salted_1000-8     	 1465852	       814.1 ns/op	    1576 B/op	       9 allocs/op
-BenchmarkDeterministicHash_SHA512_1000-8     	 1349864	       871.5 ns/op	    1112 B/op	       3 allocs/op
-BenchmarkDeterministicHash_SHA3_256_1000-8   	  832321	      1419 ns/op	    1088 B/op	       3 allocs/op
-BenchmarkReducePrecision_NumericShort-8      	32811463	        36.47 ns/op	      16 B/op	       1 allocs/op
-BenchmarkReducePrecision_NumericLong-8       	  346722	      3520 ns/op	    1024 B/op	       1 allocs/op
-BenchmarkReducePrecision_Fallback-8          	35827980	        33.48 ns/op	       8 B/op	       1 allocs/op
+BenchmarkFullRedact-8                                 	1000000000	         0.3048 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSameLengthMask_1000-8                        	  378778	      3122 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkKeepFirstN_16-8                              	19686990	        61.65 ns/op	      16 B/op	       1 allocs/op
+BenchmarkKeepFirstN_1000-8                            	  366936	      3260 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkKeepLastN_16-8                               	18333264	        65.29 ns/op	      16 B/op	       1 allocs/op
+BenchmarkKeepLastN_1000-8                             	  322216	      3692 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkKeepFirstLast_16-8                           	18861423	        63.74 ns/op	      16 B/op	       1 allocs/op
+BenchmarkKeepFirstLast_1000-8                         	  293217	      3917 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkPreserveDelimiters_Email-8                   	 9898669	       121.8 ns/op	      24 B/op	       1 allocs/op
+BenchmarkPreserveDelimitersFunc_Email-8               	11188285	       106.2 ns/op	      24 B/op	       1 allocs/op
+BenchmarkReplaceRegexFunc_1000-8                      	   49136	     24805 ns/op	    4631 B/op	      11 allocs/op
+BenchmarkDeterministicHash_1000-8                     	 2253969	       532.0 ns/op	    1048 B/op	       2 allocs/op
+BenchmarkDeterministicHash_Salted_1000-8              	 1488990	       805.0 ns/op	    1584 B/op	       9 allocs/op
+BenchmarkDeterministicHash_SHA512_1000-8              	 1421005	       847.9 ns/op	    1048 B/op	       2 allocs/op
+BenchmarkDeterministicHash_SHA3_256_1000-8            	  869469	      1379 ns/op	    1056 B/op	       2 allocs/op
+BenchmarkReducePrecision_NumericShort-8               	33798175	        35.62 ns/op	      16 B/op	       1 allocs/op
+BenchmarkReducePrecision_NumericLong-8                	  355129	      3405 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkReducePrecision_Fallback-8                   	36390607	        33.72 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_us_ssn-8                               	16299198	        73.88 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_us_ssn_compact-8                       	19465483	        61.82 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_us_ssn_invalid-8                       	24721857	        48.69 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_ca_sin-8                               	16543594	        73.34 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_uk_nino-8                              	18390546	        61.74 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_uk_nino_spaced-8                       	14921467	        80.61 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_in_aadhaar-8                           	14013376	        85.61 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_in_pan-8                               	18966496	        64.06 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_au_medicare_number-8                   	16390540	        73.62 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_sg_nric_fin-8                          	17447269	        68.52 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_br_cpf-8                               	13431200	        90.04 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_br_cnpj-8                              	10457827	       115.9 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_mx_curp-8                              	12590108	        95.82 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_mx_rfc-8                               	16258069	        73.92 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_cn_resident_id-8                       	14138313	        85.22 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_za_national_id-8                       	18991974	        63.87 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_es_dni_nif_nie_dni-8                   	18448918	        64.78 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_es_dni_nif_nie_nie-8                   	17433656	        68.72 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_ca_sin_invalid-8                       	24772168	        48.08 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_uk_nino_invalid-8                      	23382259	        51.58 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_in_aadhaar_invalid-8                   	19894186	        60.52 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_br_cnpj_invalid-8                      	16134471	        74.33 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_mx_curp_invalid-8                      	15632954	        76.45 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_cn_resident_id_invalid-8               	14376514	        84.25 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_payment_card_pan_16-8                  	 9050691	       132.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_payment_card_pan_dashed-8              	 7608841	       158.2 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_payment_card_pan_invalid-8             	17173206	        68.08 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_payment_card_pan_first6-8              	 8820634	       137.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_payment_card_pan_last4-8               	 9067689	       132.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_payment_card_cvv-8                     	38806954	        30.39 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_payment_card_pin-8                     	35432766	        33.18 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_bank_account_number-8                  	10195094	       119.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_uk_sort_code-8                         	13993944	        85.56 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_us_aba_routing_number-8                	14854579	        79.92 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_us_aba_routing_number_long_invalid-8   	 9166852	       131.5 ns/op	      48 B/op	       1 allocs/op
+BenchmarkApply_payment_card_pan_invalid_nondigit-8    	12300279	        98.47 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_iban_compact-8                         	 8825107	       135.5 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_iban_spaced-8                          	 7470916	       160.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkApply_iban_invalid-8                         	10996638	       108.5 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_swift_bic_8-8                          	21664804	        56.39 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_swift_bic_11-8                         	19437591	        60.93 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_swift_bic_invalid-8                    	28787103	        41.96 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_monetary_amount-8                      	100000000	        11.24 ns/op	       0 B/op	       0 allocs/op
+BenchmarkApply_medical_record_number_prefixed-8       	15995404	        75.34 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_medical_record_number_unprefixed-8     	16523737	        71.54 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_medical_record_number_fallback-8       	20618586	        58.09 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_medical_record_number_long-8           	  257670	      4652 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkApply_health_plan_beneficiary_id-8           	15354415	        76.18 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_medical_device_identifier-8            	16675804	        72.06 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_diagnosis_code-8                       	100000000	        10.96 ns/op	       0 B/op	       0 allocs/op
+BenchmarkApply_prescription_text-8                    	100000000	        11.08 ns/op	       0 B/op	       0 allocs/op
+BenchmarkApply_email_address-8                        	22262865	        53.84 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_person_name_short-8                    	17526318	        68.21 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_person_name_long-8                     	 8515358	       140.0 ns/op	      32 B/op	       1 allocs/op
+BenchmarkApply_given_name-8                           	23863658	        50.20 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_family_name-8                          	23904381	        49.98 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_street_address_short-8                 	12405130	        98.30 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_street_address_long-8                  	 1269486	       950.3 ns/op	     224 B/op	       1 allocs/op
+BenchmarkApply_date_of_birth_iso-8                    	22984780	        52.06 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_date_of_birth_fallback-8               	13461754	        90.43 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_date_of_birth_slash-8                  	20524646	        58.57 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_date_of_birth_month_name-8             	 4188307	       288.6 ns/op	     144 B/op	       3 allocs/op
+BenchmarkApply_username-8                             	19846054	        60.29 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_passport_number-8                      	18123374	        67.59 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_driver_license_number_short-8          	14043628	        85.76 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_driver_license_number_long-8           	11141586	       106.9 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_generic_national_id-8                  	17632666	        68.04 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_tax_identifier_short-8                 	16295278	        73.16 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_tax_identifier_long-8                  	12734656	        95.25 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_ipv4_address-8                         	23546610	        48.87 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_ipv4_address_invalid-8                 	19046598	        62.98 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_ipv6_address_full-8                    	 6075627	       199.1 ns/op	      48 B/op	       1 allocs/op
+BenchmarkApply_ipv6_address_compressed-8              	20061186	        59.79 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_ipv6_address_invalid-8                 	11655670	       103.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_mac_address-8                          	23665798	        50.45 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_mac_address_invalid-8                  	16135909	        74.62 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_hostname-8                             	12904028	        93.03 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_hostname_single_label-8                	24221749	        49.59 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_url-8                                  	 4704063	       254.9 ns/op	     192 B/op	       2 allocs/op
+BenchmarkApply_url_long-8                             	  605470	      1982 ns/op	    1104 B/op	       3 allocs/op
+BenchmarkApply_url_invalid-8                          	 7680462	       157.0 ns/op	     176 B/op	       3 allocs/op
+BenchmarkApply_url_credentials-8                      	 4319094	       280.6 ns/op	     240 B/op	       3 allocs/op
+BenchmarkApply_url_credentials_invalid-8              	 6951289	       174.3 ns/op	     160 B/op	       2 allocs/op
+BenchmarkApply_api_key-8                              	12457830	        96.33 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_api_key_long-8                         	  536396	      2211 ns/op	     512 B/op	       1 allocs/op
+BenchmarkApply_api_key_short-8                        	36363267	        33.13 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_jwt_token-8                            	 9327230	       128.9 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_jwt_token_invalid-8                    	17439669	        68.70 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_bearer_token-8                         	24741523	        48.13 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_bearer_token_unknown_scheme-8          	15735985	        76.79 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_password-8                             	27947272	        43.18 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_password_empty-8                       	100000000	        11.90 ns/op	       0 B/op	       0 allocs/op
+BenchmarkApply_private_key_pem-8                      	100000000	        11.38 ns/op	       0 B/op	       0 allocs/op
+BenchmarkApply_connection_string-8                    	 3806175	       315.1 ns/op	     256 B/op	       3 allocs/op
+BenchmarkApply_connection_string_secret_query-8       	 2892337	       401.8 ns/op	     336 B/op	       3 allocs/op
+BenchmarkApply_database_dsn-8                         	16395523	        73.21 ns/op	      48 B/op	       1 allocs/op
+BenchmarkApply_database_dsn_invalid-8                 	11606646	       104.3 ns/op	      32 B/op	       1 allocs/op
+BenchmarkApply_uuid-8                                 	 9988741	       121.3 ns/op	      48 B/op	       1 allocs/op
+BenchmarkApply_uuid_invalid-8                         	 7263088	       161.5 ns/op	      48 B/op	       1 allocs/op
+BenchmarkApply_phone_number_e164-8                    	14133477	        84.86 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_phone_number_us_local-8                	12026121	        99.90 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_phone_number_invalid-8                 	18542184	        65.39 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_phone_number_long-8                    	 6462690	       187.1 ns/op	      48 B/op	       1 allocs/op
+BenchmarkApply_mobile_phone_number-8                  	14163518	        84.68 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_imei-8                                 	15823905	        75.77 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_imei_invalid-8                         	15840729	        75.67 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_imsi-8                                 	16349524	        72.77 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_imsi_invalid-8                         	16589508	        72.37 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_msisdn-8                               	18222012	        66.09 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_msisdn_invalid-8                       	20953226	        58.28 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_postal_code_uk-8                       	32661392	        36.28 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_postal_code_us-8                       	37920882	        31.90 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_postal_code_ca-8                       	34113480	        34.77 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_postal_code_unknown-8                  	23605783	        50.23 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_geo_latitude-8                         	24623212	        46.39 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_geo_latitude_invalid-8                 	37958616	        31.69 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_geo_longitude-8                        	25830198	        46.61 ns/op	      16 B/op	       1 allocs/op
+BenchmarkApply_geo_longitude_invalid-8                	32287320	        36.76 ns/op	       8 B/op	       1 allocs/op
+BenchmarkApply_geo_coordinates-8                      	15781702	        76.96 ns/op	      24 B/op	       1 allocs/op
+BenchmarkApply_geo_coordinates_invalid-8              	17675032	        67.67 ns/op	      16 B/op	       1 allocs/op
 PASS
-ok  	github.com/axonops/mask	27.607s
+ok  	github.com/axonops/mask	180.276s

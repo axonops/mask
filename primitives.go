@@ -17,7 +17,6 @@ package mask
 import (
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -219,14 +218,15 @@ func PreserveDelimiters(v, delim string, c rune) string {
 	return preserveDelimitersWithScan(v, delim, c)
 }
 
-// preserveDelimitersWithScan is the shared core. It uses a linear scan over
-// the delimiter runes — optimal for the common 1–5 delimiter case.
+// preserveDelimitersWithScan is the shared core. It scans delim for
+// each input rune — [strings.ContainsRune] is a linear scan with no
+// allocation, which beats materialising a []rune on every call for
+// the common 1–5 delimiter case.
 func preserveDelimitersWithScan(v, delim string, c rune) string {
-	delimRunes := []rune(delim)
 	var b strings.Builder
 	b.Grow(len(v))
 	for _, r := range v {
-		if slices.Contains(delimRunes, r) {
+		if strings.ContainsRune(delim, r) {
 			b.WriteRune(r)
 		} else {
 			b.WriteRune(c)
