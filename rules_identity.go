@@ -226,8 +226,10 @@ func leadingDigits(s string) int {
 // Matching is ASCII case-insensitive; a single trailing period on an
 // abbreviation ("St.") is tolerated when looking the token up.
 func streetTypeSuffix(s string) int {
-	// A scratch buffer sized to the longest street-type token in
-	// streetTypeSet ("boulevard" = 9 bytes) keeps this loop zero-alloc.
+	// A fixed-size scratch buffer comfortably larger than the longest
+	// street-type token in streetTypeSet (currently "boulevard" = 9
+	// bytes; 16 leaves headroom for future additions) keeps this loop
+	// zero-alloc.
 	var scratch [16]byte
 	end := len(s)
 	out := -1
@@ -398,7 +400,7 @@ func maskDateOfBirth(v string, c rune) string {
 	if year, mLen, dLen, ok := parseDOBISO(v); ok {
 		return buildDOB(c, year, "-", mLen, "-", dLen, "")
 	}
-	if dLen, _, year, ok := parseDOBSlash(v); ok {
+	if dLen, year, ok := parseDOBSlash(v); ok {
 		// The middle group is always 4 mask runes regardless of the
 		// matched month width — see the date_of_birth row in
 		// docs/rules.md for the canonical examples.
@@ -437,8 +439,10 @@ func parseDOBISO(v string) (year string, mLen, dLen int, ok bool) {
 }
 
 // parseDOBSlash parses D/M/YYYY or DD/MM/YYYY without allocating.
-// Returns the byte-lengths of the day and month fields and the year substring.
-func parseDOBSlash(v string) (dLen, mLen int, year string, ok bool) {
+// Returns the byte-length of the day field and the year substring;
+// the middle group is always a fixed 4 mask runes in the output so
+// the month-field width is not needed by callers.
+func parseDOBSlash(v string) (dLen int, year string, ok bool) {
 	if len(v) < 8 {
 		return
 	}
@@ -455,7 +459,7 @@ func parseDOBSlash(v string) (dLen, mLen int, year string, ok bool) {
 	if len(yr) != 4 || !allASCIIDigits(yr) {
 		return
 	}
-	return sep1, sep2, yr, true
+	return sep1, yr, true
 }
 
 // buildDOB emits "<year><sep1><nMask1><sep2><nMask2><tail>" in one

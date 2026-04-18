@@ -52,13 +52,13 @@ const (
 // handling should route such fields through `phone_number` in
 // E.164 form instead.
 const (
+	// msisdnMinLen and msisdnMaxLen are inclusive bounds; inputs
+	// outside this range fail closed to SameLengthMask.
 	msisdnKeepFirst = 2
 	msisdnKeepLast  = 4
 	msisdnMinLen    = 10
 	msisdnMaxLen    = 15
 )
-
-// msisdnLen ranges are inclusive. Shorter inputs fail closed.
 
 // phoneKeepLast is the trailing digit window preserved by
 // `phone_number` after the country-code literal.

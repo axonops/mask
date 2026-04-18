@@ -56,9 +56,9 @@ const (
 	// SHA512 uses SHA-512. Output prefix "sha512".
 	SHA512
 	// SHA3_256 uses SHA3-256. Output prefix "sha3-256".
-	SHA3_256 //nolint:revive // matches stdlib crypto.SHA3_256
+	SHA3_256
 	// SHA3_512 uses SHA3-512. Output prefix "sha3-512".
-	SHA3_512 //nolint:revive // matches stdlib crypto.SHA3_512
+	SHA3_512
 
 	// maxHashAlgorithm is the exclusive upper bound used for range checks.
 	maxHashAlgorithm
