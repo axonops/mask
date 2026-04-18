@@ -19,7 +19,7 @@ Thank you for your interest in contributing to `github.com/axonops/mask`. This d
 
 Conventional Commits are mandatory:
 
-```
+```text
 <type>(<scope>): <subject> (#<issue>)
 
 <body>
@@ -101,5 +101,3 @@ See [`SECURITY.md`](./SECURITY.md) for vulnerability disclosure.
 ## Licence
 
 By contributing, you agree that your contributions will be licensed under the [Apache Licence 2.0](./LICENSE).
-
-

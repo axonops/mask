@@ -66,6 +66,8 @@ func TestLLMs_FullTxtExists_AndIncludesSpecifiedSections(t *testing.T) {
 		"# Package godoc (doc.go)",
 		"# CONTRIBUTING.md",
 		"# SECURITY.md",
+		"# docs/rules.md",
+		"# docs/extending.md",
 		"# docs/v0.9.0-requirements.md",
 		"# Full godoc reference (go doc -all)",
 	}
@@ -308,20 +310,25 @@ func TestReadmeQuickStart_Compiles(t *testing.T) {
 		"Quick Start output must include the documented masked email")
 }
 
+// quickStartHeadingPattern locates any H2 heading containing
+// "Quick Start" (case-insensitive), tolerating an emoji decoration
+// such as "## 🚀 Quick Start" or the older bare "## Quick start".
+var quickStartHeadingPattern = regexp.MustCompile(`(?mi)^##\s+.*Quick\s+Start`)
+
 // extractQuickStartBlock finds the first ```go ... ``` fence
-// immediately following a "## Quick start" heading.
+// following the Quick Start heading, skipping intermediate sub-headings
+// ("### Install" and similar) and non-Go fenced blocks.
 func extractQuickStartBlock(body string) (string, bool) {
-	idx := strings.Index(body, "## Quick start")
-	if idx < 0 {
+	loc := quickStartHeadingPattern.FindStringIndex(body)
+	if loc == nil {
 		return "", false
 	}
-	after := body[idx:]
+	after := body[loc[1]:]
 	start := strings.Index(after, "```go")
 	if start < 0 {
 		return "", false
 	}
 	start += len("```go")
-	// Skip the trailing newline on the fence opener.
 	if start < len(after) && after[start] == '\n' {
 		start++
 	}

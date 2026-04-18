@@ -1,0 +1,57 @@
+# markdownlint-cli2 configuration for README.md, CONTRIBUTING.md, SECURITY.md,
+# CHANGELOG.md and docs/**. Rules are tuned for this project's prose style —
+# see https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md.
+
+globs:
+  - "README.md"
+  - "CONTRIBUTING.md"
+  - "SECURITY.md"
+  - "CHANGELOG.md"
+  - "docs/README.md"
+  - "docs/rules.md"
+  - "docs/extending.md"
+
+# docs/v0.9.0-requirements.md is intentionally excluded — the
+# requirements document is a frozen design record written in a terser
+# style than the user-facing docs, and tightening its formatting is
+# not in Phase 7b scope.
+
+config:
+  default: true
+
+  # MD013 — long lines are the norm for prose and for inline code/table cells.
+  MD013: false
+
+  # MD033 — README uses <div align="center"> for the shop-front hero and
+  # <details> blocks for collapsible rule tables.
+  MD033: false
+
+  # MD041 — the README opens with the centred hero block (HTML + image),
+  # not an H1. The H1 appears inside the hero.
+  MD041: false
+
+  # MD024 — sibling headings may repeat between unrelated sections.
+  MD024:
+    siblings_only: true
+
+  # MD036 — emphasis-as-heading is used for the bold tagline in the hero.
+  MD036: false
+
+  # MD034 — bare URLs are acceptable in the generator output bundle; prose
+  # links use markdown syntax.
+  MD034: false
+
+  # MD010 — Go code blocks in the README use tabs (the language's canonical
+  # indentation), so exclude fenced code blocks from the hard-tab check.
+  MD010:
+    code_blocks: false
+
+  # MD060 — table pipe padding style is not enforced. The existing rule and
+  # primitive tables use a compact form; the shop-front tables use padding.
+  # Both render identically on GitHub.
+  MD060: false
+
+  # MD023 — the H1 and H2 inside the shop-front hero are intentionally
+  # indented two spaces so GitHub renders them centred inside the
+  # <div align="center"> block that wraps the hero.
+  MD023: false

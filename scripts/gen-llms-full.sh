@@ -10,14 +10,18 @@
 # CI runs this script and fails the build if the committed
 # `llms-full.txt` differs from the regenerated output.
 #
-# Source file order (matches issue #7 Requirement 2):
+# Source file order (matches issue #7 Requirement 2, extended in
+# Phase 7b to include the docs/ folder that now carries the rule
+# catalogue and extension patterns the README used to hold):
 #   1. llms.txt
 #   2. README.md
 #   3. doc.go (package comment only)
 #   4. CONTRIBUTING.md
 #   5. SECURITY.md
-#   6. docs/v0.9.0-requirements.md
-#   7. go doc -all github.com/axonops/mask
+#   6. docs/rules.md
+#   7. docs/extending.md
+#   8. docs/v0.9.0-requirements.md
+#   9. go doc -all github.com/axonops/mask
 
 set -euo pipefail
 
@@ -76,6 +80,8 @@ section "README.md" "README.md"
 section "Package godoc (doc.go)" "doc.go-comment"
 section "CONTRIBUTING.md" "CONTRIBUTING.md"
 section "SECURITY.md" "SECURITY.md"
+section "docs/rules.md" "docs/rules.md"
+section "docs/extending.md" "docs/extending.md"
 section "docs/v0.9.0-requirements.md" "docs/v0.9.0-requirements.md"
 section "Full godoc reference (go doc -all)" "godoc"
 
