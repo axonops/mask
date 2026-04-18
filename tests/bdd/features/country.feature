@@ -26,10 +26,12 @@ Feature: Country-specific identity masking rules
     Then the result is "<expected>"
 
     Examples:
-      | input       | expected    |
-      | 123-456-789 | ***-***-789 |
-      | 123456789   | ******789   |
-      |             |             |
+      | input        | expected    |
+      | 123-456-789  | ***-***-789 |
+      | 123456789    | ******789   |
+      | 12345678     | ********    |
+      | 1234-56-789  | *********** |
+      |              |             |
 
   Scenario Outline: Mask UK National Insurance Numbers
     Given a fresh masker
@@ -52,6 +54,8 @@ Feature: Country-specific identity masking rules
       | input          | expected       |
       | 1234 5678 9012 | **** **** 9012 |
       | 123456789012   | ********9012   |
+      | 12345678901    | ***********    |
+      | 1234 5678 901  | *************  |
       |                |                |
 
   Scenario Outline: Mask Indian PAN
@@ -63,6 +67,8 @@ Feature: Country-specific identity masking rules
       | input      | expected   |
       | ABCDE1234F | ABC*****4F |
       | abcde1234f | ********** |
+      | ABCDE12345 | ********** |
+      | ABCD1234FG | ********** |
       |            |            |
 
   Scenario Outline: Mask Australian Medicare numbers
@@ -76,6 +82,8 @@ Feature: Country-specific identity masking rules
       | input        | expected     |
       | 2123 45670 1 | **** ****0 1 |
       | 2123456701   | ********01   |
+      | 212345670    | *********    |
+      | 2123 45670 1A| ************* |
       |              |              |
 
   Scenario Outline: Mask Singapore NRIC/FIN
@@ -86,7 +94,9 @@ Feature: Country-specific identity masking rules
     Examples:
       | input     | expected  |
       | S1234567A | S*******A |
+      | T7654321B | T*******B |
       | s1234567a | ********* |
+      | S123A     | *****     |
       |           |           |
 
   Scenario Outline: Mask Brazilian CPF
@@ -111,6 +121,8 @@ Feature: Country-specific identity masking rules
       | input              | expected           |
       | 12.345.678/0001-95 | **.***.***/****-95 |
       | 12345678000195     | ************95     |
+      | 12-345-678/0001-95 | ****************** |
+      | 12.345.678/0001-9  | *****************  |
       |                    |                    |
 
   Scenario Outline: Mask Mexican CURP
@@ -123,6 +135,9 @@ Feature: Country-specific identity masking rules
     Examples:
       | input              | expected           |
       | GAPA850101HDFRRL09 | GAPA***********L09 |
+      | HEGG560427MVZRRL04 | HEGG***********L04 |
+      | gapa850101hdfrrl09 | ****************** |
+      | GAPA850101HDFRRL0  | *****************  |
       |                    |                    |
 
   Scenario Outline: Mask Mexican RFC
@@ -134,6 +149,8 @@ Feature: Country-specific identity masking rules
       | input         | expected      |
       | GAPA8501014T3 | GAP*******4T3 |
       | ABC850101DEF  | ABC******DEF  |
+      | gapa8501014t3 | ************* |
+      | ABC850101     | *********     |
       |               |               |
 
   Scenario Outline: Mask Chinese Resident Identity Card numbers
@@ -155,10 +172,12 @@ Feature: Country-specific identity masking rules
     Then the result is "<expected>"
 
     Examples:
-      | input         | expected      |
-      | 8501015009087 | 850101***9087 |
-      | 850101500908  | ************  |
-      |               |               |
+      | input          | expected       |
+      | 8501015009087  | 850101***9087  |
+      | 9001010000005  | 900101***0005  |
+      | 850101500908   | ************   |
+      | 85010150090870 | ************** |
+      |                |                |
 
   Scenario Outline: Mask Spanish DNI/NIF/NIE
     Given a fresh masker

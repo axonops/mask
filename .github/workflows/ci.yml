@@ -64,6 +64,27 @@ jobs:
           fi
           echo "All ${#expected[@]} required Makefile targets are documented in 'make help'."
 
+  apache-header-guard:
+    name: Apache 2.0 header on every Go file
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Verify Apache 2.0 header
+        run: |
+          set -euo pipefail
+          # Every tracked *.go file MUST carry the Apache 2.0 header in its
+          # first ~14 lines. The tell-tale phrase is stable across every
+          # file in the repo; grep -L lists files missing it.
+          missing=$(git ls-files '*.go' \
+            | xargs grep -L 'Licensed under the Apache License, Version 2.0' \
+            || true)
+          if [ -n "$missing" ]; then
+            echo "::error::Go files missing Apache 2.0 header:"
+            printf '%s\n' "$missing"
+            exit 1
+          fi
+          echo "All tracked .go files carry the Apache 2.0 header."
+
   local-paths-guard:
     name: No local paths or replace directives
     runs-on: ubuntu-latest
@@ -286,6 +307,14 @@ jobs:
       - name: Coverage
         if: matrix.os == 'ubuntu-latest'
         run: make coverage
+      - name: Enforce coverage threshold
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')
+          threshold=90.0
+          echo "Total coverage: ${total}% (threshold ${threshold}%)"
+          awk -v t="$total" -v th="$threshold" 'BEGIN { if (t+0 < th+0) { exit 1 } }' \
+            || { echo "::error::coverage ${total}% < threshold ${threshold}%"; exit 1; }
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v7.0.1

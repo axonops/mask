@@ -511,6 +511,13 @@ func maskURL(v string, c rune) string {
 	if !urlHasSensitive(u, path) {
 		return SameLengthMask(v, c)
 	}
+	// RawQuery is the caller's raw bytes; net/url preserves non-ASCII
+	// runes there verbatim. Writing invalid UTF-8 into the output
+	// would break the library-wide "output is always valid UTF-8"
+	// contract. Fail closed rather than emit a malformed string.
+	if !utf8.ValidString(u.RawQuery) {
+		return SameLengthMask(v, c)
+	}
 	var b strings.Builder
 	b.Grow(len(v))
 	writeURLMasked(&b, u, path, c)
@@ -593,17 +600,18 @@ func isCleanAuthority(h string) bool {
 // hostHasStrayByte reports whether h contains bytes that should never
 // appear in a clean authority (they signal that net/url has accepted
 // a malformed URL whose host field is actually something else).
-// Also rejects any non-ASCII byte — emitting raw 0x80+ bytes into
-// the output could produce invalid UTF-8. Consumers that need IDN
-// support should pre-punycode the host before calling.
+// Rejects any non-ASCII byte (emitting 0x80+ bytes would produce
+// invalid UTF-8 in the output) and any ASCII control byte below 0x20
+// or the delete byte 0x7F. Consumers that need IDN support should
+// pre-punycode the host before calling.
 func hostHasStrayByte(h string) bool {
 	for i := 0; i < len(h); i++ {
 		b := h[i]
-		if b >= 0x80 {
+		if b >= 0x80 || b < 0x20 || b == 0x7F {
 			return true
 		}
 		switch b {
-		case '@', '/', '?', '#', '%', ' ', '\t', '\n', '\r':
+		case '@', '/', '?', '#', '%', ' ':
 			return true
 		}
 	}
@@ -661,8 +669,9 @@ func writeMaskedURLPath(b *strings.Builder, path string, c rune) {
 
 // writeMaskedURLQuery walks raw (u.RawQuery — bytes as transmitted),
 // preserving key bytes and `&` / `=` structurally; each value
-// becomes a fixed 4-rune mask. Keys with no `=` (bare flags) are
-// emitted verbatim. Values with no key (leading `=`) still mask.
+// becomes a fixed 4-rune mask. Pairs without a `=` (bare flags) and
+// pairs with an empty key are same-length-masked so the rule cannot
+// echo a secret that was written in the ambiguous half.
 func writeMaskedURLQuery(b *strings.Builder, raw string, c rune) {
 	pairStart := 0
 	for i := 0; i <= len(raw); i++ {
@@ -705,6 +714,13 @@ func maskURLCredentials(v string, c rune) string {
 	if !ok || u.User == nil {
 		return SameLengthMask(v, c)
 	}
+	// net/url admits non-ASCII bytes in RawQuery and percent-decodes
+	// Fragment to the raw bytes, so an input like `...#%FF` yields an
+	// invalid-UTF-8 Fragment. Emit the escaped form and validate the
+	// RawQuery bytes to keep output always-valid-UTF-8.
+	if !utf8.ValidString(u.RawQuery) {
+		return SameLengthMask(v, c)
+	}
 	var b strings.Builder
 	b.Grow(len(v))
 	b.WriteString(u.Scheme)
@@ -718,7 +734,7 @@ func maskURLCredentials(v string, c rune) string {
 	}
 	if u.Fragment != "" {
 		b.WriteByte('#')
-		b.WriteString(u.Fragment)
+		b.WriteString(u.EscapedFragment())
 	}
 	return b.String()
 }
@@ -813,7 +829,10 @@ func maskBearerToken(v string, c rune) string {
 	}
 	token := v[len(bearerSchemePrefix):]
 	tokenRunes := utf8.RuneCountInString(token)
-	if tokenRunes < bearerTokenKeep {
+	// `<` would admit a token of exactly 6 runes to pass through
+	// unmasked (nothing left after the preserved prefix). Use `<=` so
+	// a 6-rune token fails closed rather than echoing the whole secret.
+	if tokenRunes <= bearerTokenKeep {
 		return SameLengthMask(v, c)
 	}
 	// Byte offset at rune 6.
@@ -859,6 +878,13 @@ func maskConnectionString(v string, c rune) string {
 	if !ok || (u.User == nil && !queryHasSecret(u.RawQuery)) {
 		return SameLengthMask(v, c)
 	}
+	// RawQuery may contain raw non-UTF-8 bytes per net/url's lax
+	// tokeniser. Fragment is masked to a fixed block so it's safe,
+	// but the query is written through writeConnStringQuery which
+	// passes pair bytes through. Fail closed on invalid UTF-8.
+	if !utf8.ValidString(u.RawQuery) {
+		return SameLengthMask(v, c)
+	}
 	var b strings.Builder
 	b.Grow(len(v))
 	b.WriteString(u.Scheme)
@@ -880,7 +906,10 @@ func maskConnectionString(v string, c rune) string {
 }
 
 // queryHasSecret scans raw for any secret-key pair. Matches the key
-// case-insensitively against [secretQueryKeys].
+// case-insensitively against [secretQueryKeys] AFTER percent-decoding
+// the raw-byte key — without the decode, an attacker-crafted key like
+// `password%3Dfoo` would bypass the lookup and the caller would echo
+// the associated value verbatim.
 func queryHasSecret(raw string) bool {
 	if raw == "" {
 		return false
@@ -890,7 +919,7 @@ func queryHasSecret(raw string) bool {
 		if i == len(raw) || raw[i] == '&' {
 			pair := raw[pairStart:i]
 			if eq := strings.IndexByte(pair, '='); eq > 0 {
-				if _, ok := secretQueryKeys[asciiLower(pair[:eq])]; ok {
+				if isSecretKey(pair[:eq]) {
 					return true
 				}
 			}
@@ -898,6 +927,21 @@ func queryHasSecret(raw string) bool {
 		}
 	}
 	return false
+}
+
+// isSecretKey reports whether rawKey names one of the configured
+// secret-query-parameter keys. Percent-decodes rawKey first so that
+// encoded variants (for example `password%3Dfoo`) do not slip past
+// the lookup. On decode failure the raw lowercased bytes are used —
+// a malformed percent sequence is unusual in a key position and we
+// prefer to fail closed toward matching.
+func isSecretKey(rawKey string) bool {
+	decoded, err := url.QueryUnescape(rawKey)
+	if err != nil {
+		decoded = rawKey
+	}
+	_, ok := secretQueryKeys[asciiLower(decoded)]
+	return ok
 }
 
 // writeConnStringQuery walks raw and emits each pair with `key=****`
@@ -927,7 +971,7 @@ func writeConnStringPair(b *strings.Builder, pair string, c rune) {
 		return
 	}
 	key := pair[:eq]
-	if _, ok := secretQueryKeys[asciiLower(key)]; ok {
+	if isSecretKey(key) {
 		b.WriteString(key)
 		b.WriteByte('=')
 		writeMaskRunes(b, c, fixedMaskWidth)
@@ -973,7 +1017,7 @@ func maskDatabaseDSN(v string, c rune) string {
 	}
 	userinfo := v[:candidate]
 	rest := v[candidate+1:]
-	if userinfo == "" || rest == "" {
+	if userinfo == "" || rest == "" || !utf8.ValidString(rest) {
 		return SameLengthMask(v, c)
 	}
 	var b strings.Builder

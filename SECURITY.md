@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The `mask` library is currently in pre-release (`v0.x`). Only the most recent `v0.x` minor release receives security fixes until `v1.0.0` stabilises the API.
+The `mask` library follows a `v0.x` versioning scheme. Only the most recent `v0.x` minor release receives security fixes until `v1.0.0` stabilises the API.
 
 | Version | Supported |
 |---------|-----------|
@@ -22,7 +22,9 @@ The `mask` library is currently in pre-release (`v0.x`). Only the most recent `v
 - Thread safety under the documented contract (`Register` at init, `Apply` concurrent thereafter).
 - Use of `crypto/sha256` for `deterministic_hash` — never MD5 or SHA-1.
 
-**Salt rotation and versioning.** The `deterministic_hash` primitive's `WithSalt(salt, version)` option requires both a salt and a version string. The version is emitted on the wire (`<algo>:<version>:<hex16>`) so downstream consumers can identify which salt generation a hash was computed with. Rotating the salt MUST coincide with changing the version — hashes computed with different versions are not comparable. A non-conforming version or a missing version with a non-empty salt is a fail-closed misconfiguration: every subsequent `Apply` returns `[REDACTED]` rather than producing a hash indistinguishable from the unsalted path. The salt itself is never logged, echoed in output, or exposed via `Describe`; the version, by design, is.
+**Salt rotation and versioning.** The `deterministic_hash` primitive takes its salt and version as independent options — `WithSalt(salt)` and `WithSaltVersion(version)` — both of which are required for keyed hashing. The version is emitted on the wire (`<algo>:<version>:<hex16>`) so downstream consumers can identify which salt generation a hash was computed with. Rotating the salt MUST coincide with changing the version — hashes computed with different versions are not comparable. A non-conforming version or a missing version paired with a non-empty salt is a fail-closed misconfiguration: every subsequent `Apply` returns `[REDACTED]` rather than producing a hash indistinguishable from the unsalted path. The salt itself is never logged, echoed in output, or exposed via `Describe`; the version, by design, is.
+
+**Unsalted default.** The built-in `deterministic_hash` rule is registered out of the box with no salt, so that `mask.Apply("deterministic_hash", v)` works in smoke tests without configuration. The unsalted path is NOT pseudonymisation for GDPR Art. 4(5) or HIPAA purposes and MUST NOT be used in production. Re-register the rule with `DeterministicHashFunc(WithSalt(...), WithSaltVersion(...))`, or register `full_redact` under the same name if hashing is not required. The default exists for ergonomics; production use requires an explicit configuration step.
 
 **Out of scope:**
 

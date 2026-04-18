@@ -34,6 +34,9 @@ Feature: Telecom and location masking rules
       | input            | expected         |
       | +44 7911 123456  | +44 **** **3456  |
       | 07911 123456     | ***** **3456     |
+      | (555) 123-4567   | (***) ***-4567   |
+      | 1-800-FLOWERS    | *************    |
+      |                  |                  |
 
   Scenario Outline: Mask IMEIs
     Given a fresh masker
@@ -55,7 +58,9 @@ Feature: Telecom and location masking rules
     Examples:
       | input              | expected           |
       | 310260123456789    | 31026******6789    |
+      | 234150000123456    | 23415******3456    |
       | 31026012345678     | **************     |
+      | 3102601234567890   | ****************   |
       |                    |                    |
 
   Scenario Outline: Mask MSISDNs
@@ -111,6 +116,8 @@ Feature: Telecom and location masking rules
       | input         | expected       |
       | -122.4194155  | -122.41*****   |
       | 139.6503      | 139.65**       |
+      | 0.12345       | 0.12***        |
+      | 180           | ***            |
       |               |                |
 
   Scenario Outline: Mask geo coordinate pairs

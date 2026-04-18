@@ -124,6 +124,28 @@ func BenchmarkApply_date_of_birth_fallback(b *testing.B) {
 	identitySink = s
 }
 
+func BenchmarkApply_date_of_birth_slash(b *testing.B) {
+	m := mask.New()
+	b.ReportAllocs()
+	b.ResetTimer()
+	var s string
+	for i := 0; i < b.N; i++ {
+		s = m.Apply("date_of_birth", "15/03/1985")
+	}
+	identitySink = s
+}
+
+func BenchmarkApply_date_of_birth_month_name(b *testing.B) {
+	m := mask.New()
+	b.ReportAllocs()
+	b.ResetTimer()
+	var s string
+	for i := 0; i < b.N; i++ {
+		s = m.Apply("date_of_birth", "March 15, 1985")
+	}
+	identitySink = s
+}
+
 func BenchmarkApply_username(b *testing.B) {
 	m := mask.New()
 	b.ReportAllocs()

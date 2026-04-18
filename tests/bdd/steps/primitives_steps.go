@@ -128,7 +128,7 @@ func (w *World) useDeterministicHashAlgo(v, algoLabel string) error {
 	if err != nil {
 		return err
 	}
-	w.lastResult = mask.DeterministicHashWith(v, mask.WithAlgorithm(algo))
+	w.lastResult = mask.DeterministicHashFunc(mask.WithAlgorithm(algo))(v)
 	return nil
 }
 
@@ -137,17 +137,27 @@ func (w *World) useDeterministicHashAlgoSaltVersion(v, algoLabel, salt, version 
 	if err != nil {
 		return err
 	}
-	w.lastResult = mask.DeterministicHashWith(v, mask.WithAlgorithm(algo), mask.WithSalt(salt, version))
+	w.lastResult = mask.DeterministicHashFunc(
+		mask.WithAlgorithm(algo),
+		mask.WithSalt(salt),
+		mask.WithSaltVersion(version),
+	)(v)
 	return nil
 }
 
 func (w *World) useDeterministicHashSaltVersion(v, salt, version string) error {
-	w.lastResult = mask.DeterministicHashWith(v, mask.WithSalt(salt, version))
+	w.lastResult = mask.DeterministicHashFunc(
+		mask.WithSalt(salt),
+		mask.WithSaltVersion(version),
+	)(v)
 	return nil
 }
 
 func (w *World) useDeterministicHashSaltVersionSecond(v, salt, version string) error {
-	w.secondResult = mask.DeterministicHashWith(v, mask.WithSalt(salt, version))
+	w.secondResult = mask.DeterministicHashFunc(
+		mask.WithSalt(salt),
+		mask.WithSaltVersion(version),
+	)(v)
 	return nil
 }
 

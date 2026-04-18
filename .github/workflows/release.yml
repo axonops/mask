@@ -24,6 +24,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Disallow non-dry release from a non-main ref
+        if: github.ref != 'refs/heads/main' && inputs.dry_run != true
+        run: |
+          echo "::error::Non-dry releases must dispatch from main (got ${{ github.ref }}). Merge to main first, then re-dispatch."
+          exit 1
       - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
@@ -69,10 +74,14 @@ jobs:
     permissions:
       contents: write
     steps:
+      # On a real release the tag has just been pushed by the `tag`
+      # job, so we check it out. On a dry run no tag exists yet;
+      # fall back to the workflow's invocation ref so the build runs
+      # against the commit a human operator just validated.
       - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.dry_run && github.ref || inputs.tag }}
       - uses: actions/setup-go@v6.4.0
         with:
           go-version: "1.26"

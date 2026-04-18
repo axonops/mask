@@ -35,13 +35,6 @@ func isFinancialSeparator(r rune) bool {
 	return r == '-' || r == ' ' || r == '\u00A0'
 }
 
-// isASCIIDigit reports whether b is an ASCII digit (0–9).
-// Non-ASCII digit scripts (Arabic-Indic, Devanagari, etc.) return false —
-// payment-card and banking inputs are ASCII-only by spec.
-func isASCIIDigit(b byte) bool {
-	return b >= '0' && b <= '9'
-}
-
 // countDigitsAllDigits walks v, counts non-separator runes (via isSep), and
 // reports whether every non-separator rune is an ASCII digit. The single
 // pass is zero-alloc because range-looping a string does not allocate.
@@ -169,7 +162,7 @@ func maskUSABARoutingNumber(v string, c rune) string {
 		return ""
 	}
 	for i := 0; i < len(v); i++ {
-		if !isASCIIDigit(v[i]) {
+		if !isASCIIDecDigit(v[i]) {
 			return SameLengthMask(v, c)
 		}
 	}
@@ -253,7 +246,7 @@ func maskSWIFTBIC(v string, c rune) string {
 	}
 	for i := 0; i < len(v); i++ {
 		b := v[i]
-		if (b < 'A' || b > 'Z') && !isASCIIDigit(b) {
+		if (b < 'A' || b > 'Z') && !isASCIIDecDigit(b) {
 			return SameLengthMask(v, c)
 		}
 	}
@@ -284,21 +277,21 @@ func registerFinancialRules(m *Masker) {
 		func(v string) string { return maskPaymentCardPAN(v, m.maskChar()) },
 		RuleInfo{
 			Name: "payment_card_pan", Category: "financial", Jurisdiction: "global (PCI DSS)",
-			Description: "Keeps the first 6 (BIN) and the last 4 digits; preserves dashes and spaces; requires 13-19 ASCII digits. Example: 4111-2222-3333-4444 → 4111-22**-****-4444.",
+			Description: "Keeps the first 6 (BIN) and the last 4 digits; preserves dashes and spaces; requires 13-19 ASCII digits. Example: 4111-1111-1111-1111 → 4111-11**-****-1111.",
 		})
 
 	m.mustRegisterBuiltin("payment_card_pan_first6",
 		func(v string) string { return maskPaymentCardPANFirst6(v, m.maskChar()) },
 		RuleInfo{
 			Name: "payment_card_pan_first6", Category: "financial", Jurisdiction: "global (PCI DSS)",
-			Description: "Keeps only the first 6 digits (BIN); preserves dashes and spaces. Example: 4111-2222-3333-4444 → 4111-22**-****-****.",
+			Description: "Keeps only the first 6 digits (BIN); preserves dashes and spaces. Example: 4111-1111-1111-1111 → 4111-11**-****-****.",
 		})
 
 	m.mustRegisterBuiltin("payment_card_pan_last4",
 		func(v string) string { return maskPaymentCardPANLast4(v, m.maskChar()) },
 		RuleInfo{
 			Name: "payment_card_pan_last4", Category: "financial", Jurisdiction: "global (PCI DSS)",
-			Description: "Keeps only the last 4 digits; preserves dashes and spaces. Example: 4111-2222-3333-4444 → ****-****-****-4444.",
+			Description: "Keeps only the last 4 digits; preserves dashes and spaces. Example: 4111-1111-1111-1111 → ****-****-****-1111.",
 		})
 
 	m.mustRegisterBuiltin("payment_card_cvv",
@@ -351,7 +344,7 @@ func registerFinancialRules(m *Masker) {
 		})
 
 	m.mustRegisterBuiltin("monetary_amount",
-		func(_ string) string { return maskMonetaryAmount("") },
+		maskMonetaryAmount,
 		RuleInfo{
 			Name: "monetary_amount", Category: "financial", Jurisdiction: "global",
 			Description: "Replaces any value with [REDACTED]. Length-preserving output would leak order of magnitude. Example: $1,234.56 → [REDACTED].",
