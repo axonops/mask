@@ -28,6 +28,14 @@ import (
 
 // TestGodog is the single entry point for the godog BDD suite. It runs every
 // .feature file under tests/bdd/features.
+//
+// Strict mode is MANDATORY and MUST NOT be disabled. When Strict is true,
+// godog fails the suite on any undefined or pending step — silently
+// skipping unimplemented fixtures is the single most common BDD failure
+// mode and we refuse to let it past CI. The CI workflow carries a guard
+// job that greps every BDD entry file for `Strict: true` and fails the
+// build if the flag is missing or set to false. See
+// .github/workflows/ci.yml → bdd-strict-mode-guard.
 func TestGodog(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: steps.Register,
@@ -36,6 +44,7 @@ func TestGodog(t *testing.T) {
 			Paths:     []string{"features"},
 			Output:    colors.Colored(os.Stdout),
 			Randomize: -1,
+			Strict:    true,
 			TestingT:  t,
 		},
 	}

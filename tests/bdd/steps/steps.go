@@ -33,6 +33,10 @@ import (
 type World struct {
 	maskers        map[string]*mask.Masker
 	lastResult     string
+	lastResults    []string
+	secondResult   string
+	replaceResult  string
+	replaceErr     error
 	lastError      error
 	lastRules      []string
 	lastDescribe   mask.RuleInfo
@@ -55,8 +59,11 @@ func Register(sc *godog.ScenarioContext) {
 	w := newWorld()
 
 	sc.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
-		w = newWorld()
-		// Reset global state that scenarios may mutate.
+		// World is constructed per-scenario by Register; do not re-assign
+		// here. This hook exists only to reset global state that scenarios
+		// may mutate. If a future change adds a package-level or BeforeAll
+		// binding of the World, isolation will silently break — keep all
+		// World construction inside Register.
 		mask.SetMaskChar(mask.DefaultMaskChar)
 		return ctx, nil
 	})
@@ -76,12 +83,38 @@ func Register(sc *godog.ScenarioContext) {
 	sc.Step(`^I list rules$`, w.listRules)
 
 	sc.Step(`^the result is "([^"]*)"$`, w.theResultIs)
+	sc.Step(`^the result is exactly "([^"]*)"$`, w.theResultIs)
 	sc.Step(`^the registration fails with error kind "([^"]+)"$`, w.registrationFailsWith)
 	sc.Step(`^masker "([^"]+)" has rule "([^"]+)"$`, w.maskerHasRule)
 	sc.Step(`^masker "([^"]+)" does not have rule "([^"]+)"$`, w.maskerDoesNotHaveRule)
 	sc.Step(`^the describe result is present$`, w.describePresent)
 	sc.Step(`^the describe result name is "([^"]+)"$`, w.describeName)
 	sc.Step(`^the listed rules contain, in order, "([^"]+)", "([^"]+)", "([^"]+)"$`, w.listedRulesInOrder)
+
+	// Primitives feature steps — share the World so "a fresh masker" and
+	// "the result is" are defined exactly once for the whole suite.
+	sc.Step(`^I apply "([^"]+)" to "([^"]*)"$`, w.applyRule)
+	sc.Step(`^I apply "([^"]+)" to "([^"]*)" (\d+) times$`, w.applyRuleNTimes)
+	sc.Step(`^I use KeepFirstN on "([^"]*)" with n (-?\d+) and char "([^"]+)"$`, w.useKeepFirstN)
+	sc.Step(`^I use KeepLastN on "([^"]*)" with n (-?\d+) and char "([^"]+)"$`, w.useKeepLastN)
+	sc.Step(`^I use KeepFirstLast on "([^"]*)" with first (-?\d+) last (-?\d+) and char "([^"]+)"$`, w.useKeepFirstLast)
+	sc.Step(`^I use PreserveDelimiters on "([^"]*)" with delim "([^"]*)" and char "([^"]+)"$`, w.usePreserveDelimiters)
+	sc.Step(`^I use TruncateVisible on "([^"]*)" with n (-?\d+)$`, w.useTruncateVisible)
+	sc.Step(`^I use ReplaceRegex on "([^"]*)" with pattern "([^"]*)" and replacement "([^"]*)"$`, w.useReplaceRegex)
+	sc.Step(`^I use FixedReplacementFunc with replacement "([^"]*)" on "([^"]*)"$`, w.useFixedReplacement)
+	sc.Step(`^I use ReducePrecision on "([^"]*)" with decimals (-?\d+) and char "([^"]+)"$`, w.useReducePrecision)
+	sc.Step(`^I compute DeterministicHashWith on "([^"]*)" using algorithm "([^"]+)"$`, w.useDeterministicHashAlgo)
+	sc.Step(`^I compute DeterministicHashWith on "([^"]*)" using algorithm "([^"]+)" and salt "([^"]*)"$`, w.useDeterministicHashAlgoSalt)
+	sc.Step(`^I compute DeterministicHashWith on "([^"]*)" with salt "([^"]*)"$`, w.useDeterministicHashSalt)
+	sc.Step(`^I also compute DeterministicHashWith on "([^"]*)" with salt "([^"]*)"$`, w.useDeterministicHashSaltSecond)
+
+	sc.Step(`^every result is identical$`, w.everyResultIsIdentical)
+	sc.Step(`^the result starts with "([^"]+)"$`, w.theResultStartsWith)
+	sc.Step(`^the result has length (\d+)$`, w.theResultHasLength)
+	sc.Step(`^the result does not contain "([^"]+)"$`, w.theResultDoesNotContain)
+	sc.Step(`^the two results differ$`, w.theTwoResultsDiffer)
+	sc.Step(`^the replace result is "([^"]*)" and the error is absent$`, w.replaceResultIsAndErrAbsent)
+	sc.Step(`^the replace result is empty and the error is present$`, w.replaceResultEmptyAndErrPresent)
 }
 
 func reverse(s string) string {

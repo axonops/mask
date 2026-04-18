@@ -71,6 +71,22 @@
 // [SetMaskChar] or per instance with [WithMaskChar]. Built-in rules read the
 // configured character at apply time so changes are picked up immediately.
 //
+// # Non-goals
+//
+// The API does not accept [context.Context]. Masking is pure compute with no
+// I/O, no goroutines, and no blocking operations; a context would never be
+// consulted and would mislead callers into expecting cancellation or deadline
+// semantics that cannot be honoured. This mirrors the stdlib strings,
+// strconv and encoding/* packages, which also do not accept context.
+//
+// If a future rule legitimately requires per-request metadata — for example
+// a policy-driven rule that varies by tenant — that metadata belongs on a
+// dedicated [Masker] instance constructed via [New], not smuggled through a
+// context value. If a future built-in rule cannot be implemented without
+// I/O (for example an HSM-backed tokeniser calling a remote KMS), the right
+// move is a separate subpackage with its own context-aware interface —
+// leaving the core [Apply] signature untouched.
+//
 // # Further reading
 //
 //   - The full rule catalogue lives in docs/v0.9.0-requirements.md.

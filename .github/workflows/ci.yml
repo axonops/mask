@@ -14,6 +14,57 @@ permissions:
   contents: read
 
 jobs:
+  bdd-strict-mode-guard:
+    name: BDD strict mode guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify every godog TestSuite sets Strict=true
+        run: |
+          set -euo pipefail
+
+          # Locate godog entry files: any .go file that constructs a
+          # godog.TestSuite{}. We require each one to carry an explicit
+          # `Strict: true` option. Silently running with strict mode off
+          # lets unimplemented steps slip through — the single most common
+          # BDD failure mode and something the project has been burned by.
+          mapfile -t files < <(grep -rln "godog.TestSuite" --include='*.go' tests || true)
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No godog.TestSuite entry found — is the BDD suite still present?"
+            exit 1
+          fi
+
+          failed=0
+          for f in "${files[@]}"; do
+            if grep -qE "Strict:\s*false" "$f"; then
+              echo "::error file=$f::BDD strict mode is disabled (Strict: false). Strict mode is mandatory; see feedback_bdd_strict_mode memory."
+              failed=1
+              continue
+            fi
+            if ! grep -qE "Strict:\s*true" "$f"; then
+              echo "::error file=$f::BDD entry file does not set Strict: true explicitly. The flag MUST be present — do not rely on defaults."
+              failed=1
+              continue
+            fi
+            echo "$f: OK (Strict: true)"
+          done
+
+          # Forbid any env-var or build-tag escape hatch that would disable
+          # strict mode conditionally.
+          if grep -rnE "Strict:\s*[A-Za-z_][A-Za-z0-9_]*" --include='*.go' tests | grep -vE "Strict:\s*true" ; then
+            echo "::error::A BDD entry file appears to gate Strict on a variable — strict mode MUST be a compile-time constant true."
+            failed=1
+          fi
+
+          # Flag suspicious skip/pending patterns in feature files.
+          if grep -rnE "@(skip|wip|pending|todo)\b" --include='*.feature' tests ; then
+            echo "::error::Feature files contain @skip / @wip / @pending / @todo tags. These are incompatible with strict mode and must be removed before merge."
+            failed=1
+          fi
+
+          exit "$failed"
+
   attribution-guard:
     name: No AI attribution
     runs-on: ubuntu-latest
