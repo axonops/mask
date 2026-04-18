@@ -7,6 +7,9 @@ globs:
   - "CONTRIBUTING.md"
   - "SECURITY.md"
   - "CHANGELOG.md"
+  - "docs/README.md"
+  - "docs/rules.md"
+  - "docs/extending.md"
 
 # docs/v0.9.0-requirements.md is intentionally excluded — the
 # requirements document is a frozen design record written in a terser

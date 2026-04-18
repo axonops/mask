@@ -66,6 +66,8 @@ func TestLLMs_FullTxtExists_AndIncludesSpecifiedSections(t *testing.T) {
 		"# Package godoc (doc.go)",
 		"# CONTRIBUTING.md",
 		"# SECURITY.md",
+		"# docs/rules.md",
+		"# docs/extending.md",
 		"# docs/v0.9.0-requirements.md",
 		"# Full godoc reference (go doc -all)",
 	}

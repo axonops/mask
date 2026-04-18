@@ -53,16 +53,18 @@ func TestDocumentation_EveryRuleHasDescription(t *testing.T) {
 // compares the set against the registry.
 var readmeRuleRowPattern = regexp.MustCompile("(?m)^\\| `([a-z][a-z0-9_]*)` \\|")
 
-// TestDocumentation_ReadmeRulesInSyncWithCatalog parses README.md's
-// rule tables and asserts that every registered rule appears in
+// TestDocumentation_ReadmeRulesInSyncWithCatalog parses
+// docs/rules.md's rule tables (which live there as of Phase 7b —
+// the README keeps only a summary-by-category table and a link to
+// this file) and asserts that every registered rule appears in
 // exactly one table, and every table entry corresponds to a
 // registered rule. A divergence in either direction fails the
-// build: the README rule tables and the catalogue are the same
-// source of truth.
+// build: the catalogue file and the registered rule set are the
+// same source of truth.
 func TestDocumentation_ReadmeRulesInSyncWithCatalog(t *testing.T) {
 	t.Parallel()
-	data, err := os.ReadFile("README.md")
-	require.NoError(t, err, "README.md must be readable from the repo root")
+	data, err := os.ReadFile("docs/rules.md")
+	require.NoError(t, err, "docs/rules.md must be readable from the repo root")
 
 	readmeCounts := map[string]int{}
 	for _, match := range readmeRuleRowPattern.FindAllStringSubmatch(string(data), -1) {
@@ -78,13 +80,13 @@ func TestDocumentation_ReadmeRulesInSyncWithCatalog(t *testing.T) {
 	for name := range registered {
 		count := readmeCounts[name]
 		assert.Equalf(t, 1, count,
-			"rule %q should appear in exactly one README rule-table row (found %d)",
+			"rule %q should appear in exactly one docs/rules.md rule-table row (found %d)",
 			name, count)
 	}
 	for name := range readmeCounts {
 		_, ok := registered[name]
 		assert.Truef(t, ok,
-			"README references rule %q but no such rule is registered",
+			"docs/rules.md references rule %q but no such rule is registered",
 			name)
 	}
 }

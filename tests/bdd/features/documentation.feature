@@ -22,5 +22,7 @@ Feature: AI-assistant documentation
     And the file contains the section header "# README.md"
     And the file contains the section header "# CONTRIBUTING.md"
     And the file contains the section header "# SECURITY.md"
+    And the file contains the section header "# docs/rules.md"
+    And the file contains the section header "# docs/extending.md"
     And the file contains the section header "# docs/v0.9.0-requirements.md"
     And the file contains the section header "# Full godoc reference (go doc -all)"
