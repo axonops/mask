@@ -28,6 +28,11 @@ linters:
       min-complexity: 10
     misspell:
       locale: UK
+      # "Harbor" is a proper noun — "HIPAA Safe Harbor" is the official
+      # name of the US HIPAA regulation, not a British/American spelling
+      # variant. Ignoring it lets the UK locale apply everywhere else.
+      ignore-rules:
+        - Harbor
     revive:
       rules:
         - name: exported

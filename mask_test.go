@@ -109,12 +109,11 @@ func TestRegister_NilRuleFunc_ReturnsErrInvalidRule(t *testing.T) {
 func TestNew_WithMaskChar_OverridesDefault(t *testing.T) {
 	t.Parallel()
 	m := mask.New(mask.WithMaskChar('X'))
-	// No built-in rules yet; verify the option is accepted and produces an
-	// isolated instance without panicking. Later phases will assert that
-	// built-in rules honour the character.
 	assert.NotNil(t, m)
+	// A built-in rule honours the configured mask character at apply time.
+	assert.Equal(t, "aXXXX@example.com", m.Apply("email_address", "alice@example.com"))
 	// Unknown rule still returns the fail-closed marker, independent of char.
-	assert.Equal(t, mask.FullRedactMarker, m.Apply("email_address", "alice@example.com"))
+	assert.Equal(t, mask.FullRedactMarker, m.Apply("no_such_rule", "x"))
 }
 
 func TestMasker_ZeroValue_Usable(t *testing.T) {
