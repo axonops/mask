@@ -1,0 +1,14 @@
+# CODEOWNERS for github.com/axonops/mask
+#
+# Every PR opened against main requires review from a listed owner.
+# Entries are evaluated top-down; later patterns override earlier ones.
+
+# Default — any change to the repository requires AxonOps review.
+*                                       @axonops/mask-maintainers
+
+# Security-sensitive surfaces — tighten as needed with a narrower team.
+/SECURITY.md                            @axonops/mask-maintainers
+/hash.go                                @axonops/mask-maintainers
+/mask.go                                @axonops/mask-maintainers
+/.github/workflows/release.yml          @axonops/mask-maintainers
+/.goreleaser.yml                        @axonops/mask-maintainers

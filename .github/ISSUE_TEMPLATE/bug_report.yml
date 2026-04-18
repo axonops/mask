@@ -1,0 +1,57 @@
+name: Bug report
+description: Something is wrong with a built-in rule, a primitive, or the core API.
+title: "bug: <short summary>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please give us enough
+        detail to reproduce the problem without extra back-and-forth.
+
+  - type: input
+    id: rule-or-api
+    attributes:
+      label: Affected rule or API symbol
+      description: e.g. `email_address`, `mask.Apply`, `DeterministicHashFunc`
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: A short Go snippet that triggers the bug. Redact any real PII.
+      render: go
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: mask version
+      description: Output of `go list -m github.com/axonops/mask`
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      description: Output of `go version`
+    validations:
+      required: true

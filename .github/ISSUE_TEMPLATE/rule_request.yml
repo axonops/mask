@@ -1,0 +1,49 @@
+name: New built-in rule request
+description: Propose a new built-in masking rule (e.g. a national identifier, a sector-specific format).
+title: "rule: <short name, e.g. 'DE tax ID'>"
+labels: ["rule-request", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We build the catalogue from real-world cases. Tell us what the data
+        looks like and what you would want the masked output to look like.
+
+  - type: input
+    id: rule-name
+    attributes:
+      label: Proposed rule name (snake_case)
+      description: e.g. `de_steuer_id`, `fr_nir`, `jp_my_number`
+    validations:
+      required: true
+
+  - type: textarea
+    id: input-output
+    attributes:
+      label: Input format and masked example
+      description: |
+        Give one or two canonical input strings and what the mask should look
+        like. Preserve what? Hide what? If the format has a check digit,
+        separator style, or regulatory display mode, call it out.
+      placeholder: |
+        Input:    de_steuer_id "12345678901" (11 digits)
+        Preserve: none — full_redact is arguably safer
+        Or:       last 2 digits → ********01
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: Authoritative reference
+      description: Link to the specification, regulator, or open-source parser you are matching.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Where does this rule show up?
+      description: Which service, log stream, or compliance regime needs it?
+    validations:
+      required: false
