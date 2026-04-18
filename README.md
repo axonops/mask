@@ -38,7 +38,7 @@ Every built-in rule is fail-closed. Two guarantees you can rely on at every call
 - An unknown rule name returns `[REDACTED]` — the original value is never echoed.
 - A known rule that cannot parse its input returns a same-length mask — the original value is never echoed.
 
-`Apply` never returns an error. Masking is pure compute — no I/O, no goroutines, no context.
+`Apply` never returns an error. Masking is pure compute — no I/O, no goroutines, no context. `Register`, by contrast, returns `ErrDuplicateRule` or `ErrInvalidRule` on misuse — check it at init time.
 
 ## Why
 
@@ -216,7 +216,7 @@ Phone numbers, mobile identifiers, postcodes, and geographic coordinates.
 
 The masking primitives are also exposed as Go functions. Call them directly inside a custom `RuleFunc`, or use the `…Func` factory to register a parametric rule at any name of your choosing.
 
-> Factories (`KeepFirstNFunc`, `ReplaceRegexFunc`, etc.) capture `DefaultMaskChar` at construction and ignore per-instance overrides. Callers who need per-instance mask-character customisation should register a closure that reads `m.MaskChar()` at call time.
+> Factories (`KeepFirstNFunc`, `ReplaceRegexFunc`, etc.) capture `DefaultMaskChar` at construction and ignore per-instance overrides. Callers who need per-instance mask-character customisation should register a closure that captures the desired mask rune at construction time rather than using a factory.
 
 ### Direct-call helpers
 
@@ -236,56 +236,175 @@ The masking primitives are also exposed as Go functions. Call them directly insi
 
 ### Factory functions
 
-Each factory returns a `RuleFunc` suitable for passing to `Register`.
+Each factory returns a `RuleFunc` suitable for passing to `Register`. Every example below uses the default mask character `*`.
 
-| Factory | Returns a rule that... |
-|---|---|
-| `FixedReplacementFunc(s)` | Returns the literal string `s` regardless of input. |
-| `KeepFirstNFunc(n)` | Calls `KeepFirstN(v, n, DefaultMaskChar)`. |
-| `KeepLastNFunc(n)` | Calls `KeepLastN(v, n, DefaultMaskChar)`. |
-| `KeepFirstLastFunc(first, last)` | Calls `KeepFirstLast(v, first, last, DefaultMaskChar)`. |
-| `TruncateVisibleFunc(n)` | Calls `TruncateVisible(v, n)`. |
-| `PreserveDelimitersFunc(delim)` | Calls `PreserveDelimiters(v, delim, DefaultMaskChar)`. |
-| `ReplaceRegexFunc(pattern, replacement)` | Pre-compiles `pattern` once; returns `(nil, err)` on an invalid pattern. |
-| `ReducePrecisionFunc(decimals)` | Calls `ReducePrecision(v, decimals, DefaultMaskChar)`. |
-| `DeterministicHashFunc(opts...)` | Hashes via `DeterministicHash`; salt, version, and algorithm are configured via `HashOption` arguments. |
+| Factory | Behaviour | Example |
+|---|---|---|
+| `FixedReplacementFunc(s)` | Returns the literal string `s` regardless of input. | `FixedReplacementFunc("[HIDDEN]")("anything")` → `[HIDDEN]` |
+| `KeepFirstNFunc(n)` | Keeps the first `n` runes, masks the rest. | `KeepFirstNFunc(4)("Sensitive")` → `Sens*****` |
+| `KeepLastNFunc(n)` | Keeps the last `n` runes, masks the rest. | `KeepLastNFunc(4)("Sensitive")` → `*****tive` |
+| `KeepFirstLastFunc(first, last)` | Keeps both ends, masks the middle. | `KeepFirstLastFunc(4, 4)("SensitiveData")` → `Sens*****Data` |
+| `TruncateVisibleFunc(n)` | Returns the first `n` runes with no mask. Not fail-closed. | `TruncateVisibleFunc(4)("Sensitive")` → `Sens` |
+| `PreserveDelimitersFunc(delim)` | Masks every rune except those listed in `delim`. | `PreserveDelimitersFunc("-")("ab-cd")` → `**-**` |
+| `ReplaceRegexFunc(pattern, replacement)` | Pre-compiles `pattern` once; returns `(nil, err)` on an invalid pattern. | `ReplaceRegexFunc("\\d+", "N")` applied to `"id-42"` → `id-N` |
+| `ReducePrecisionFunc(decimals)` | Reduces decimal precision of a numeric string by masking trailing digits. | `ReducePrecisionFunc(2)("37.7749")` → `37.77**` |
+| `DeterministicHashFunc(opts...)` | Hashes via `DeterministicHash`; salt, version, and algorithm are configured via `HashOption` arguments. | `DeterministicHashFunc()("alice@example.com")` → `sha256:ff8d9819fc0e12bf` |
 
 See [`pkg.go.dev`](https://pkg.go.dev/github.com/axonops/mask) for the full API reference.
 
 ## Custom rules
 
-For formats the built-in catalogue does not cover, register a custom `RuleFunc` against the package-level registry. Most real rules compose one of the utility primitives — rarely do you need to write a masking algorithm from scratch.
+Registering your own rule is the extension point when the built-in catalogue does not cover a format. A rule is just a `RuleFunc` — `func(string) string` — registered under a name and then called via `Apply`. Most real rules compose one of the utility primitives; rarely do you need to write a masking algorithm from scratch.
+
+The five patterns below cover the situations you're likely to hit, in rough order of simplicity.
+
+### 1. Use a factory directly
+
+The `…Func` factories turn a primitive into a ready-to-register `RuleFunc` with no closure required. Best when the masking shape is exactly one primitive.
+
+**Keep the first N runes** — masks everything after a fixed prefix.
 
 ```go
-package main
+_ = mask.Register("employee_id", mask.KeepFirstNFunc(9))
+// mask.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
+```
 
-import (
-	"fmt"
-	"log"
+**Keep the last N runes** — masks everything before a fixed suffix.
 
-	"github.com/axonops/mask"
-)
+```go
+_ = mask.Register("internal_ref", mask.KeepLastNFunc(4))
+// mask.Apply("internal_ref", "REF-2025-001234") → "***********1234"
+```
 
-func init() {
-	// Mask an internal employee ID like "EMP-ACME-12345" by
-	// preserving the tenant prefix and masking the numeric tail.
-	// KeepFirstN gives us "keep the first N runes, mask the rest
-	// with the default mask character".
-	if err := mask.Register("employee_id", mask.KeepFirstNFunc(9)); err != nil {
-		// ErrDuplicateRule or ErrInvalidRule — fatal at init time.
-		log.Fatalf("register employee_id: %v", err)
-	}
+**Keep first and last N runes** — masks the middle, typical for account numbers or long identifiers.
+
+```go
+_ = mask.Register("warehouse_id", mask.KeepFirstLastFunc(3, 3))
+// mask.Apply("warehouse_id", "WH-NORTH-DOCK-9876") → "WH-************876"
+```
+
+**Regex-based masking** — replace every match of a pattern with a fixed string. Useful when the secret has a predictable shape surrounded by context bytes you want to keep, or when you want a one-off rule without walking the string yourself.
+
+```go
+// Redact any 6-or-more-digit run embedded in free text.
+r, err := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+if err != nil {
+	log.Fatalf("compile regex: %v", err)
 }
+_ = mask.Register("free_text_digits", r)
 
-func main() {
-	fmt.Println(mask.Apply("employee_id", "EMP-ACME-12345"))
-	// Output: EMP-ACME-*****
+// mask.Apply("free_text_digits", "Order #1234567 shipped")
+//   → "Order #[REDACTED] shipped"
+```
+
+`ReplaceRegexFunc` returns `(nil, err)` on an invalid pattern — compile it once at init and panic fatally if it's wrong.
+
+Other factories in the same shape: `TruncateVisibleFunc(n)`, `PreserveDelimitersFunc(delim)`, `ReducePrecisionFunc(decimals)`, `FixedReplacementFunc(s)`, `DeterministicHashFunc(opts...)`.
+
+### 2. Compose a primitive via a closure
+
+Reach for a closure when you want to pre-process the input (trim whitespace, normalise case, split on a delimiter, etc.) before delegating to a primitive. Direct-call helpers (`KeepFirstN`, `KeepLastN`, `KeepFirstLast`, `SameLengthMask`, `PreserveDelimiters`, …) take an explicit mask rune, so a closure is the place to read your chosen character.
+
+```go
+func init() {
+	// internal_ticket: "ACME-TICKET-000123" → "ACME-TICKET-****23"
+	_ = mask.Register("internal_ticket", func(v string) string {
+		// Hyphens structure the ID; preserve them and keep the last 2
+		// non-separator runes.
+		return mask.PreserveDelimiters(mask.KeepLastN(v, 2, '*'), "-", '*')
+	})
 }
 ```
 
-Register rules during program initialisation only — see [Thread safety](#thread-safety). For multi-tenant services with different rule sets, construct one `Masker` per tenant via `mask.New()` and call `m.Register(...)` on each to keep their registries isolated.
+### 3. Honour per-instance mask-character config
 
-> **Factory vs. closure for the mask character.** Factories like `KeepFirstNFunc` capture `DefaultMaskChar` at construction and ignore later `SetMaskChar` / `WithMaskChar` overrides. If the rule must react to the configured character, register a closure that reads `m.MaskChar()` (or `mask.DefaultMaskChar` for the package-level registry) at call time instead.
+Factories capture `DefaultMaskChar` at construction. If you want your custom rule to react to a later `SetMaskChar` call or a `WithMaskChar` on a specific `Masker`, register a closure that reads `m.MaskChar()` at apply time:
+
+```go
+m := mask.New(mask.WithMaskChar('#'))
+_ = m.Register("employee_id", func(v string) string {
+	return mask.KeepFirstN(v, 9, m.MaskChar())
+})
+
+// m.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-#####"
+```
+
+The package-level `mask.MaskChar()` gives the same access for rules registered on the global registry.
+
+### 4. Deterministic hashing with salt and version
+
+For pseudonymisation — stable but opaque identifiers — register `DeterministicHashFunc` with a salt and a version. Both are required; see the [Deterministic hashing](#deterministic-hashing-salt-and-version) section below for the full policy.
+
+```go
+func init() {
+	_ = mask.Register("user_id", mask.DeterministicHashFunc(
+		mask.WithSalt(os.Getenv("MASK_SALT")),
+		mask.WithSaltVersion("v1"),
+	))
+}
+
+// mask.Apply("user_id", "alice@example.com") → "sha256:v1:<hex16>"
+```
+
+### 5. A fully custom `RuleFunc`
+
+When the primitives don't compose cleanly — for example, a format with a rotating checksum, a bank-specific account-number grammar, or a content-aware rule — implement the masking from scratch. The function MUST be deterministic, MUST NOT panic, and MUST NOT return the original value on malformed input:
+
+```go
+// internal_token: keeps the last 4 hex characters, masks the rest,
+// and fails closed to a same-length mask on anything that is not a
+// pure hex string.
+func maskInternalToken(v string) string {
+	for _, r := range v {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+			return mask.SameLengthMask(v, '*') // fail closed on non-hex
+		}
+	}
+	return mask.KeepLastN(v, 4, '*')
+}
+
+func init() {
+	_ = mask.Register("internal_token", maskInternalToken)
+}
+
+// mask.Apply("internal_token", "deadbeefcafe1234")  → "************1234"
+// mask.Apply("internal_token", "nothex!!")          → "********"   (fail closed)
+// mask.Apply("internal_token", "")                  → ""
+```
+
+### Scoping: package-level vs per-instance
+
+`mask.Register` mutates the process-wide registry. That's the right choice for a service with a single rule set. Multi-tenant services — or tests that need rule-set isolation — construct one `Masker` per tenant:
+
+```go
+tenantA := mask.New()
+_ = tenantA.Register("employee_id", mask.KeepFirstNFunc(9))
+
+tenantB := mask.New()
+_ = tenantB.Register("employee_id", mask.KeepLastNFunc(4)) // different shape
+
+// tenantA.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
+// tenantB.Apply("employee_id", "EMP-ACME-12345") → "**********2345"
+```
+
+Register rules during program initialisation only — see [Thread safety](#thread-safety).
+
+> **Factory vs. closure for the mask character.** Factories like `KeepFirstNFunc` capture `DefaultMaskChar` at construction and ignore later `SetMaskChar` / `WithMaskChar` overrides. If the rule must react to the configured character, use the closure pattern from §3 instead of the factory.
+
+### Compile-time safety
+
+Every built-in rule has an exported string constant of the form `mask.RuleX` — `mask.RuleEmailAddress`, `mask.RulePaymentCardPAN`, `mask.RuleUSSSN`, and so on. A call using a constant becomes a compile error on typo:
+
+```go
+// Safe — typo is caught by the compiler.
+masked := mask.Apply(mask.RuleEmailAddress, "alice@example.com")
+
+// Works today but a typo ("emial_address") silently falls back to [REDACTED]
+// because the rule is unknown.
+masked = mask.Apply("email_address", "alice@example.com")
+```
+
+Both forms are supported. The library's own tests and examples use string literals for brevity in documentation; production call sites benefit from the typed form.
 
 ## Configuration
 
@@ -305,14 +424,15 @@ Built-in rules read the configured character at apply time, so changes are picke
 
 ### Deterministic hashing (salt and version)
 
-`deterministic_hash` is registered by default with no salt. For production pseudonymisation you MUST configure a salt AND a salt version using `WithSalt`:
+`deterministic_hash` is registered by default with no salt. For production pseudonymisation you MUST configure both a salt (`WithSalt`) AND a salt version (`WithSaltVersion`):
 
 ```go
 m := mask.New()
 _ = m.Register(
 	"user_id",
 	mask.DeterministicHashFunc(
-		mask.WithSalt("your-secret-salt", "v1"),
+		mask.WithSalt("your-secret-salt"),
+		mask.WithSaltVersion("v1"),
 	),
 )
 ```
@@ -326,6 +446,8 @@ The output format is `<algo>:<version>:<hex16>` when a salt is configured, and `
 - Call `Register` during program initialisation, before any goroutine starts calling `Apply`.
 - Once every Register call has returned, the registry is read-only and `Apply` is safe for concurrent use by any number of goroutines.
 - Built-in rules are stateless pure functions. Custom `RuleFunc` implementations MUST satisfy the same contract.
+
+Violating this contract is a data race and will be reported by the Go race detector (`go test -race`). The library does NOT `defer recover()` around custom `RuleFunc` calls — a panic in a custom rule propagates out of `Apply`, by design. Custom rules MUST NOT panic; treat a panic as a programmer error and fix it at source.
 
 ```go
 // Correct — register once at init time.
@@ -346,7 +468,7 @@ Masking is one control in a broader compliance strategy — it is not a substitu
 |---|---|---|
 | PCI DSS display modes for PAN | Yes | `payment_card_pan`, `payment_card_pan_first6`, `payment_card_pan_last4` match the three common display modes. `payment_card_cvv` is same-length — CVV is Sensitive Authentication Data that MUST NOT be retained post-authorisation. |
 | HIPAA Safe Harbor de-identification | No | Identifier rules (including `medical_record_number`, `health_plan_beneficiary_id`) are pseudonymisation, not de-identification. Retained trailing digits combined with a date or ZIP remain re-identifiable. Register `full_redact` under the same rule name if you need Safe Harbor. |
-| GDPR pseudonymisation (Art. 4(5)) | Yes, with configured salt | `deterministic_hash` with `WithSalt(salt, version)` meets the GDPR definition. Salt management, rotation, and additional access controls are the operator's responsibility. |
+| GDPR pseudonymisation (Art. 4(5)) | Yes, with configured salt | `deterministic_hash` with `WithSalt(salt)` + `WithSaltVersion(version)` meets the GDPR definition. Salt management, rotation, and additional access controls are the operator's responsibility. |
 | GDPR anonymisation | No | No rule in this library is anonymisation — all preserved-window rules leak structure, and `deterministic_hash` is reversible given the input space. |
 
 ## Fallback behaviour

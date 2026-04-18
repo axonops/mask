@@ -162,7 +162,7 @@ func BenchmarkDeterministicHash_1000(b *testing.B) {
 }
 
 func BenchmarkDeterministicHash_Salted_1000(b *testing.B) {
-	r := mask.DeterministicHashFunc(mask.WithSalt("secretkey", "v1"))
+	r := mask.DeterministicHashFunc(mask.WithSalt("secretkey"), mask.WithSaltVersion("v1"))
 	b.ReportAllocs()
 	b.ResetTimer()
 	var s string

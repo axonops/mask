@@ -82,6 +82,9 @@ func BenchmarkApply_url_invalid(b *testing.B) { runBench(b, "url", "not a url") 
 func BenchmarkApply_url_credentials(b *testing.B) {
 	runBench(b, "url_credentials", "https://admin:s3cret@db.example.com/mydb")
 }
+func BenchmarkApply_url_credentials_invalid(b *testing.B) {
+	runBench(b, "url_credentials", "not-a-url-at-all")
+}
 
 // ---------- api_key ----------
 

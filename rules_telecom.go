@@ -492,7 +492,7 @@ func registerTelecomRules(m *Masker) {
 	m.mustRegisterBuiltin("mobile_phone_number", phone,
 		RuleInfo{
 			Name: "mobile_phone_number", Category: "telecom", Jurisdiction: "global",
-			Description: "Alias of `phone_number`; preserves +NN country code and last 4 digits, masks the middle. The spec notes mobile-specific jurisdictions may diverge; operators needing that should register a custom rule. Example: +44 7911 123456 → +44 **** **3456.",
+			Description: "Currently a thin alias of `phone_number` — identical input-to-output behaviour. Exists so callers with mobile-specific schema naming can register that name without re-wrapping. Prefer `phone_number` unless you specifically need the mobile spelling; register a distinct custom rule if future jurisdictional divergence matters to your workload. Example: +44 7911 123456 → +44 **** **3456.",
 		})
 	m.mustRegisterBuiltin("imei",
 		func(v string) string { return maskIMEI(v, m.maskChar()) },

@@ -59,7 +59,7 @@ Before opening a PR, run the full quality gate (`make check`). Internally this p
 - Every masking rule and every primitive has at least one `Scenario Outline` with `Examples` covering canonical, formatted, malformed, empty, and (where applicable) unicode inputs.
 - Benchmarks live in `*_bench_test.go` files and call `b.ReportAllocs()`.
 
-See [`CLAUDE.md`][claude-md] (not in this repo — developer-local) and the `docs/v0.9.0-requirements.md` spec for the authoritative testing requirements.
+See `CLAUDE.md` (developer-local, not checked into the repo) and the `docs/v0.9.0-requirements.md` spec for the authoritative testing requirements.
 
 ## Code standards
 
@@ -100,4 +100,4 @@ See [`SECURITY.md`](./SECURITY.md) for vulnerability disclosure.
 
 By contributing, you agree that your contributions will be licensed under the [Apache Licence 2.0](./LICENSE).
 
-[claude-md]: CLAUDE.md
+

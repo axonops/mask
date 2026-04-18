@@ -17,6 +17,7 @@ package mask
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -96,9 +97,17 @@ func SameLengthMask(v string, c rune) string {
 // rune count of v returns v unchanged.
 //
 // Example: KeepFirstN("Sensitive", 4, '*') → "Sens*****".
+//
+// Fails closed on invalid UTF-8 input: rather than echoing the raw
+// bytes (which would violate the library-wide "output is always
+// valid UTF-8" contract), the function routes such inputs through
+// [SameLengthMask].
 func KeepFirstN(v string, n int, c rune) string {
 	if v == "" {
 		return ""
+	}
+	if !utf8.ValidString(v) {
+		return SameLengthMask(v, c)
 	}
 	if n < 0 {
 		n = 0
@@ -123,9 +132,17 @@ func KeepFirstN(v string, n int, c rune) string {
 // the rune count of v returns v unchanged.
 //
 // Example: KeepLastN("Sensitive", 4, '*') → "*****tive".
+//
+// Fails closed on invalid UTF-8 input: rather than echoing the raw
+// bytes (which would violate the library-wide "output is always
+// valid UTF-8" contract), the function routes such inputs through
+// [SameLengthMask].
 func KeepLastN(v string, n int, c rune) string {
 	if v == "" {
 		return ""
+	}
+	if !utf8.ValidString(v) {
+		return SameLengthMask(v, c)
 	}
 	if n < 0 {
 		n = 0
@@ -152,9 +169,17 @@ func KeepLastN(v string, n int, c rune) string {
 // than the input.
 //
 // Example: KeepFirstLast("SensitiveData", 4, 4, '*') → "Sens*****Data".
+//
+// Fails closed on invalid UTF-8 input: rather than echoing the raw
+// bytes (which would violate the library-wide "output is always
+// valid UTF-8" contract), the function routes such inputs through
+// [SameLengthMask].
 func KeepFirstLast(v string, first, last int, c rune) string {
 	if v == "" {
 		return ""
+	}
+	if !utf8.ValidString(v) {
+		return SameLengthMask(v, c)
 	}
 	if first < 0 {
 		first = 0
@@ -227,22 +252,13 @@ func preserveDelimitersWithScan(v, delim string, c rune) string {
 	var b strings.Builder
 	b.Grow(len(v))
 	for _, r := range v {
-		if containsRune(delimRunes, r) {
+		if slices.Contains(delimRunes, r) {
 			b.WriteRune(r)
 		} else {
 			b.WriteRune(c)
 		}
 	}
 	return b.String()
-}
-
-func containsRune(rs []rune, needle rune) bool {
-	for _, r := range rs {
-		if r == needle {
-			return true
-		}
-	}
-	return false
 }
 
 // ReplaceRegex applies the regex pattern to v and replaces every match with
@@ -264,6 +280,11 @@ func ReplaceRegex(v, pattern, replacement string) (string, error) {
 // ReplaceRegexFunc compiles pattern once and returns a [RuleFunc] that
 // applies it on every call. An invalid pattern returns a wrapped error and a
 // nil [RuleFunc] — never panics.
+//
+// Example:
+//
+//	r, _ := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+//	r("Order #1234567 shipped") // → "Order #[REDACTED] shipped"
 func ReplaceRegexFunc(pattern, replacement string) (RuleFunc, error) {
 	re, err := regexp.Compile(pattern)
 	if err != nil {
@@ -276,6 +297,8 @@ func ReplaceRegexFunc(pattern, replacement string) (RuleFunc, error) {
 
 // TruncateVisibleFunc builds a [RuleFunc] that truncates its input to the
 // first n runes. See [TruncateVisible] for boundary behaviour.
+//
+// Example: TruncateVisibleFunc(4)("Sensitive") → "Sens".
 func TruncateVisibleFunc(n int) RuleFunc {
 	return func(v string) string {
 		return TruncateVisible(v, n)
@@ -336,6 +359,8 @@ func ReducePrecision(v string, decimals int, c rune) string {
 
 // ReducePrecisionFunc builds a [RuleFunc] that reduces decimal precision.
 // See [ReducePrecision] for semantics.
+//
+// Example: ReducePrecisionFunc(2)("37.7749") → "37.77**".
 func ReducePrecisionFunc(decimals int) RuleFunc {
 	return func(v string) string {
 		return ReducePrecision(v, decimals, DefaultMaskChar)
@@ -367,14 +392,16 @@ func writeReducePrecision(b *strings.Builder, v string, decimals int, c rune) {
 //
 // Mask-character note: factories capture [DefaultMaskChar] at construction
 // and ignore later per-Masker overrides configured via [WithMaskChar] or
-// [SetMaskChar]. A caller who needs the instance mask character should use
-// the direct-call helper inside a closure: for example
+// [SetMaskChar]. A caller who needs a specific mask character should
+// register a closure that captures the desired rune directly: for example
 //
-//	r := func(v string) string { return mask.KeepFirstN(v, 4, m.MaskChar()) }
+//	const myMaskChar = '#'
+//	fn := func(v string) string { return mask.KeepFirstN(v, 4, myMaskChar) }
 //
-// (where `m.MaskChar()` reads whatever state the caller tracks). The
-// factory's stability is deliberate: registered parametric rules should not
-// change output when a global knob is turned.
+// The factory's stability is deliberate: registered parametric rules should
+// not change output when a global knob is turned.
+//
+// Example: KeepFirstNFunc(4)("Sensitive") → "Sens*****".
 func KeepFirstNFunc(n int) RuleFunc {
 	return func(v string) string {
 		return KeepFirstN(v, n, DefaultMaskChar)
@@ -384,6 +411,8 @@ func KeepFirstNFunc(n int) RuleFunc {
 // KeepLastNFunc returns a [RuleFunc] that keeps the last n runes, masking
 // the rest with [DefaultMaskChar]. See [KeepLastN]. The same mask-character
 // capture semantics as [KeepFirstNFunc] apply.
+//
+// Example: KeepLastNFunc(4)("Sensitive") → "*****tive".
 func KeepLastNFunc(n int) RuleFunc {
 	return func(v string) string {
 		return KeepLastN(v, n, DefaultMaskChar)
@@ -393,6 +422,8 @@ func KeepLastNFunc(n int) RuleFunc {
 // KeepFirstLastFunc returns a [RuleFunc] that keeps the first and last runes
 // and masks the middle. See [KeepFirstLast]. The same mask-character capture
 // semantics as [KeepFirstNFunc] apply.
+//
+// Example: KeepFirstLastFunc(4, 4)("SensitiveData") → "Sens*****Data".
 func KeepFirstLastFunc(first, last int) RuleFunc {
 	return func(v string) string {
 		return KeepFirstLast(v, first, last, DefaultMaskChar)
@@ -403,6 +434,8 @@ func KeepFirstLastFunc(first, last int) RuleFunc {
 // [DefaultMaskChar] while preserving runes listed in delim. The delimiter
 // set is captured once at construction and reused on every call. The same
 // mask-character capture semantics as [KeepFirstNFunc] apply.
+//
+// Example: PreserveDelimitersFunc("-")("ab-cd") → "**-**".
 func PreserveDelimitersFunc(delim string) RuleFunc {
 	delimSet := make(map[rune]struct{}, len(delim))
 	for _, r := range delim {

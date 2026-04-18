@@ -97,6 +97,9 @@ Feature: Identity masking rules
       | input     | expected  |
       | johndoe42 | jo******* |
       | admin     | ad***     |
+      | alice_42  | al******  |
+      | x         | x         |
+      |           |           |
 
   Scenario Outline: Mask passport numbers
     Given a fresh masker
@@ -119,7 +122,9 @@ Feature: Identity masking rules
       | input            | expected            |
       | DL-1234-5678     | DL-****-5678        |
       | SMITH901015JN9AA | SM***********9AA    |
+      | D 1234 5678      | D 1*** 5678         |
       | A-B              | ***                 |
+      |                  |                     |
 
   Scenario Outline: Mask generic national identifiers
     Given a fresh masker
@@ -130,6 +135,9 @@ Feature: Identity masking rules
       | input        | expected     |
       | AB123456CD   | AB******CD   |
       | 佐藤1234太郎 | 佐藤****太郎 |
+      | 123456789    | 12*****89    |
+      | ABCD         | ABCD         |
+      |              |              |
 
   Scenario Outline: Every identity rule returns empty on empty input
     Given a fresh masker
@@ -161,3 +169,4 @@ Feature: Identity masking rules
       | 1234            | *234           |
       | 12345678        | ****5678       |
       | 123.456.789-10  | ***.***.*89-10 |
+      | **-***6789      | **-***6789     |

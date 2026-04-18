@@ -34,6 +34,7 @@ Feature: Financial masking rules
       | input                | expected             |
       | 4111222233334444     | 411122**********     |
       | 4111-2222-3333-4444  | 4111-22**-****-****  |
+      | 5555444433332222     | 555544**********     |
       | 411122223333         | ************         |
 
   Scenario Outline: Mask payment card PAN keeping only last 4
@@ -45,6 +46,9 @@ Feature: Financial masking rules
       | input                | expected             |
       | 4111222233334444     | ************4444     |
       | 4111-2222-3333-4444  | ****-****-****-4444  |
+      | 5555-4444-3333-2222  | ****-****-****-2222  |
+      | 1234                 | ****                 |
+      |                      |                      |
 
   Scenario Outline: Mask payment card CVV
     Given a fresh masker
@@ -56,6 +60,8 @@ Feature: Financial masking rules
       | 123   | ***      |
       | 1234  | ****     |
       | abc   | ***      |
+      | 9876  | ****     |
+      |       |          |
 
   Scenario Outline: Mask payment card PIN
     Given a fresh masker
@@ -66,6 +72,9 @@ Feature: Financial masking rules
       | input  | expected |
       | 1234   | ****     |
       | 123456 | ******   |
+      | 0000   | ****     |
+      | abc1   | ****     |
+      |        |          |
 
   Scenario Outline: Mask bank account numbers
     Given a fresh masker
@@ -76,6 +85,9 @@ Feature: Financial masking rules
       | input          | expected       |
       | 12345678       | ****5678       |
       | 1234-5678-9012 | ****-****-9012 |
+      | 9876543210     | ******3210     |
+      | 123            | ***            |
+      |                |                |
 
   Scenario Outline: Mask UK sort codes
     Given a fresh masker
@@ -86,7 +98,9 @@ Feature: Financial masking rules
       | input    | expected |
       | 12-34-56 | 12-**-** |
       | 123456   | 12****   |
+      | 12 34 56 | 12 ** ** |
       | 12345    | *****    |
+      |          |          |
 
   Scenario Outline: Mask US ABA routing numbers
     Given a fresh masker
@@ -96,7 +110,10 @@ Feature: Financial masking rules
     Examples:
       | input     | expected  |
       | 021000021 | *****0021 |
-      | 02100002  | ******** |
+      | 123456789 | *****6789 |
+      | 02100002  | ********  |
+      | abc       | ***       |
+      |           |           |
 
   Scenario Outline: Mask IBANs
     # Spec prose requires "country code, check digits, and last 4"
@@ -122,11 +139,12 @@ Feature: Financial masking rules
     Then the result is "<expected>"
 
     Examples:
-      | input       | expected    |
-      | BARCGB2L    | BARC****    |
-      | DEUTDEFF500 | DEUT******* |
-      | barcgb2l    | ********    |
-      | BARCGB      | ******      |
+      | input        | expected     |
+      | BARCGB2L     | BARC****     |
+      | DEUTDEFF500  | DEUT*******  |
+      | DEUTDEFF1234 | ************ |
+      | barcgb2l     | ********     |
+      | BARCGB       | ******       |
 
   Scenario Outline: Mask monetary amounts
     Given a fresh masker

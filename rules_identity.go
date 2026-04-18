@@ -40,10 +40,10 @@ import (
 // threat model.
 
 var (
-	// Date-of-birth format patterns. Compiled once at package init; never
-	// re-evaluated against user input, so no ReDoS surface.
-	reDOBISO       = regexp.MustCompile(`^(\d{4})-(\d{1,2})-(\d{1,2})$`)
-	reDOBSlash     = regexp.MustCompile(`^(\d{1,2})/(\d{1,2})/(\d{4})$`)
+	// reDOBMonthName matches the "Month D, YYYY" format for date_of_birth.
+	// Compiled once at package init; never re-evaluated against user input,
+	// so no ReDoS surface. The ISO and slash formats are parsed by
+	// parseDOBISO / parseDOBSlash without allocation.
 	reDOBMonthName = regexp.MustCompile(`^([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})$`)
 
 	// monthNames is the closed set of full English month names recognised
@@ -91,15 +91,33 @@ func maskEmail(v string, c rune) string {
 	if v == "" {
 		return ""
 	}
+	// UTF-8 must be valid on both halves — echoing invalid bytes
+	// via the short-local path would break the library-wide
+	// "output is always valid UTF-8" contract.
+	if !utf8.ValidString(v) {
+		return SameLengthMask(v, c)
+	}
 	i := strings.LastIndexByte(v, '@')
 	if i <= 0 || i == len(v)-1 {
 		return SameLengthMask(v, c)
 	}
 	local, domain := v[:i], v[i:] // domain includes '@'
-	if utf8.RuneCountInString(local) <= 1 {
+	// Decode just the first rune to check for a single-rune local part
+	// without a full RuneCountInString scan.
+	_, sz := utf8.DecodeRuneInString(local)
+	if sz == len(local) {
 		return v
 	}
-	return KeepFirstN(local, 1, c) + domain
+	// Build the masked result in a single allocation.
+	tailRunes := utf8.RuneCountInString(local[sz:])
+	var b strings.Builder
+	b.Grow(sz + tailRunes*safeRuneLen(c) + len(domain))
+	b.WriteString(local[:sz])
+	for j := 0; j < tailRunes; j++ {
+		b.WriteRune(c)
+	}
+	b.WriteString(domain)
+	return b.String()
 }
 
 // nameSeparators reports whether r is treated as a separator by the name
@@ -256,7 +274,7 @@ func maskStreet(v string, c rune) string {
 	if head == "" && tailOff < 0 {
 		return SameLengthMask(v, c)
 	}
-	body, tail := splitBodyAndTail(rest, tailOff)
+	body, tail, prependSpace := splitBodyAndTail(rest, tailOff)
 	// Fail-closed guard: if the recognised suffix consumed the entire
 	// non-digit portion of the input, the rule would echo v unchanged.
 	// That happens on inputs like "42 N" or "1 NE" where the whole
@@ -279,6 +297,9 @@ func maskStreet(v string, c rune) string {
 	out.WriteString(head)
 	out.WriteString(spaceAfterHead)
 	maskBodyPreservingSpaces(&out, body, c)
+	if prependSpace {
+		out.WriteByte(' ')
+	}
 	out.WriteString(tail)
 	return out.String()
 }
@@ -298,17 +319,17 @@ func splitHouseNumber(v string) (head, spaceAfter, rest string) {
 
 // splitBodyAndTail separates the body to mask from the recognised trailing
 // street-type suffix. When tailOff < 0 the whole string is body.
-func splitBodyAndTail(rest string, tailOff int) (body, tail string) {
+// prependSpace is true when a separating space must be written between the
+// masked body and the tail; the caller writes the space directly into the
+// output builder rather than allocating an intermediate string.
+func splitBodyAndTail(rest string, tailOff int) (body, tail string, prependSpace bool) {
 	if tailOff < 0 {
-		return rest, ""
+		return rest, "", false
 	}
 	body = strings.TrimRight(rest[:tailOff], " ")
 	tail = rest[tailOff:]
-	// Preserve exactly one separating space between masked body and tail.
-	if body != rest[:tailOff] {
-		tail = " " + tail
-	}
-	return body, tail
+	prependSpace = body != rest[:tailOff]
+	return body, tail, prependSpace
 }
 
 // maskBodyPreservingSpaces writes the rune-wise mask of body into b,
@@ -344,14 +365,14 @@ func maskDateOfBirth(v string, c rune) string {
 	if v == "" {
 		return ""
 	}
-	if m := reDOBISO.FindStringSubmatch(v); m != nil {
-		return buildDOB(c, m[1], "-", len(m[2]), "-", len(m[3]), "")
+	if year, mLen, dLen, ok := parseDOBISO(v); ok {
+		return buildDOB(c, year, "-", mLen, "-", dLen, "")
 	}
-	if m := reDOBSlash.FindStringSubmatch(v); m != nil {
+	if dLen, _, year, ok := parseDOBSlash(v); ok {
 		// Per spec, the middle group is always 4 stars regardless of the
 		// matched month width. See
 		// docs/v0.9.0-requirements.md §"date_of_birth" example.
-		return buildDOBPrefixedLiteral(c, len(m[1]), "/", 4, "/", m[3])
+		return buildDOBPrefixedLiteral(c, dLen, "/", 4, "/", year)
 	}
 	if m := reDOBMonthName.FindStringSubmatch(v); m != nil {
 		if monthNameRecognised(m[1]) {
@@ -359,6 +380,52 @@ func maskDateOfBirth(v string, c rune) string {
 		}
 	}
 	return SameLengthMask(v, c)
+}
+
+// parseDOBISO parses YYYY-MM-DD or YYYY-M-D without allocating.
+// Returns the year substring and the byte-lengths of the month and day fields.
+func parseDOBISO(v string) (year string, mLen, dLen int, ok bool) {
+	if len(v) < 8 {
+		return
+	}
+	if !allASCIIDigits(v[:4]) {
+		return
+	}
+	if v[4] != '-' {
+		return
+	}
+	rest := v[5:]
+	sep := strings.IndexByte(rest, '-')
+	if sep < 1 || sep > 2 || !allASCIIDigits(rest[:sep]) {
+		return
+	}
+	day := rest[sep+1:]
+	if len(day) < 1 || len(day) > 2 || !allASCIIDigits(day) {
+		return
+	}
+	return v[:4], sep, len(day), true
+}
+
+// parseDOBSlash parses D/M/YYYY or DD/MM/YYYY without allocating.
+// Returns the byte-lengths of the day and month fields and the year substring.
+func parseDOBSlash(v string) (dLen, mLen int, year string, ok bool) {
+	if len(v) < 8 {
+		return
+	}
+	sep1 := strings.IndexByte(v, '/')
+	if sep1 < 1 || sep1 > 2 || !allASCIIDigits(v[:sep1]) {
+		return
+	}
+	rest := v[sep1+1:]
+	sep2 := strings.IndexByte(rest, '/')
+	if sep2 < 1 || sep2 > 2 || !allASCIIDigits(rest[:sep2]) {
+		return
+	}
+	yr := rest[sep2+1:]
+	if len(yr) != 4 || !allASCIIDigits(yr) {
+		return
+	}
+	return sep1, sep2, yr, true
 }
 
 // buildDOB emits "<year><sep1><nMask1><sep2><nMask2><tail>" in one
@@ -484,6 +551,11 @@ func maskDriverLicense(v string, c rune) string {
 // not covered by a jurisdiction-specific rule. Keeps the first 2 and
 // last 2 runes, masks the middle.
 func maskGenericNationalID(v string, c rune) string {
+	// Fail closed on invalid UTF-8 so we never echo raw bytes via
+	// KeepFirstLast's "window >= runeCount → return v" short path.
+	if !utf8.ValidString(v) {
+		return SameLengthMask(v, c)
+	}
 	return KeepFirstLast(v, 2, 2, c)
 }
 

@@ -30,6 +30,17 @@ func ExampleApply() {
 	// Output: a****@example.com
 }
 
+// ExampleApply_typedRuleName uses one of the exported rule-name
+// constants (`mask.RuleEmailAddress`) instead of a string literal.
+// The output is identical — but a typo such as `mask.RuleEmialAddress`
+// is a compile error rather than a silent fail-closed at runtime.
+// Prefer the typed form in production code; string literals stay
+// supported for scripts, tests, and documentation.
+func ExampleApply_typedRuleName() {
+	fmt.Println(mask.Apply(mask.RuleEmailAddress, "alice@example.com"))
+	// Output: a****@example.com
+}
+
 // ExampleApply_unknownRule demonstrates the fail-closed contract for
 // unknown rule names: Apply always returns [FullRedactMarker] rather than
 // the original value. This is the same behaviour consumers can rely on
@@ -123,14 +134,16 @@ func ExampleDescribe() {
 
 // ExampleApply_structuredLogRedaction shows a realistic use case: masking
 // several fields of a structured log line before writing it out. Each
-// field is routed to the rule that fits its semantic.
+// field is routed to the rule that fits its semantic. Production code
+// typically prefers the typed rule-name constants (mask.RuleX) so a
+// typo becomes a compile error.
 func ExampleApply_structuredLogRedaction() {
 	fields := []struct{ rule, value string }{
-		{"email_address", "alice@example.com"},
-		{"payment_card_pan", "4111-1111-1111-1111"},
-		{"us_ssn", "123-45-6789"},
-		{"ipv4_address", "192.168.1.42"},
-		{"jwt_token", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc"},
+		{mask.RuleEmailAddress, "alice@example.com"},
+		{mask.RulePaymentCardPAN, "4111-1111-1111-1111"},
+		{mask.RuleUSSSN, "123-45-6789"},
+		{mask.RuleIPv4Address, "192.168.1.42"},
+		{mask.RuleJWTToken, "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc"},
 	}
 
 	out := make([]string, 0, len(fields))

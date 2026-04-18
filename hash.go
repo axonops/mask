@@ -103,12 +103,35 @@ type hashConfig struct {
 	algo          HashAlgorithm
 	salt          string // empty string means "no salt" — see WithSalt godoc
 	version       string // salt version; required iff salt != ""
+	saltSet       bool   // true once WithSalt has been applied at least once
+	versionSet    bool   // true once WithSaltVersion has been applied at least once
 	misconfigured bool   // sticky; once true, hashApply emits FullRedactMarker
 }
 
+// reconcile runs after either [WithSalt] or [WithSaltVersion] has been
+// applied. It defers final validation until both halves have been set at
+// least once in this factory call, then checks consistency. Any violation
+// after both are set flags the sticky misconfigured state: the salt and
+// version are cleared and every subsequent Apply emits [FullRedactMarker]
+// until a fresh factory call rebuilds the config.
+func (c *hashConfig) reconcile() {
+	if !c.saltSet || !c.versionSet {
+		return
+	}
+	if c.salt == "" {
+		// Unsalted path — orphan version is ignored in the output.
+		return
+	}
+	if !saltVersionPattern.MatchString(c.version) {
+		c.misconfigured = true
+		c.salt = ""
+		c.version = ""
+	}
+}
+
 // HashOption configures the deterministic-hash primitives. Use with
-// [DeterministicHashWith] and [DeterministicHashFunc]. Options apply in
-// supplied order, last-wins for repeated options.
+// [DeterministicHashFunc]. Options apply in supplied order, last-wins for
+// repeated options.
 type HashOption func(*hashConfig)
 
 // WithAlgorithm selects the hash algorithm. Values outside the four
@@ -123,6 +146,11 @@ type HashOption func(*hashConfig)
 //   - SHA3_512 → "sha3-512"
 //
 // MD5 and SHA-1 are explicitly unsupported.
+//
+// Example:
+//
+//	h := mask.DeterministicHashFunc(mask.WithAlgorithm(mask.SHA512))
+//	h("alice@example.com") // → "sha512:<hex16>"
 func WithAlgorithm(a HashAlgorithm) HashOption {
 	if a < 0 || a >= maxHashAlgorithm {
 		a = SHA256
@@ -132,67 +160,85 @@ func WithAlgorithm(a HashAlgorithm) HashOption {
 	}
 }
 
-// WithSalt enables keyed hashing via HMAC. Both salt and version are
-// required when the caller wants keyed hashing — the version is emitted on
-// the on-the-wire output so a downstream consumer can identify which salt
-// generation produced a given hash.
+// WithSalt sets the HMAC salt for keyed hashing. Combine with
+// [WithSaltVersion] to enable keyed output: a salted hash without
+// a configured version (or with a version that violates the
+// version grammar) is a misconfiguration and fails closed on every
+// subsequent Apply — see the package documentation for the full
+// policy.
 //
-// Output shape when a salt is configured:
+// WithSalt("") is the unsalted path — the primitive emits
+// `<algo>:<first-16-hex>` with no version segment.
 //
-//	<algo>:<version>:<first-16-hex>
+// The salt itself is never logged, echoed in output, returned in
+// error messages, or exposed via [Describe].
 //
-// For example, `DeterministicHashFunc(WithSalt("k", "v1"))` applied to
-// "alice@example.com" emits `sha256:v1:<hex16>` where <hex16> is the first
-// 16 hex chars of HMAC-SHA256("k", "alice@example.com").
+// Operational note: salt values live in in-memory Go strings and
+// may appear in process core dumps or goroutine stacks. Protect
+// the process, not the library.
 //
-// Version grammar: the version MUST match `^[A-Za-z0-9._-]{1,32}$`. Colons,
-// whitespace, non-ASCII characters, other punctuation, and versions longer
-// than 32 bytes are rejected. A misconfigured WithSalt call — empty
-// version or a version that violates the grammar — sets a sticky flag on
-// the hashConfig, and every subsequent Apply emits [FullRedactMarker].
-// This fail-closed policy prevents an operator who typoed the version
-// from silently producing hashes indistinguishable from the unsalted
-// path.
+// Example:
 //
-// WithSalt("", anything) is the unsalted path: the primitive emits
-// `<algo>:<first-16-hex>` with no version. The version is ignored when no
-// salt is in effect.
-//
-// Salt-rotation identification: if the operator changes the salt in their
-// process, the version MUST change too. Downstream consumers comparing
-// hashes across salt rotations should match on the (algorithm, version)
-// tuple — hashes with different versions are not comparable even when the
-// underlying value is identical.
-//
-// The salt itself is never logged, echoed in output, returned in error
-// messages, or exposed via [Describe]. The version, by contrast, is
-// emitted on the wire by design.
-//
-// Operational note: salt and version both live in in-memory Go strings
-// and may appear in process core dumps or goroutine stacks. Protect the
-// process, not the library.
-func WithSalt(salt, version string) HashOption {
+//	h := mask.DeterministicHashFunc(
+//	    mask.WithSalt("my-secret-salt"),
+//	    mask.WithSaltVersion("v1"),
+//	)
+//	h("alice@example.com") // → "sha256:v1:<hex16>"
+func WithSalt(salt string) HashOption {
 	return func(c *hashConfig) {
 		if c.misconfigured {
 			return // sticky; later options cannot clear a prior misconfiguration
 		}
-		if salt == "" {
-			// Empty salt is the unsalted path. Version is irrelevant.
-			c.salt = ""
-			c.version = ""
-			return
-		}
-		if !saltVersionPattern.MatchString(version) {
-			// Non-conforming or empty version with a non-empty salt is a
-			// misconfiguration. Set the sticky flag and clear any previously
-			// applied salt/version so no partial state leaks into hashApply.
-			c.misconfigured = true
-			c.salt = ""
-			c.version = ""
-			return
-		}
 		c.salt = salt
+		c.saltSet = true
+		c.reconcile()
+	}
+}
+
+// WithSaltVersion sets the salt-version identifier emitted on the
+// wire alongside the hash so downstream consumers can identify
+// which salt generation produced a given hash. Combine with
+// [WithSalt] to enable keyed hashing.
+//
+// Output shape when both salt and version are configured:
+//
+//	<algo>:<version>:<first-16-hex>
+//
+// For example, `DeterministicHashFunc(WithSalt("k"), WithSaltVersion("v1"))`
+// applied to "alice@example.com" emits `sha256:v1:<hex16>` where
+// <hex16> is the first 16 hex chars of HMAC-SHA256("k", "alice@example.com").
+//
+// Version grammar: the version MUST match `^[A-Za-z0-9._-]{1,32}$`.
+// Colons, whitespace, non-ASCII characters, other punctuation, and
+// versions longer than 32 bytes are rejected. A misconfiguration
+// (salt set without a conforming version, or a version set without
+// a salt) sets a sticky flag on the hashConfig and every
+// subsequent Apply emits [FullRedactMarker]. This fail-closed
+// policy prevents an operator who typoed the version from
+// silently producing hashes indistinguishable from the unsalted
+// path.
+//
+// Salt-rotation identification: if the operator changes the salt
+// in their process, the version MUST change too. Downstream
+// consumers comparing hashes across salt rotations should match on
+// the (algorithm, version) tuple — hashes with different versions
+// are not comparable even when the underlying value is identical.
+//
+// Example:
+//
+//	h := mask.DeterministicHashFunc(
+//	    mask.WithSalt("my-secret-salt"),
+//	    mask.WithSaltVersion("v1"),
+//	)
+//	h("alice@example.com") // → "sha256:v1:<hex16>"
+func WithSaltVersion(version string) HashOption {
+	return func(c *hashConfig) {
+		if c.misconfigured {
+			return
+		}
 		c.version = version
+		c.versionSet = true
+		c.reconcile()
 	}
 }
 
@@ -288,13 +334,23 @@ func hashApply(cfg hashConfig, v string) string {
 	return string(dst)
 }
 
-// buildConfig applies opts to a fresh hashConfig and returns it. Extracted
-// so DeterministicHashWith and DeterministicHashFunc construct config with
-// byte-identical semantics.
+// buildConfig applies opts to a fresh hashConfig and finalises the
+// consistency check between salt and version. Options set salt and
+// version independently so they can appear in any order; the final
+// validate call after all options have been applied is what sets the
+// sticky misconfigured flag if the combination is inconsistent.
 func buildConfig(opts []HashOption) hashConfig {
 	var cfg hashConfig
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+	// Final guard: a salt configured without ever pairing it with a
+	// version is also a misconfiguration. reconcile() defers until
+	// both halves are seen, so this case needs a terminal check.
+	if !cfg.misconfigured && cfg.saltSet && cfg.salt != "" && !cfg.versionSet {
+		cfg.misconfigured = true
+		cfg.salt = ""
+		cfg.version = ""
 	}
 	return cfg
 }
@@ -316,27 +372,17 @@ func buildConfig(opts []HashOption) hashConfig {
 // produce different outputs. Callers handling multilingual data should
 // normalise before hashing.
 //
-// For a keyed variant or a different algorithm, use [DeterministicHashWith]
-// or build a [RuleFunc] via [DeterministicHashFunc].
+// For a keyed variant or a different algorithm, build a [RuleFunc] via
+// [DeterministicHashFunc] and invoke it:
 //
-// Example: DeterministicHash("alice@example.com") → "sha256:559aead08264d592".
+//	h := mask.DeterministicHashFunc(
+//	    mask.WithSalt("secret"),
+//	    mask.WithSaltVersion("v1"),
+//	)("alice@example.com")
+//
+// Example: DeterministicHash("alice@example.com") → "sha256:ff8d9819fc0e12bf".
 func DeterministicHash(v string) string {
 	return hashApply(hashConfig{algo: SHA256}, v)
-}
-
-// DeterministicHashWith is the parametric direct-call variant of
-// [DeterministicHash]. Options apply in supplied order, last-wins.
-//
-// This helper is for one-off ad-hoc use. Hot paths should construct a
-// [RuleFunc] once via [DeterministicHashFunc] and reuse it — a `...HashOption`
-// variadic is allocated on every call here.
-//
-// Example:
-//
-//	h := mask.DeterministicHashWith("alice", mask.WithAlgorithm(mask.SHA512))
-//	// h == "sha512:..."
-func DeterministicHashWith(v string, opts ...HashOption) string {
-	return hashApply(buildConfig(opts), v)
 }
 
 // DeterministicHashFunc builds a [RuleFunc] that hashes its input according
@@ -351,7 +397,8 @@ func DeterministicHashWith(v string, opts ...HashOption) string {
 // Example:
 //
 //	_ = m.Register("hashed_email", mask.DeterministicHashFunc(
-//	    mask.WithSalt(os.Getenv("MASK_SALT"), "v1"),
+//	    mask.WithSalt(os.Getenv("MASK_SALT")),
+//	    mask.WithSaltVersion("v1"),
 //	    mask.WithAlgorithm(mask.SHA3_256),
 //	))
 func DeterministicHashFunc(opts ...HashOption) RuleFunc {

@@ -17,6 +17,7 @@ package mask_test
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -344,8 +345,11 @@ func TestFinancial_NoPanicOnAdversarialInput(t *testing.T) {
 		"iban", "swift_bic", "monetary_amount",
 	} {
 		for _, in := range adversarial {
-			assert.NotPanics(t, func() { _ = m.Apply(n, in) },
+			var got string
+			assert.NotPanics(t, func() { got = m.Apply(n, in) },
 				"rule %q panicked on input %q", n, in)
+			assert.True(t, utf8.ValidString(got),
+				"rule %q produced invalid UTF-8 for input %q: %q", n, in, got)
 		}
 	}
 }

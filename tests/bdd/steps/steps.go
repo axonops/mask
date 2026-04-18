@@ -22,31 +22,41 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/cucumber/godog"
 
 	"github.com/axonops/mask"
 )
 
+// globalRuleSeq supplies a monotonic suffix for rules registered on
+// the package-level registry inside scenarios. The registry has no
+// Deregister method; without a unique suffix, `go test -count=N`
+// reruns would collide on a fixed rule name.
+var globalRuleSeq atomic.Uint64
+
 // World holds per-scenario state shared across step implementations.
 type World struct {
-	maskers        map[string]*mask.Masker
-	lastResult     string
-	lastResults    []string
-	secondResult   string
-	replaceResult  string
-	replaceErr     error
-	lastError      error
-	lastRules      []string
-	lastDescribe   mask.RuleInfo
-	lastDescribeOK bool
+	maskers         map[string]*mask.Masker
+	globalRuleNames map[string]string // Gherkin name → actual registered name
+	lastResult      string
+	lastResults     []string
+	secondResult    string
+	replaceResult   string
+	replaceErr      error
+	lastError       error
+	lastRules       []string
+	lastDescribe    mask.RuleInfo
+	lastDescribeOK  bool
 }
 
 // newWorld returns a fresh scenario state.
 func newWorld() *World {
 	return &World{
-		maskers: map[string]*mask.Masker{},
+		maskers:         map[string]*mask.Masker{},
+		globalRuleNames: map[string]string{},
 	}
 }
 
@@ -180,7 +190,13 @@ func (w *World) registerReverseRule(name string) error {
 }
 
 func (w *World) registerReverseRuleGlobal(name string) error {
-	w.lastError = mask.Register(name, reverse)
+	// Mangle the caller's name with a process-wide monotonic suffix
+	// so repeated scenario invocations (go test -count=N, or multiple
+	// Before hooks inside a single run) do not collide on the
+	// package-level registry, which has no Deregister by design.
+	globalName := name + "_" + strconv.FormatUint(globalRuleSeq.Add(1), 10)
+	w.globalRuleNames[name] = globalName
+	w.lastError = mask.Register(globalName, reverse)
 	return w.lastError
 }
 
@@ -208,6 +224,12 @@ func (w *World) maskWithRule(value, rule string) error {
 }
 
 func (w *World) maskWithRuleGlobal(value, rule string) error {
+	// Translate the Gherkin-level rule name to its suffix-mangled
+	// form registered by registerReverseRuleGlobal, so scenarios
+	// survive `go test -count=N` against a shared registry.
+	if actual, ok := w.globalRuleNames[rule]; ok {
+		rule = actual
+	}
 	w.lastResult = mask.Apply(rule, value)
 	return nil
 }

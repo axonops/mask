@@ -60,14 +60,23 @@ type RuleFunc func(value string) string
 type RuleInfo struct {
 	// Name is the canonical label the rule is registered under.
 	Name string
-	// Category is one of: identity, financial, health, technology, telecom,
-	// location, country, or utility. May be empty for user-registered rules.
+	// Category groups related rules. Built-in rules use one of:
+	// "identity" (including country-specific identity rules),
+	// "financial", "health", "technology", "telecom", "location", or
+	// "utility". The field is a free-form string — future rules may
+	// introduce additional categories — and is empty for user-registered
+	// rules that omit it.
 	Category string
-	// Jurisdiction names the country or standard this rule applies to
-	// (for example "US", "UK", "global", "PCI DSS"). May be empty.
+	// Jurisdiction names the country or standard a rule applies to.
+	// Built-in rules use full names: "global", "global (HIPAA)",
+	// "global (PCI DSS)", "United States", "United Kingdom",
+	// "Canada", "India", "Brazil", "Mexico", "Spain", "South Africa",
+	// "China", "Singapore", "Australia". The field is free-form and
+	// may be empty for user-registered rules.
 	Jurisdiction string
 	// Description is a human-readable sentence explaining what the rule does.
-	// May be empty for user-registered rules.
+	// Built-in rules end their description with an "Example: input → output"
+	// line. May be empty for user-registered rules.
 	Description string
 }
 
@@ -82,6 +91,11 @@ type Option func(*Masker)
 // The value should be a printable Unicode code point. Negative values, the
 // zero rune, and unassigned code points are accepted by the setter but may
 // produce unreadable output; this library does not validate the choice.
+//
+// Example:
+//
+//	m := mask.New(mask.WithMaskChar('X'))
+//	m.Apply("us_ssn", "123-45-6789") // → "XXX-XX-6789"
 func WithMaskChar(c rune) Option {
 	return func(m *Masker) {
 		m.setMaskChar(c)
@@ -127,6 +141,11 @@ var builtinRegistrars []func(*Masker)
 // New creates a [Masker] with built-in rules pre-registered and applies the
 // supplied options. The returned Masker is isolated from the package-level
 // registry: rules registered on one Masker are invisible to any other.
+//
+// Example:
+//
+//	m := mask.New(mask.WithMaskChar('#'))
+//	m.Apply("email_address", "alice@example.com") // → "a####@example.com"
 func New(opts ...Option) *Masker {
 	m := &Masker{}
 	m.ensureInit()
@@ -178,6 +197,24 @@ func (m *Masker) maskChar() rune {
 	return m.maskCharAtomic.Load()
 }
 
+// MaskChar returns the mask rune currently configured on this Masker.
+// The returned value reflects the most recent [WithMaskChar] applied at
+// construction or [SetMaskChar] at runtime.
+//
+// Custom rule authors who want their rule to honour per-instance
+// mask-character configuration call this inside the registered closure:
+//
+//	m.Register("my_rule", func(v string) string {
+//	    return mask.KeepFirstN(v, 4, m.MaskChar())
+//	})
+//
+// Calling MaskChar on a zero-value Masker is safe; the returned rune is
+// [DefaultMaskChar] until [SetMaskChar] or [WithMaskChar] changes it.
+func (m *Masker) MaskChar() rune {
+	m.ensureInit()
+	return m.maskChar()
+}
+
 // Apply masks value using the named rule.
 //
 // If rule is not registered on this Masker, Apply returns [FullRedactMarker]
@@ -187,6 +224,8 @@ func (m *Masker) maskChar() rune {
 // Apply is safe for concurrent use by any number of goroutines provided all
 // [Masker.Register] calls have completed before the first Apply call. See the
 // thread-safety contract on [Masker].
+//
+// Example: m.Apply("email_address", "alice@example.com") → "a****@example.com".
 func (m *Masker) Apply(rule, value string) string {
 	// Fast path: once initialised the registry pointer is non-nil and reads
 	// are lock-free. The slow-path ensureInit call only fires on a Masker
@@ -218,6 +257,11 @@ func (m *Masker) Apply(rule, value string) string {
 //
 // Register MUST NOT be called concurrently with [Masker.Apply]. See the
 // thread-safety contract on [Masker].
+//
+// Example:
+//
+//	err := m.Register("my_token", mask.KeepFirstNFunc(4))
+//	// m.Apply("my_token", "SensitiveToken") → "Sens**********".
 func (m *Masker) Register(name string, fn RuleFunc) error {
 	m.ensureInit()
 	return m.registerLocked(name, fn, RuleInfo{Name: name})
@@ -276,6 +320,11 @@ func (m *Masker) loadRules() *ruleMap {
 
 // Rules returns the sorted list of rule names registered on this Masker.
 // The slice is freshly allocated; callers may mutate it freely.
+//
+// Example:
+//
+//	names := m.Rules()
+//	// names == ["api_key", "bank_account_number", ..., "uuid"] (sorted)
 func (m *Masker) Rules() []string {
 	rm := m.loadRules()
 	names := make([]string, 0, len(*rm))
@@ -289,6 +338,11 @@ func (m *Masker) Rules() []string {
 // HasRule reports whether a rule with the given name is registered on this
 // Masker. Use this to avoid triggering the [FullRedactMarker] fallback when a
 // rule's presence is uncertain.
+//
+// Example:
+//
+//	m.HasRule("email_address") // → true
+//	m.HasRule("not_a_rule")    // → false
 func (m *Masker) HasRule(name string) bool {
 	rm := m.loadRules()
 	_, ok := (*rm)[name]
@@ -299,6 +353,11 @@ func (m *Masker) HasRule(name string) bool {
 // indicating whether the rule was found. For rules registered via
 // [Masker.Register] the Name field is populated and the other fields may be
 // empty; built-in rules populate every field.
+//
+// Example:
+//
+//	info, ok := m.Describe("email_address")
+//	// info.Category == "identity", info.Jurisdiction == "global"
 func (m *Masker) Describe(name string) (RuleInfo, bool) {
 	rm := m.loadRules()
 	e, ok := (*rm)[name]
@@ -308,6 +367,32 @@ func (m *Masker) Describe(name string) (RuleInfo, bool) {
 	return e.info, true
 }
 
+// DescribeAll returns the [RuleInfo] for every rule registered on this
+// Masker, sorted by [RuleInfo.Name]. Useful for dashboards, audit tools,
+// and configuration UIs that enumerate the full catalogue in one pass.
+//
+// The returned slice is freshly allocated on every call — callers may
+// mutate it freely. Calling DescribeAll is equivalent to iterating
+// [Masker.Rules] and calling [Masker.Describe] for each name, but
+// avoids the redundant guard clause on the always-present lookup.
+//
+// Example:
+//
+//	for _, info := range m.DescribeAll() {
+//	    fmt.Printf("%s [%s] — %s\n", info.Name, info.Category, info.Description)
+//	}
+func (m *Masker) DescribeAll() []RuleInfo {
+	rm := m.loadRules()
+	infos := make([]RuleInfo, 0, len(*rm))
+	for _, e := range *rm {
+		infos = append(infos, e.info)
+	}
+	sort.Slice(infos, func(i, j int) bool {
+		return infos[i].Name < infos[j].Name
+	})
+	return infos
+}
+
 // defaultMasker backs the package-level API. It is intentionally not
 // constructed via [New]; its initialisation is lazy so all package init
 // functions (including those that append to builtinRegistrars) run first.
@@ -315,12 +400,19 @@ var defaultMasker = &Masker{}
 
 // Apply masks value using the named rule from the package-level registry.
 // See [Masker.Apply] for semantics.
+//
+// Example: mask.Apply("email_address", "alice@example.com") → "a****@example.com".
 func Apply(rule, value string) string {
 	return defaultMasker.Apply(rule, value)
 }
 
 // Register adds a custom masking rule to the package-level registry.
 // See [Masker.Register] for the rule-name grammar and thread-safety contract.
+//
+// Example:
+//
+//	err := mask.Register("my_token", mask.KeepFirstNFunc(4))
+//	// mask.Apply("my_token", "SensitiveToken") → "Sens**********".
 func Register(name string, fn RuleFunc) error {
 	return defaultMasker.Register(name, fn)
 }
@@ -331,6 +423,11 @@ func Register(name string, fn RuleFunc) error {
 //
 // SetMaskChar MUST NOT be called concurrently with [Apply]. Per-instance
 // control is available via [WithMaskChar].
+//
+// Example:
+//
+//	mask.SetMaskChar('#')
+//	mask.Apply("us_ssn", "123-45-6789") // → "###-##-6789"
 func SetMaskChar(c rune) {
 	defaultMasker.setMaskChar(c)
 }
@@ -351,4 +448,16 @@ func HasRule(name string) bool {
 // registry. See [Masker.Describe].
 func Describe(name string) (RuleInfo, bool) {
 	return defaultMasker.Describe(name)
+}
+
+// DescribeAll returns the [RuleInfo] for every rule registered on the
+// package-level registry, sorted by name. See [Masker.DescribeAll].
+func DescribeAll() []RuleInfo {
+	return defaultMasker.DescribeAll()
+}
+
+// MaskChar returns the mask rune currently configured on the package-level
+// registry. See [Masker.MaskChar].
+func MaskChar() rune {
+	return defaultMasker.MaskChar()
 }

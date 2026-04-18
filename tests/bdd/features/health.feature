@@ -86,6 +86,8 @@ Feature: Health masking rules
     Examples:
       | input                       |
       | Metformin 500mg twice daily |
+      | Lisinopril 10mg daily       |
+      | [REDACTED]                  |
       |                             |
       | メトホルミン 500mg          |
 

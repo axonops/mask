@@ -163,6 +163,8 @@ Feature: Technology and infrastructure masking rules
       | input       | expected |
       | MyP@ssw0rd! | ******** |
       | x           | ******** |
+      | a           | ******** |
+      | longpassword | ******** |
       |             |          |
 
   Scenario: Password rule honours per-instance mask character
@@ -178,6 +180,8 @@ Feature: Technology and infrastructure masking rules
     Examples:
       | input                                 |
       | -----BEGIN RSA PRIVATE KEY-----\nMIIE |
+      | -----BEGIN EC PRIVATE KEY-----        |
+      | -----BEGIN OPENSSH PRIVATE KEY-----   |
       |                                       |
       | garbage input                         |
 
