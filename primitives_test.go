@@ -206,47 +206,6 @@ func TestKeepFirstLast_Unicode(t *testing.T) {
 	assert.Equal(t, "佐**郎", mask.KeepFirstLast("佐藤太郎", 1, 1, '*'))
 }
 
-// ---------- TruncateVisible ----------
-
-// TestTruncateVisible_FailOpenBehaviourOnShortInput pins the documented
-// WARNING: TruncateVisible is a formatting helper, not fail-closed. For
-// n >= rune count the original value is returned. The warning in godoc is
-// prose; this test makes it a contract.
-func TestTruncateVisible_FailOpenBehaviourOnShortInput(t *testing.T) {
-	t.Parallel()
-	// n >= len: original returned verbatim (the fail-open property we document).
-	assert.Equal(t, "abc", mask.TruncateVisible("abc", 99))
-	assert.Equal(t, "abc", mask.TruncateVisible("abc", 3))
-	// Invalid UTF-8 passes through without panic and remains non-empty.
-	got := mask.TruncateVisible("\xff\xfe\xfd", 2)
-	assert.NotEmpty(t, got)
-	assert.NotEqual(t, "\xff\xfe\xfd", got)
-}
-
-func TestTruncateVisible_BasicAndUnicode(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name  string
-		input string
-		n     int
-		want  string
-	}{
-		{"n zero", "abcdef", 0, ""},
-		{"n negative", "abcdef", -1, ""},
-		{"n equals len", "abcdef", 6, "abcdef"},
-		{"n greater than len", "abcdef", 99, "abcdef"},
-		{"n less than len", "abcdef", 3, "abc"},
-		{"unicode muller", "Müller", 3, "Mül"},
-		{"cjk", "佐藤太郎", 2, "佐藤"},
-		{"empty input", "", 3, ""},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, mask.TruncateVisible(tc.input, tc.n))
-		})
-	}
-}
-
 // ---------- PreserveDelimiters ----------
 
 func TestPreserveDelimiters_Email(t *testing.T) {
@@ -295,18 +254,16 @@ func TestFactory_CapturesDefaultMaskChar(t *testing.T) {
 	keep := mask.KeepFirstNFunc(2)
 	keepLast := mask.KeepLastNFunc(2)
 	keepBoth := mask.KeepFirstLastFunc(1, 1)
-	trunc := mask.TruncateVisibleFunc(2)
 	pres := mask.PreserveDelimitersFunc("-")
 	redprec := mask.ReducePrecisionFunc(1)
 
 	mask.SetMaskChar('X')
 
 	// All factories above were constructed BEFORE SetMaskChar. The mask
-	// rune they emit must remain '*'. TruncateVisible emits no mask rune.
+	// rune they emit must remain '*'.
 	assert.Equal(t, "se****", keep("secret"))
 	assert.Equal(t, "****et", keepLast("secret"))
 	assert.Equal(t, "s****t", keepBoth("secret"))
-	assert.Equal(t, "se", trunc("secret"))
 	assert.Equal(t, "*-*", pres("a-b"))
 	assert.Equal(t, "37.7*", redprec("37.77"))
 
@@ -315,22 +272,22 @@ func TestFactory_CapturesDefaultMaskChar(t *testing.T) {
 	assert.Equal(t, "seXXXX", mask.KeepFirstN("secret", 2, 'X'))
 }
 
-// ---------- ReplaceRegex ----------
+// ---------- ReplaceRegexFunc ----------
 
-func TestReplaceRegex_InvalidPattern_ReturnsError(t *testing.T) {
+func TestReplaceRegexFunc_InvalidPattern_ReturnsError(t *testing.T) {
 	t.Parallel()
 	for _, p := range []string{"[a-", "(?P<name", "*"} {
 		t.Run(p, func(t *testing.T) {
-			_, err := mask.ReplaceRegex("irrelevant", p, "X")
+			_, err := mask.ReplaceRegexFunc(p, "X")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "mask: invalid regex pattern")
-			// Value must not be in the error.
+			// Pattern may appear; arbitrary callee data must not.
 			assert.NotContains(t, err.Error(), "irrelevant")
 		})
 	}
 }
 
-func TestReplaceRegex_HappyPaths(t *testing.T) {
+func TestReplaceRegexFunc_HappyPaths(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name                                  string
@@ -344,9 +301,9 @@ func TestReplaceRegex_HappyPaths(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := mask.ReplaceRegex(tc.input, tc.pattern, tc.replacement)
+			r, err := mask.ReplaceRegexFunc(tc.pattern, tc.replacement)
 			require.NoError(t, err)
-			assert.Equal(t, tc.expected, got)
+			assert.Equal(t, tc.expected, r(tc.input))
 		})
 	}
 }
@@ -427,13 +384,6 @@ func TestKeepFirstLastFunc_UsesDefaultMaskChar(t *testing.T) {
 	t.Parallel()
 	r := mask.KeepFirstLastFunc(2, 2)
 	assert.Equal(t, "Se*********ta", r("SensitiveData"))
-}
-
-func TestTruncateVisibleFunc_TruncatesWithNoMark(t *testing.T) {
-	t.Parallel()
-	r := mask.TruncateVisibleFunc(3)
-	assert.Equal(t, "abc", r("abcdef"))
-	assert.Equal(t, "", r(""))
 }
 
 func TestPreserveDelimitersFunc_EmptyInput(t *testing.T) {
@@ -970,7 +920,6 @@ func TestPrimitives_InvalidUTF8NoPanic(t *testing.T) {
 	assert.NotPanics(t, func() { _ = mask.KeepFirstN(bad, 1, '*') })
 	assert.NotPanics(t, func() { _ = mask.KeepLastN(bad, 1, '*') })
 	assert.NotPanics(t, func() { _ = mask.KeepFirstLast(bad, 1, 1, '*') })
-	assert.NotPanics(t, func() { _ = mask.TruncateVisible(bad, 2) })
 	assert.NotPanics(t, func() { _ = mask.PreserveDelimiters(bad, "@", '*') })
 	assert.NotPanics(t, func() { _ = mask.ReducePrecision(bad, 2, '*') })
 	assert.NotPanics(t, func() { _ = mask.DeterministicHash(bad) })

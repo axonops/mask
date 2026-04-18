@@ -4,7 +4,7 @@
 
 ## Core concepts
 
-- **Two layers.** Utility primitives are Go functions (`KeepFirstN`, `KeepLastN`, `KeepFirstLast`, `PreserveDelimiters`, `ReplaceRegex`, `ReducePrecision`, `DeterministicHash`, `SameLengthMask`, `FullRedact`, `Nullify`, `TruncateVisible`). Domain rules are named strings registered against a `Masker` and invoked via `Apply(name, value)`.
+- **Two layers.** Utility primitives are Go functions (`KeepFirstN`, `KeepLastN`, `KeepFirstLast`, `PreserveDelimiters`, `ReducePrecision`, `DeterministicHash`, `SameLengthMask`, `FullRedact`, `Nullify`). Domain rules are named strings registered against a `Masker` and invoked via `Apply(name, value)`. Regex masking is factory-only via `ReplaceRegexFunc`.
 - **Fail-closed.** `Apply("no_such_rule", v)` returns `[REDACTED]`; a malformed input to a known rule (for example a 7-digit "PAN") returns a same-length mask. The original value is never echoed on error.
 - **Thread-safety contract.** `Register` MUST be called during program initialisation, before any goroutine calls `Apply`. After that, the registry is read-only and `Apply` is lock-free from any number of goroutines. Same model as `database/sql.Register`.
 - **Jurisdiction-qualified naming.** Country-specific identifiers use ISO-style prefixes — `us_ssn`, `uk_nino`, `in_aadhaar`, `br_cpf`. Generic rules (`phone_number`, `email_address`) have no prefix.
@@ -35,9 +35,7 @@
 - `mask.Nullify(v) string` → `""`
 - `mask.SameLengthMask(v, c) string`
 - `mask.KeepFirstN(v, n, c) string` / `mask.KeepLastN` / `mask.KeepFirstLast(v, first, last, c)`
-- `mask.TruncateVisible(v, n) string` (not fail-closed — use only in composition)
 - `mask.PreserveDelimiters(v, delim, c) string`
-- `mask.ReplaceRegex(v, pattern, replacement) (string, error)`
 - `mask.ReducePrecision(v, decimals, c) string`
 - `mask.DeterministicHash(v) string` — returns `sha256:<16-hex>` (unsalted).
 
@@ -47,7 +45,7 @@
 
 - `mask.FixedReplacementFunc(s) RuleFunc`
 - `mask.KeepFirstNFunc(n)` / `mask.KeepLastNFunc(n)` / `mask.KeepFirstLastFunc(first, last)`
-- `mask.TruncateVisibleFunc(n)` / `mask.PreserveDelimitersFunc(delim)` / `mask.ReducePrecisionFunc(decimals)`
+- `mask.PreserveDelimitersFunc(delim)` / `mask.ReducePrecisionFunc(decimals)`
 - `mask.ReplaceRegexFunc(pattern, replacement) (RuleFunc, error)`
 - `mask.DeterministicHashFunc(opts ...HashOption) RuleFunc` — configure via `WithAlgorithm(mask.SHA256 | mask.SHA512 | mask.SHA3_256 | mask.SHA3_512)` and `WithKeyedSalt(salt, version)`. Default algorithm is SHA-256; output is `"<algo>:<version>:<16-hex>"` when keyed, `"<algo>:<16-hex>"` when unsalted. An empty salt or a version that violates `^[A-Za-z0-9._-]{1,32}$` is a misconfiguration — the rule fails closed (emits `[REDACTED]` for every Apply) rather than silently downgrading.
 

@@ -2,7 +2,7 @@
 Feature: Utility primitives
   The mask library ships composable building blocks — FullRedact, Nullify,
   SameLengthMask, KeepFirstN, KeepLastN, KeepFirstLast, PreserveDelimiters,
-  ReplaceRegex, TruncateVisible, DeterministicHash, FixedReplacement, and
+  ReplaceRegexFunc, DeterministicHash, FixedReplacement, and
   ReducePrecision. This feature documents the contract every consumer can
   rely on.
 
@@ -80,8 +80,8 @@ Feature: Utility primitives
       | abc                |       | *    | ***               |
       | 佐藤・太郎          | ・    | *    | **・**             |
 
-  Scenario Outline: Replace regex with a valid pattern
-    When I use ReplaceRegex on "<input>" with pattern "<pattern>" and replacement "<replacement>"
+  Scenario Outline: Replace regex via the factory with a valid pattern
+    When I use ReplaceRegexFunc with pattern "<pattern>" and replacement "<replacement>" on "<input>"
     Then the replace result is "<expected>" and the error is absent
 
     Examples:
@@ -91,21 +91,9 @@ Feature: Utility primitives
       | abc    | (a)(b)  | $2$1        | bac      |
       | abc    | b       |             | ac       |
 
-  Scenario: Replace regex with an invalid pattern is rejected
-    When I use ReplaceRegex on "anything" with pattern "[a-" and replacement "X"
+  Scenario: Replace regex factory rejects an invalid pattern
+    When I use ReplaceRegexFunc with pattern "[a-" and replacement "X" on "anything"
     Then the replace result is empty and the error is present
-
-  Scenario Outline: Truncate visible to N characters
-    When I use TruncateVisible on "<input>" with n <n>
-    Then the result is "<expected>"
-
-    Examples:
-      | input    | n  | expected |
-      | abcdef   | 0  |          |
-      | abcdef   | -1 |          |
-      | abcdef   | 3  | abc      |
-      | abcdef   | 99 | abcdef   |
-      | Müller   | 3  | Mül      |
 
   Scenario: Deterministic hash is deterministic across invocations
     Given a fresh masker

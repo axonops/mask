@@ -204,34 +204,6 @@ func KeepFirstLast(v string, first, last int, c rune) string {
 	return b.String()
 }
 
-// TruncateVisible keeps the first n runes of v and drops everything after —
-// no mask characters are appended, so the output is shorter than the input.
-// Values of n ≤ 0 produce the empty string; n ≥ the rune count of v returns
-// v unchanged. Unicode aware.
-//
-// Example: TruncateVisible("Sensitive", 4) → "Sens".
-//
-// WARNING: TruncateVisible is a formatting helper, not a masking primitive.
-// It does NOT fail closed — when n ≥ the rune count of v it returns v
-// verbatim. For example, TruncateVisible("abc", 99) returns "abc", the
-// original value unmasked. Use it only in composition with an actual
-// masking primitive (for example chained after [KeepFirstN] to clip a
-// too-long visible prefix). Registering TruncateVisible directly as a
-// masking rule will produce data leaks on short inputs.
-func TruncateVisible(v string, n int) string {
-	if n <= 0 || v == "" {
-		return ""
-	}
-	seen := 0
-	for i := range v {
-		if seen == n {
-			return v[:i]
-		}
-		seen++
-	}
-	return v
-}
-
 // PreserveDelimiters replaces every rune of v with c, except runes listed in
 // delim, which are kept verbatim. Useful when a format's separators carry
 // structural meaning (for example, the dashes in a payment card number).
@@ -263,22 +235,6 @@ func preserveDelimitersWithScan(v, delim string, c rune) string {
 	return b.String()
 }
 
-// ReplaceRegex applies the regex pattern to v and replaces every match with
-// replacement. Returns the original pattern compilation error if pattern is
-// malformed; the value argument is never included in the error message.
-//
-// This function compiles pattern on every call. For hot-path use, call
-// [ReplaceRegexFunc] once and reuse the returned [RuleFunc].
-//
-// Example: ReplaceRegex("id-42", `\d+`, "N") → ("id-N", nil).
-func ReplaceRegex(v, pattern, replacement string) (string, error) {
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		return "", fmt.Errorf("mask: invalid regex pattern: %w", err)
-	}
-	return re.ReplaceAllString(v, replacement), nil
-}
-
 // ReplaceRegexFunc compiles pattern once and returns a [RuleFunc] that
 // applies it on every call. An invalid pattern returns a wrapped error and a
 // nil [RuleFunc] — never panics.
@@ -295,16 +251,6 @@ func ReplaceRegexFunc(pattern, replacement string) (RuleFunc, error) {
 	return func(v string) string {
 		return re.ReplaceAllString(v, replacement)
 	}, nil
-}
-
-// TruncateVisibleFunc builds a [RuleFunc] that truncates its input to the
-// first n runes. See [TruncateVisible] for boundary behaviour.
-//
-// Example: TruncateVisibleFunc(4)("Sensitive") → "Sens".
-func TruncateVisibleFunc(n int) RuleFunc {
-	return func(v string) string {
-		return TruncateVisible(v, n)
-	}
 }
 
 // ReducePrecision reduces the decimal-place precision of a numeric string by

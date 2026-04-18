@@ -98,13 +98,15 @@ func (w *World) usePreserveDelimiters(v, delim, ch string) error {
 	return nil
 }
 
-func (w *World) useTruncateVisible(v string, n int) error {
-	w.lastResult = mask.TruncateVisible(v, n)
-	return nil
-}
-
-func (w *World) useReplaceRegex(v, pattern, replacement string) error {
-	w.replaceResult, w.replaceErr = mask.ReplaceRegex(v, pattern, replacement)
+func (w *World) useReplaceRegexFunc(pattern, replacement, v string) error {
+	r, err := mask.ReplaceRegexFunc(pattern, replacement)
+	if err != nil {
+		w.replaceResult = ""
+		w.replaceErr = err
+		return nil
+	}
+	w.replaceResult = r(v)
+	w.replaceErr = nil
 	return nil
 }
 
