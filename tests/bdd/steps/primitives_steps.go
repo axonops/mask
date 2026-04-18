@@ -132,22 +132,22 @@ func (w *World) useDeterministicHashAlgo(v, algoLabel string) error {
 	return nil
 }
 
-func (w *World) useDeterministicHashAlgoSalt(v, algoLabel, salt string) error {
+func (w *World) useDeterministicHashAlgoSaltVersion(v, algoLabel, salt, version string) error {
 	algo, err := algoFromLabel(algoLabel)
 	if err != nil {
 		return err
 	}
-	w.lastResult = mask.DeterministicHashWith(v, mask.WithAlgorithm(algo), mask.WithSalt(salt))
+	w.lastResult = mask.DeterministicHashWith(v, mask.WithAlgorithm(algo), mask.WithSalt(salt, version))
 	return nil
 }
 
-func (w *World) useDeterministicHashSalt(v, salt string) error {
-	w.lastResult = mask.DeterministicHashWith(v, mask.WithSalt(salt))
+func (w *World) useDeterministicHashSaltVersion(v, salt, version string) error {
+	w.lastResult = mask.DeterministicHashWith(v, mask.WithSalt(salt, version))
 	return nil
 }
 
-func (w *World) useDeterministicHashSaltSecond(v, salt string) error {
-	w.secondResult = mask.DeterministicHashWith(v, mask.WithSalt(salt))
+func (w *World) useDeterministicHashSaltVersionSecond(v, salt, version string) error {
+	w.secondResult = mask.DeterministicHashWith(v, mask.WithSalt(salt, version))
 	return nil
 }
 
