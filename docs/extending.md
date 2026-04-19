@@ -5,7 +5,7 @@
 Two concerns, one page:
 
 - **[Utility Primitives](#utility-primitives)** — the composable building blocks exposed both as Go helper functions and as factory `RuleFunc`s.
-- **[Custom Rules](#custom-rules)** — five patterns for registering your own rule on top of those primitives, from one-liner factories to fully custom `RuleFunc` implementations.
+- **[Custom Rules](#custom-rules)** — patterns for registering your own rule on top of those primitives, from one-liner factories through regex to fully custom `RuleFunc` implementations.
 
 ## Table of contents
 
@@ -13,6 +13,13 @@ Two concerns, one page:
   - [Direct-call examples](#direct-call-examples)
   - [Factory examples](#factory-examples)
 - [Custom Rules](#custom-rules)
+  - [Regex-based rules](#regex-based-rules) — the most common extension path
+    - [Anatomy of a regex rule](#anatomy-of-a-regex-rule)
+    - [Capture groups for partial preservation](#capture-groups-for-partial-preservation)
+    - [A cookbook of useful patterns](#a-cookbook-of-useful-patterns)
+    - [Performance and compilation caching](#performance-and-compilation-caching)
+    - [ReDoS safety — Go uses RE2](#redos-safety--go-uses-re2)
+    - [When NOT to use regex](#when-not-to-use-regex)
   - [1. Use a factory directly](#1-use-a-factory-directly)
   - [2. Compose a primitive via a closure](#2-compose-a-primitive-via-a-closure)
   - [3. Honour per-instance mask-character config](#3-honour-per-instance-mask-character-config)
@@ -73,7 +80,168 @@ See [pkg.go.dev](https://pkg.go.dev/github.com/axonops/mask) for the full API re
 
 Registering your own rule is the extension point when the built-in catalogue does not cover a format. A rule is just a `RuleFunc` — `func(string) string` — registered under a name and then called via `Apply`. Most real rules compose one of the utility primitives; rarely do you need to write a masking algorithm from scratch.
 
-The five patterns below cover the situations you're likely to hit, in rough order of simplicity.
+Reach for a **regex-based rule** first — it is the most common extension path and covers the majority of ad-hoc identifier shapes. For everything else, the five patterns further down the page (factory, closure, per-instance config, hashing, fully custom) cover the situations you're likely to hit.
+
+### Regex-based rules
+
+**If you need to extend `mask` and your data has a predictable textual shape, reach for `ReplaceRegexFunc` first.** Regex is the default tool when the built-in catalogue doesn't cover your format: internal ticket IDs, proprietary employee numbers, tenant-scoped identifiers, secrets embedded in free-text log lines, API keys with a recognisable prefix, anything with a regular shape surrounded by context bytes you want to keep.
+
+`ReplaceRegexFunc(pattern, replacement)` compiles `pattern` **once**, at factory-call time (typically inside `init()`), and returns a `RuleFunc` that reuses the compiled matcher for every `Apply`. The returned function is concurrency-safe and allocation-efficient. An invalid pattern returns `(nil, err)` so a programmer typo surfaces at init rather than at first use in production.
+
+#### Anatomy of a regex rule
+
+```go
+import (
+    "log"
+
+    "github.com/axonops/mask"
+)
+
+func init() {
+    // Pattern: any run of 6 or more ASCII digits embedded in free text.
+    // Replacement: the literal string "[REDACTED]".
+    r, err := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+    if err != nil {
+        // An invalid pattern is a programmer bug, not a runtime
+        // condition — fail the process at init rather than silently
+        // skipping the rule.
+        log.Fatalf("mask: compile free_text_digits: %v", err)
+    }
+    _ = mask.Register("free_text_digits", r)
+}
+
+// mask.Apply("free_text_digits", "Order #1234567 shipped")
+//   → "Order #[REDACTED] shipped"
+```
+
+Every regex rule follows the same three-step shape: compile at init, register under a name, let `Apply` route to it. The compilation is a one-time cost; every subsequent `Apply` reuses the compiled matcher.
+
+#### Capture groups for partial preservation
+
+`ReplaceAllString`'s replacement string supports `$1`, `$2`, … back-references into parenthesised capture groups. Combine groups with literal replacement text to keep context around the secret and mask only the sensitive bytes:
+
+```go
+// Preserve the "ORDER-<YYYY>-" prefix; mask the trailing ID.
+r, _ := mask.ReplaceRegexFunc(`(ORDER-\d{4}-)\d+`, "$1****")
+_ = mask.Register("order_id", r)
+// mask.Apply("order_id", "ORDER-2026-001234") → "ORDER-2026-****"
+```
+
+Multiple groups work the same way — each `$N` emits the matched bytes of group N verbatim:
+
+```go
+// Keep the AWS access-key prefix ("AKIA" or "ASIA"), mask the 16-char body.
+r, _ := mask.ReplaceRegexFunc(`\b(AKIA|ASIA)[0-9A-Z]{16}\b`, "${1}****************")
+_ = mask.Register("aws_access_key", r)
+// mask.Apply("aws_access_key", "id=AKIAIOSFODNN7EXAMPLE here")
+//   → "id=AKIA**************** here"
+```
+
+> **Naming gotcha.** `$1` followed by alphanumerics is ambiguous (`$1F` could mean group 1 then `F`, or group 1F). Use the explicit `${1}` form whenever the back-reference is followed by a letter or digit.
+
+#### A cookbook of useful patterns
+
+Starting points you can adapt; all of them compile once at init and are safe to register concurrently.
+
+| Goal | Pattern | Replacement |
+|---|---|---|
+| Any 6+ digit run | `` `\d{6,}` `` | `[REDACTED]` |
+| Bearer token tail | `` `(Bearer\s+)[\w-]+` `` | `${1}****` |
+| JWT-shaped token | `` `\beyJ[\w-]*\.[\w-]*\.[\w-]*` `` | `[REDACTED]` |
+| `password=…` in a config or log line (case-insensitive) | `` `(?i)(password[=:])\s*\S+` `` | `${1}****` |
+| Email-shaped substring in free text (use `email_address` for a bare email field — the built-in understands the format better) | `` `\b[\w._%+-]+@[\w.-]+\.\w{2,}\b` `` | `[REDACTED]` |
+| Alphanumeric IDs with a known prefix | `` `\bINT-[A-Z0-9]{6,}\b` `` | `[REDACTED]` |
+| Cloud resource ARNs (AWS) | `` `\barn:aws:[^\s"']+` `` | `[REDACTED]` |
+| MongoDB ObjectId | `` `\b[0-9a-f]{24}\b` `` | `[REDACTED]` |
+
+Use `\b` word boundaries to avoid chewing through surrounding text; use `(?i)` at the start of a pattern for case-insensitive matching; use `(?s)` only if you need `.` to span newlines (rarely what a log-line masker wants). The full list of supported flags and syntax is documented at [pkg.go.dev/regexp/syntax](https://pkg.go.dev/regexp/syntax) — worth a skim before copying cookbook patterns from PCRE-oriented blog posts.
+
+#### Performance and compilation caching
+
+Regex compilation is expensive — Go's `regexp` parses the pattern and builds an internal representation before the first match. Fortunately, **you do not need to write your own cache**: `ReplaceRegexFunc` already compiles exactly once and returns a closure that captures the compiled `*regexp.Regexp`. Every subsequent `Apply` reuses that compiled matcher.
+
+```go
+// Compiled once at init — no recompilation on any subsequent Apply call.
+r, _ := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+_ = mask.Register("free_text_digits", r)
+```
+
+**The anti-pattern to avoid: compiling inside the closure body.** This looks plausible if you are writing a fully custom `RuleFunc` but recompiles the pattern on every single call, which will dominate the hot path:
+
+```go
+// BAD — recompiles on every Apply.
+_ = mask.Register("free_text_digits", func(v string) string {
+    re := regexp.MustCompile(`\d{6,}`) // ❌ runs on every call
+    return re.ReplaceAllString(v, "[REDACTED]")
+})
+
+// GOOD — compile once at package init, capture the *Regexp in the closure.
+var freeTextDigitsRE = regexp.MustCompile(`\d{6,}`)
+
+_ = mask.Register("free_text_digits", func(v string) string {
+    return freeTextDigitsRE.ReplaceAllString(v, "[REDACTED]")
+})
+
+// BEST — let the factory do it.
+r, _ := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+_ = mask.Register("free_text_digits", r)
+```
+
+Sharing one compiled pattern across multiple rules is safe — `*regexp.Regexp` is explicitly documented as concurrency-safe:
+
+```go
+var employeeRE = regexp.MustCompile(`\bEMP-[A-Z]+-\d+\b`)
+
+_ = mask.Register("employee_internal", func(v string) string {
+    return employeeRE.ReplaceAllString(v, "[REDACTED]")
+})
+_ = mask.Register("employee_audit_log", func(v string) string {
+    // Same compiled matcher, different replacement — no recompilation.
+    return employeeRE.ReplaceAllString(v, "[EMP]")
+})
+```
+
+> **There is no Apply-time regex caching inside `mask` itself.** The library does not accept patterns at `Apply` time; patterns are supplied at `Register` time, where they compile once and the closure owns the compiled matcher for its lifetime. A cache would protect against a usage pattern the API does not expose — don't write one.
+
+#### ReDoS safety — Go uses RE2
+
+Regex-based masking in general is infamous for catastrophic backtracking: a hostile input can force the engine into exponential-time matching and stall the service (a ReDoS attack). **This is not a concern in Go.** Go's standard `regexp` package is backed by [RE2](https://github.com/google/re2), which executes every pattern in guaranteed linear time regardless of input.
+
+The trade-off is that RE2 does not support features that would require backtracking:
+
+- **Backreferences in the pattern itself** (e.g. `(.)\1` to match a doubled character)
+- **Lookahead assertions**: `(?=...)`, `(?!...)`
+- **Lookbehind assertions**: `(?<=...)`, `(?<!...)`
+
+`ReplaceRegexFunc` returns a compile error if the pattern uses any of these, so cookbook patterns copied from PCRE-oriented blog posts may need a small rewrite. For masking rules these absences are rarely a real limitation.
+
+You can feed `ReplaceRegexFunc` adversarial-looking patterns like `(a|a|a|a)*b` against hostile inputs and the match will complete in linear time. Register regex rules with the same confidence you register any other rule.
+
+#### When NOT to use regex
+
+Regex is the right tool for ad-hoc textual formats. It is the **wrong** tool when:
+
+- **A built-in rule exists.** `payment_card_pan`, `iban`, `ipv4_address`, `uuid`, `email_address`, `jwt_token` and the other format-specific rules understand their format's structure (check digits, field lengths, country codes) in ways a regex cannot. Use the built-in.
+- **The format has structural constraints you care about.** IBAN has a mod-97 check digit; a Visa PAN has a Luhn check digit; a valid UUID has a specific nibble layout. A regex that matches "16 digits with dashes" will happily match invalid PANs and produce confusing output. Write a `RuleFunc` that parses the format and fails closed on malformed input — see pattern §5 below.
+- **You need to honour the configured mask character.** A literal `****` in a regex replacement is just the character `*` four times — it does not react to `SetMaskChar('#')` or `WithMaskChar('#')`. Callers who want their custom rule to follow the configured mask rune should compose primitives via a closure — see pattern §3 below.
+- **The match is a long substring you want to mask rune-by-rune.** `ReplaceAllString` emits the replacement string verbatim; it does not length-match the input. Use `regexp.Regexp.ReplaceAllStringFunc` inside a closure if you need length-preservation:
+
+  ```go
+  import (
+      "regexp"
+      "github.com/axonops/mask"
+  )
+
+  var digitRunRE = regexp.MustCompile(`\d{6,}`)
+
+  _ = mask.Register("preserve_length_digits", func(v string) string {
+      return digitRunRE.ReplaceAllStringFunc(v, func(match string) string {
+          return mask.SameLengthMask(match, '*')
+      })
+  })
+  // mask.Apply("preserve_length_digits", "Order #1234567 shipped")
+  //   → "Order #******* shipped"
+  ```
 
 ### 1. Use a factory directly
 
@@ -100,23 +268,7 @@ _ = mask.Register("warehouse_id", mask.KeepFirstLastFunc(3, 3))
 // mask.Apply("warehouse_id", "WH-NORTH-DOCK-9876") → "WH-************876"
 ```
 
-**Regex-based masking** — replace every match of a pattern with a fixed string. Useful when the secret has a predictable shape surrounded by context bytes you want to keep, or when you want a one-off rule without walking the string yourself.
-
-```go
-// Redact any 6-or-more-digit run embedded in free text.
-r, err := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
-if err != nil {
-	log.Fatalf("compile regex: %v", err)
-}
-_ = mask.Register("free_text_digits", r)
-
-// mask.Apply("free_text_digits", "Order #1234567 shipped")
-//   → "Order #[REDACTED] shipped"
-```
-
-`ReplaceRegexFunc` returns `(nil, err)` on an invalid pattern — compile it once at init and panic fatally if it's wrong.
-
-Other factories in the same shape: `PreserveDelimitersFunc(delim)`, `ReducePrecisionFunc(decimals)`, `FixedReplacementFunc(s)`, `DeterministicHashFunc(opts...)`.
+Other factories in the same shape: `PreserveDelimitersFunc(delim)`, `ReducePrecisionFunc(decimals)`, `FixedReplacementFunc(s)`, `DeterministicHashFunc(opts...)`. Regex rules are a dedicated section above — see [Regex-based rules](#regex-based-rules).
 
 ### 2. Compose a primitive via a closure
 

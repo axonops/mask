@@ -28,7 +28,7 @@
 - [🧵 Thread Safety](#-thread-safety)
 - [🛡 Fail Closed](#-fail-closed)
 - [🔧 Configuration](#-configuration)
-- [🎯 Custom Rules](#-custom-rules) — five patterns in [`docs/extending.md`](./docs/extending.md)
+- [🎯 Custom Rules](#-custom-rules) — regex and primitive patterns in [`docs/extending.md`](./docs/extending.md)
 - [🌍 Regulatory Context](#-regulatory-context)
 - [📖 API Reference](#-api-reference)
 - [🤖 For AI Assistants](#-for-ai-assistants)
@@ -149,6 +149,26 @@ func init() {
 
 // mask.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
 ```
+
+### Redacting an ad-hoc format with regex
+
+For anything with a predictable textual shape that isn't in the built-in catalogue — internal IDs, tokens embedded in log lines, tenant-scoped identifiers — reach for `ReplaceRegexFunc`. It compiles the pattern once at init and returns a ready-to-register rule; Go's `regexp` is RE2-backed so there is no ReDoS risk even on adversarial input (with the RE2 feature trade-offs — no backreferences, no lookahead / lookbehind — covered in the full guide).
+
+```go
+func init() {
+	// Any 6-or-more-digit run embedded in free-text becomes [REDACTED].
+	r, err := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+	if err != nil {
+		log.Fatalf("mask: compile free_text_digits: %v", err)
+	}
+	_ = mask.Register("free_text_digits", r)
+}
+
+// mask.Apply("free_text_digits", "Order #1234567 shipped")
+//   → "Order #[REDACTED] shipped"
+```
+
+Capture groups can preserve context around the secret — `(Bearer\s+)[\w-]+` with replacement `${1}****` keeps the scheme and masks the token. The full regex guide (capture groups, a cookbook of patterns, compilation caching, ReDoS safety, when NOT to use regex) lives in [`docs/extending.md#regex-based-rules`](./docs/extending.md#regex-based-rules).
 
 ### Composing primitives directly
 
@@ -301,25 +321,33 @@ Do not hard-code the salt — load it from a secret store or environment variabl
 
 ## 🎯 Custom Rules
 
-A custom rule is a `func(string) string` registered under a name. The most common shapes are already one-liners:
+A custom rule is a `func(string) string` registered under a name. Regex is the default extension path and handles most ad-hoc formats; primitive factories cover the remaining "keep N runes" shapes in a one-liner.
+
+**Regex** — reach for this first when your data has a predictable textual shape the built-in catalogue doesn't cover. `ReplaceRegexFunc` compiles the pattern once at init and returns a ready-to-register rule; Go's `regexp` is RE2-backed so there is no ReDoS risk.
+
+```go
+// Redact any 6+ digit run embedded in free-text.
+r, err := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+if err != nil {
+    log.Fatalf("compile: %v", err)
+}
+_ = mask.Register("free_text_digits", r)
+// mask.Apply("free_text_digits", "Order #1234567 shipped")
+//   → "Order #[REDACTED] shipped"
+```
+
+**Primitive factories** — for common "keep N runes" shapes:
 
 ```go
 func init() {
-    // Keep the first N runes, mask the rest.
-    _ = mask.Register("employee_id", mask.KeepFirstNFunc(9))
-
-    // Keep the first and last N runes — typical account-number shape.
-    _ = mask.Register("account_id", mask.KeepFirstLastFunc(3, 4))
-
-    // Keep the last N runes.
-    _ = mask.Register("internal_ref", mask.KeepLastNFunc(4))
+    _ = mask.Register("employee_id", mask.KeepFirstNFunc(9))              // keep first 9
+    _ = mask.Register("account_id",  mask.KeepFirstLastFunc(3, 4))        // keep 3+4
+    _ = mask.Register("internal_ref", mask.KeepLastNFunc(4))              // keep last 4
 }
-// mask.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
-// mask.Apply("account_id",  "ACME-1234-5678") → "ACM********5678"
-// mask.Apply("internal_ref","REF-2025-001234") → "***********1234"
+// mask.Apply("account_id", "ACME-1234-5678") → "ACM********5678"
 ```
 
-For the other four patterns — closures, per-instance mask-char config, deterministic hashing with salt + version, fully custom `RuleFunc` — see [`docs/extending.md`](./docs/extending.md).
+For the full regex guide (capture groups, common patterns, compilation caching, when NOT to use regex) and the other patterns (closures, per-instance mask-char, deterministic hashing, fully custom `RuleFunc`), see [`docs/extending.md`](./docs/extending.md).
 
 ## 🌍 Regulatory Context
 

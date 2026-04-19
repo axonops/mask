@@ -70,7 +70,7 @@ func main() {
 
 Install: `go get github.com/axonops/mask` (requires Go 1.26+).
 
-**Custom rule pattern**:
+**Custom rule — primitive factory** (common "keep N runes" shapes):
 
 ```go
 func init() {
@@ -80,6 +80,25 @@ func init() {
 }
 
 // mask.Apply("employee_id", "EMP-ACME-12345") → "EMP-ACME-*****"
+```
+
+**Custom rule — regex** (the default extension path for ad-hoc textual formats: internal IDs, tokens in free-text, tenant-scoped identifiers). `ReplaceRegexFunc` compiles the pattern once at init and returns a ready-to-register rule. Go's `regexp` is RE2-backed, so patterns run in linear time and ReDoS is not a concern. Capture groups (`$1`, `$2`, …) are supported in the replacement string for partial preservation. Compile ONCE at init — compiling inside a `RuleFunc` body is an anti-pattern that recompiles on every Apply. See `docs/extending.md#regex-based-rules` for the full guide.
+
+```go
+func init() {
+	r, err := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+	if err != nil {
+		log.Fatalf("compile free_text_digits: %v", err)
+	}
+	_ = mask.Register("free_text_digits", r)
+
+	// Capture-group example: keep the Bearer scheme, mask the token.
+	bearer, _ := mask.ReplaceRegexFunc(`(Bearer\s+)[\w-]+`, "${1}****")
+	_ = mask.Register("bearer_in_log", bearer)
+}
+
+// mask.Apply("free_text_digits", "Order #1234567 shipped")
+//   → "Order #[REDACTED] shipped"
 ```
 
 **Deterministic hashing for pseudonymisation** (production):
