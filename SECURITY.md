@@ -2,12 +2,13 @@
 
 ## Supported versions
 
-The `mask` library follows a `v0.x` versioning scheme. Only the most recent `v0.x` minor release receives security fixes until `v1.0.0` stabilises the API.
+The `mask` library follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Security fixes land on the most recent minor release of the current major version. Older majors (once a `v2.0.0` exists) are not supported.
 
 | Version | Supported |
 |---------|-----------|
-| `v0.9.x` | Yes |
-| Older | No |
+| `v1.x` (latest minor) | Yes |
+| Older `v1.x` minors | No |
+| Pre-1.0 (`v0.x`) | Never released |
 
 ## Threat model
 

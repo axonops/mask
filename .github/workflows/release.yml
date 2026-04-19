@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g. v0.9.0). Must not exist yet; workflow creates it."
+        description: "Tag to release (e.g. v1.0.0). Must not exist yet; workflow creates it."
         required: true
         type: string
       dry_run:

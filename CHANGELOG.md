@@ -10,17 +10,15 @@ No unreleased changes.
 
 ## Upgrading
 
-While the project is pre-1.0 (`v0.x`) every minor version MAY include
-breaking changes. Pin a specific tag in `go.mod` and treat every minor
-bump as a manual review step: read the release notes for the target
-version, update your `Register` / `DeterministicHashFunc` call sites
-where the public API has changed, run your test suite with
-`-race`, and confirm the new version against the `make check` gate
-before rolling to production. From `v1.0.0` onwards the library
-commits to the standard Go semver compatibility promise — breaking
-changes only in a new major version.
+From `v1.0.0` onwards `mask` follows the standard Go semantic-versioning
+compatibility promise: breaking changes to the public API only in a new
+major version. Minor and patch releases are always backwards-compatible
+for the API surface documented on [pkg.go.dev](https://pkg.go.dev/github.com/axonops/mask).
+Pin a specific tag in your `go.mod`, review the release notes for the
+target version, and run your test suite with `-race` against the new
+version before rolling to production.
 
-## [0.9.0] — 2026-04-18
+## [1.0.0] — 2026-04-19
 
 Initial public release.
 
@@ -39,5 +37,5 @@ Initial public release.
 - **CI/CD.** Format check, vet, lint, unit and BDD tests, coverage, module tidy, security scan, cross-platform builds (`linux/amd64`, `darwin/arm64`, `windows/amd64`), and a CI-only release workflow — no local tagging permitted.
 - `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE` (Apache 2.0).
 
-[Unreleased]: https://github.com/axonops/mask/compare/v0.9.0...HEAD
-[0.9.0]: https://github.com/axonops/mask/releases/tag/v0.9.0
+[Unreleased]: https://github.com/axonops/mask/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/axonops/mask/releases/tag/v1.0.0
