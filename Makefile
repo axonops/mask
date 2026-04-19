@@ -56,6 +56,18 @@ fmt-check: ## Fail if any Go file is unformatted
 bench: ## Run benchmarks
 	$(GO) test -bench=. -benchmem -run=^$$ $(PKG)
 
+.PHONY: bench-regression
+bench-regression: ## Compare this tree against bench.txt and fail on regression
+	@if ! command -v benchstat >/dev/null 2>&1; then \
+		echo "benchstat not installed. Install with: go install golang.org/x/perf/cmd/benchstat@latest"; \
+		exit 2; \
+	fi
+	@echo "Running benchmarks at count=5 (fresh samples for benchstat)..."
+	@$(GO) test -bench=. -benchmem -run=^$$ -count=5 $(PKG) > current.txt
+	@echo "Comparing against committed baseline (bench.txt) via benchstat..."
+	@benchstat bench.txt current.txt | tee bench-regression.txt
+	@./scripts/check-bench-regression.sh bench-regression.txt
+
 .PHONY: coverage
 coverage: ## Generate coverage profile and HTML report for the library
 	$(GO) test -race -coverprofile=$(COVER_OUT) -covermode=atomic .

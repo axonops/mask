@@ -39,6 +39,7 @@ jobs:
             fmt
             fmt-check
             bench
+            bench-regression
             coverage
             tidy
             tidy-check
@@ -400,3 +401,36 @@ jobs:
           distribution: goreleaser
           version: v2.7.0
           args: check
+
+  benchstat-regression-guard:
+    name: Benchmark regression guard
+    runs-on: ubuntu-latest
+    # CAVEAT: ubuntu-latest is a shared GitHub-hosted runner. Shared
+    # runners exhibit ±5-15% variance between runs for nanosecond-scale
+    # benchmarks, which can fire the guard on pure jitter. If this job
+    # flakes repeatedly, options are (a) move to a dedicated runner,
+    # (b) raise the time/op threshold (keeping allocs/op strict since
+    # allocation counts are deterministic), or (c) make the job
+    # advisory rather than blocking. See CONTRIBUTING.md §Performance
+    # baseline for the policy.
+    #
+    # Skip on Dependabot-authored PRs: dependency bumps cannot
+    # legitimately move in-tree benchmarks, so variance there is noise.
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20260409210113-8e83ce0f7b1c
+      - name: Run make bench-regression
+        run: make bench-regression
+      - name: Attach benchstat report
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: benchstat-report
+          path: bench-regression.txt
+          if-no-files-found: ignore
