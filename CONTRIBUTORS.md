@@ -11,7 +11,7 @@ Agreement](./CLA.md) and contributed to `github.com/axonops/mask`.
 
 | Contributor | GitHub | Signed (UTC) | First PR |
 |---|---|---|---|
-| Johnny Miller | [@millerjp](https://github.com/millerjp) | 2026-04-19 | [#40](https://github.com/axonops/mask/pull/40) |
+| Johnny Miller | [@millerjp](https://github.com/millerjp) | 2026-04-19 | — |
 
 ---
 
