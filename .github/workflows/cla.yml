@@ -1,0 +1,67 @@
+name: "CLA Assistant"
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, closed, synchronize]
+
+# Explicit permissions because repository-level workflow permissions
+# may be read-only. The PAT below carries the actual push authority
+# through branch protection; GITHUB_TOKEN is used for PR comments and
+# status updates.
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  CLAAssistant:
+    runs-on: ubuntu-latest
+    # Skip unless the trigger is either a relevant PR event or a comment
+    # that looks like a signature / recheck request. The action filter
+    # inside the step duplicates this; having it at the job level avoids
+    # spinning up a runner for unrelated `issue_comment` events.
+    if: |
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'issue_comment' &&
+        (github.event.comment.body == 'recheck' ||
+         github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA'))
+    steps:
+      - name: CLA Assistant
+        uses: contributor-assistant/github-action@v2.6.1
+        env:
+          # GITHUB_TOKEN is used for PR interactions (comments, status
+          # checks). The default in-built token is sufficient for those.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PERSONAL_ACCESS_TOKEN drives the commit that records the
+          # signature. Using an admin-scoped PAT lets the write bypass
+          # branch protection on `main` (required-PR, required-signatures)
+          # while still producing a GitHub web-flow-signed commit.
+          # The secret is created manually at:
+          #   Settings → Secrets and variables → Actions → CLA_ASSISTANT_PAT
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_ASSISTANT_PAT }}
+        with:
+          path-to-signatures: "signatures/version1/cla.json"
+          path-to-document: "https://github.com/axonops/mask/blob/main/CLA.md"
+          branch: "main"
+          # Allowlisted accounts do not need to sign the CLA:
+          #   - millerjp           — project owner (already signs by owning it)
+          #   - dependabot[bot]    — GitHub Dependabot
+          #   - renovate[bot]      — if/when Renovate is added
+          #   - github-actions[bot]— GitHub Actions identity
+          allowlist: "millerjp,dependabot[bot],renovate[bot],github-actions[bot]"
+          custom-notsigned-prcomment: |
+            Thank you for your contribution! Before we can merge this PR, you need to sign our [Contributor License Agreement](https://github.com/axonops/mask/blob/main/CLA.md).
+
+            **To sign**, post a comment on this PR containing exactly:
+
+            > I have read the CLA Document and I hereby sign the CLA
+
+            The CLA is a one-time agreement that covers every future contribution you make to any AxonOps open-source project. If you have questions before signing, please open a discussion or email `oss@axonops.com`.
+          custom-pr-sign-comment: "I have read the CLA Document and I hereby sign the CLA"
+          custom-allsigned-prcomment: "All contributors have signed the CLA. ✅"
+          signed-commit-message: "chore(cla): $contributorName signed the CLA in #$pullRequestNo"
+          create-file-commit-message: "chore(cla): initialise signatures file"
+          lock-pullrequest-aftermerge: true

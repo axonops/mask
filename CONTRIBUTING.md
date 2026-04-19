@@ -2,6 +2,18 @@
 
 Thank you for your interest in contributing to `github.com/axonops/mask`. This document covers the expectations for code, tests, documentation, and release discipline.
 
+## Contributor License Agreement
+
+Every contributor must sign our [Contributor License Agreement](./CLA.md) before a pull request can be merged. This is a one-time step per GitHub account and covers every future contribution you make to any AxonOps open-source project.
+
+The CLA Assistant bot will comment on your first pull request with the signing instructions — you reply with one sentence and you are done. The process takes under a minute. Your signature is recorded in `signatures/version1/cla.json` (the audit trail) and you appear in the auto-generated [`CONTRIBUTORS.md`](./CONTRIBUTORS.md) (the public thank-you list).
+
+**Why we require it.** The CLA makes it explicit that (a) you have the right to contribute the code, (b) AxonOps has the licence to distribute your contributions under the project's Apache Licence 2.0, and (c) the project is legally protected if a dispute arises about contributed code. Signing the CLA does NOT change your rights to use your own contributions for any other purpose.
+
+## Code of Conduct
+
+This project follows the [Contributor Covenant Code of Conduct](./CODE_OF_CONDUCT.md). By participating, you agree to uphold its standards. Report unacceptable behaviour privately to `oss@axonops.com`.
+
 ## Ground rules
 
 - **Zero runtime dependencies.** The library MUST remain stdlib-only. PRs that add a runtime dependency will not be merged.
@@ -34,6 +46,64 @@ Conventional Commits are mandatory:
 3. Body is optional but MUST explain *why*, not *what*.
 4. Never mention AI tooling (Claude, Copilot, GPT, LLM, Anthropic) anywhere in a commit message.
 5. One logical change per commit. Use rebase, not merge commits.
+
+### Signing your commits
+
+`main` is protected with `required_signatures: true` — GitHub rejects unsigned commits when a PR is merged. Set up signing once and all your future commits are covered. **SSH signing is recommended** (simpler, reuses the key you already push with, no separate keyring to manage); GPG is documented below as a fallback for contributors who already use it.
+
+**SSH signing (recommended — one key does push + sign):**
+
+```sh
+# 1. If you do not already have an SSH key, generate one. Ed25519 is the
+#    modern default; 3072-bit RSA is also fine if your org mandates it.
+ssh-keygen -t ed25519 -C "you@example.com"
+
+# 2. Tell git to use SSH for commit signing and point at your public key.
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519.pub
+git config --global commit.gpgsign true
+git config --global tag.gpgsign true
+
+# 3. Add the SAME public key to GitHub as a Signing Key so commits show
+#    as "Verified" in the web UI. This is a separate entry from the
+#    Authentication Key — even if the underlying file is identical.
+#
+#    Copy the public key to your clipboard:
+pbcopy < ~/.ssh/id_ed25519.pub           # macOS
+# xclip -selection clipboard < ~/.ssh/id_ed25519.pub   # Linux (with xclip)
+#
+#    Then go to https://github.com/settings/ssh/new and pick
+#    "Key type: Signing Key", paste, save.
+```
+
+**GPG signing (classic, also supported):**
+
+```sh
+# 1. Generate a key if you do not already have one.
+gpg --full-generate-key                  # RSA 4096, 2-year expiry is sensible
+
+# 2. Find the key ID and tell git to use it. Replace KEYID.
+gpg --list-secret-keys --keyid-format long
+git config --global user.signingkey KEYID
+git config --global commit.gpgsign true
+git config --global tag.gpgsign true
+
+# 3. Upload the public key to GitHub at
+#    https://github.com/settings/gpg/new:
+gpg --armor --export KEYID | pbcopy      # macOS
+# gpg --armor --export KEYID | xclip -selection clipboard  # Linux
+```
+
+**Verify it worked (either path):**
+
+```sh
+git commit --allow-empty -m "chore: test signing"
+git log --show-signature -1
+```
+
+You should see `Good "git" signature for ...` (SSH) or `gpg: Good signature from ...` (GPG). Push the commit and GitHub will show a green **Verified** badge next to it.
+
+Full GitHub docs: <https://docs.github.com/en/authentication/managing-commit-signature-verification>.
 
 ## Pull requests
 

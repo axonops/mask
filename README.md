@@ -387,7 +387,13 @@ Two files at the repository root are published specifically for AI coding assist
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for branching, commit, PR, and release guidance. Every masking rule requires a unit test AND a BDD scenario; coverage is held at 90% or higher.
+Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for branching, commit, PR, testing and release guidance — every masking rule requires a unit test AND a BDD scenario, and coverage is held at 90 % or higher.
+
+Before opening your first pull request:
+
+- Sign the [Contributor License Agreement](./CLA.md) (one-time, done via a PR comment; the CLA Assistant bot walks you through it). The current list of signatories is maintained at [`CONTRIBUTORS.md`](./CONTRIBUTORS.md).
+- Configure signed commits locally (GPG or SSH — see [§ Signing your commits](./CONTRIBUTING.md#signing-your-commits)). `main` requires signed commits and will reject unsigned merges.
+- Read the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## 🔐 Security
 
