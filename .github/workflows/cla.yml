@@ -46,12 +46,10 @@ jobs:
           path-to-signatures: "signatures/version1/cla.json"
           path-to-document: "https://github.com/axonops/mask/blob/main/CLA.md"
           branch: "main"
-          # Allowlisted accounts do not need to sign the CLA:
-          #   - millerjp           — project owner (already signs by owning it)
-          #   - dependabot[bot]    — GitHub Dependabot
-          #   - renovate[bot]      — if/when Renovate is added
-          #   - github-actions[bot]— GitHub Actions identity
-          allowlist: "millerjp,dependabot[bot],renovate[bot],github-actions[bot]"
+          # Allowlisted accounts do not need to sign the CLA. Bots only —
+          # humans always go through the check so they are recorded in
+          # the signatures file and the public CONTRIBUTORS.md list.
+          allowlist: "dependabot[bot],renovate[bot],github-actions[bot]"
           custom-notsigned-prcomment: |
             Thank you for your contribution! Before we can merge this PR, you need to sign our [Contributor License Agreement](https://github.com/axonops/mask/blob/main/CLA.md).
 
