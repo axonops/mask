@@ -371,3 +371,45 @@ func ExampleDeterministicHashFunc_salted() {
 	fmt.Println(strings.HasPrefix(out, "sha256:v1:") && len(out) == len("sha256:v1:")+16)
 	// Output: true
 }
+
+// ExampleDeterministicHashFunc_rotation shows salt rotation. The operator
+// deploys a fresh `(salt, version)` pair — both change together — so
+// digests emitted before and after the rotation are distinguishable by
+// their version prefix. Downstream consumers compare on the (algo,
+// version) tuple: hashes carrying different versions are never treated
+// as comparable, even when the underlying input is identical. Callers
+// never rotate one half without the other; `WithKeyedSalt` takes both
+// together so they cannot drift apart.
+func ExampleDeterministicHashFunc_rotation() {
+	before := mask.DeterministicHashFunc(mask.WithKeyedSalt("salt-epoch-1", "v1"))
+	after := mask.DeterministicHashFunc(mask.WithKeyedSalt("salt-epoch-2", "v2"))
+
+	b := before("alice@example.com")
+	a := after("alice@example.com")
+
+	fmt.Println(strings.HasPrefix(b, "sha256:v1:"))
+	fmt.Println(strings.HasPrefix(a, "sha256:v2:"))
+	fmt.Println(b == a)
+	// Output:
+	// true
+	// true
+	// false
+}
+
+// ExampleDeterministicHashFunc_misconfigured shows the fail-closed
+// contract. An empty salt or a version that does not match
+// `^[A-Za-z0-9._-]{1,32}$` is a misconfiguration: the rule returns the
+// `[REDACTED]` marker on every Apply rather than silently producing an
+// unsalted-looking hash. The misconfiguration is captured at factory
+// time and is irrecoverable — re-register the rule with valid
+// arguments to clear it.
+func ExampleDeterministicHashFunc_misconfigured() {
+	emptySalt := mask.DeterministicHashFunc(mask.WithKeyedSalt("", "v1"))
+	badVersion := mask.DeterministicHashFunc(mask.WithKeyedSalt("salt", "not a version")) // space rejected by grammar
+
+	fmt.Println(emptySalt("alice@example.com"))
+	fmt.Println(badVersion("alice@example.com"))
+	// Output:
+	// [REDACTED]
+	// [REDACTED]
+}

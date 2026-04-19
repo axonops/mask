@@ -10,6 +10,7 @@ Deep-dive documentation for `github.com/axonops/mask`. The project [README](../R
 |---|---|
 | [`rules.md`](./rules.md) | The full rule catalogue — every built-in rule, across seven categories, with descriptions and `input → output` examples. |
 | [`extending.md`](./extending.md) | Utility primitives (direct-call signatures, factory signatures, registered names) and five custom-rule patterns from one-liner factories to fully custom `RuleFunc` implementations. |
+| [`hashing.md`](./hashing.md) | Dedicated guide for `deterministic_hash`: pseudonymisation vs anonymisation, the atomic salt-and-version contract, wire format, fail-closed behaviour, rotation procedure, supported algorithms, and the 64-bit truncation collision bound. |
 
 ## Elsewhere
 
