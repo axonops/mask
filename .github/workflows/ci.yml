@@ -3,6 +3,14 @@ name: CI
 on:
   push:
     branches: [main]
+    # Skip main-branch CI for commits that only touch the CLA signatures
+    # file or the auto-generated contributors list. Those pushes come
+    # from the CLA Assistant workflow and the contributors regenerator
+    # respectively; they cannot affect library behaviour. Normal PR
+    # events continue to run the full suite (no paths filter below).
+    paths-ignore:
+      - "signatures/**"
+      - "CONTRIBUTORS.md"
   pull_request:
     branches: [main]
 
@@ -91,6 +99,9 @@ jobs:
             CONTRIBUTING.md
             SECURITY.md
             CHANGELOG.md
+            CLA.md
+            CODE_OF_CONDUCT.md
+            CONTRIBUTORS.md
             docs/README.md
             docs/rules.md
             docs/extending.md

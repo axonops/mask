@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest an enhancement to the API, a new primitive, CI, or the documentation.
+title: "feat: <short summary>"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a request to add a new *built-in masking rule* (e.g. a national
+        identifier, a sector-specific format), please use the
+        **New built-in rule request** template instead — it has fields
+        specific to rule proposals.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what stops you from doing it today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: How would you like the library to solve this?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you weighed, and why they were less good.
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example usage (if API-shaped)
+      description: Pseudocode or a Go snippet showing the new surface.
+      render: go
+    validations:
+      required: false

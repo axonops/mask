@@ -94,3 +94,6 @@ tmbootpicker.efi
 
 CLAUDE.md
 .claude/
+
+# Local reference copies of external documents (not project content).
+icla.pdf

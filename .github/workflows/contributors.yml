@@ -1,0 +1,53 @@
+name: "Contributors list"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "signatures/version1/cla.json"
+
+# CLA signatures trigger a CONTRIBUTORS.md regeneration. The commit
+# that pushed the signature is skipped via [skip ci] conventions
+# elsewhere, but this workflow only triggers on the signatures path
+# so unrelated main-branch pushes do not spin up this runner.
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    name: Regenerate CONTRIBUTORS.md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          # Use the admin PAT so the commit pushed at the end of this
+          # job bypasses branch protection on `main`. GITHUB_TOKEN can
+          # read but cannot write through `required_pull_request_reviews`.
+          # The secret is created manually at:
+          #   Settings → Secrets and variables → Actions → CLA_ASSISTANT_PAT
+          token: ${{ secrets.CLA_ASSISTANT_PAT }}
+          fetch-depth: 0
+
+      - name: Install jq
+        run: |
+          # jq ships on ubuntu-latest by default, but install if absent.
+          command -v jq >/dev/null 2>&1 || sudo apt-get install -y jq
+
+      - name: Regenerate CONTRIBUTORS.md
+        run: ./scripts/generate-contributors.sh
+
+      - name: Commit and push if changed
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet CONTRIBUTORS.md; then
+            echo "CONTRIBUTORS.md unchanged — nothing to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add CONTRIBUTORS.md
+          git commit -m "chore(contributors): regenerate CONTRIBUTORS.md"
+          git push origin main
