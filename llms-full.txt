@@ -717,6 +717,93 @@ The CLA Assistant bot will comment on your first pull request with the signing i
 
 This project follows the [Contributor Covenant Code of Conduct](./CODE_OF_CONDUCT.md). By participating, you agree to uphold its standards. Report unacceptable behaviour privately to `oss@axonops.com`.
 
+## Your first pull request — step by step
+
+If you have never contributed to an open-source project on GitHub before, this is the full walkthrough. Everyone goes through the same flow; there is no separate process for AxonOps employees.
+
+### 1. Fork and clone
+
+1. Click **Fork** at the top-right of [`github.com/axonops/mask`](https://github.com/axonops/mask). This creates a copy of the repository under your own GitHub account — e.g. `github.com/your-handle/mask`. You have full write access to your fork; you do NOT have write access to the `axonops/mask` repository, and that is by design.
+2. Clone **your fork** (not the upstream) to your laptop:
+
+   ```sh
+   git clone git@github.com:your-handle/mask.git
+   cd mask
+   ```
+
+3. Add a remote pointing at the upstream repository so you can pull in the latest changes when you need to:
+
+   ```sh
+   git remote add upstream git@github.com:axonops/mask.git
+   git fetch upstream
+   ```
+
+### 2. Find or open an issue
+
+Every pull request must reference a GitHub issue. For anything beyond a typo fix, open an issue first so the maintainers can agree on the approach before you write code. The [issue templates](https://github.com/axonops/mask/issues/new/choose) route you to the right form — bug report, feature request, or new built-in rule request.
+
+Small trivial fixes (typos, broken links, obvious one-line bugs) are fine without a prior issue.
+
+### 3. Create a branch
+
+Branch from an up-to-date `main`:
+
+```sh
+git checkout main
+git pull upstream main
+git checkout -b feature/short-descriptive-name        # or fix/<name>, docs/<name>, etc.
+```
+
+Branch-name prefixes used in this project: `feature/`, `fix/`, `docs/`, `chore/`, `refactor/`, `test/`, `perf/`.
+
+### 4. Make your change
+
+- Follow the [Ground rules](#ground-rules), [Commits](#commits), [Pull requests](#pull-requests), [Testing](#testing), and [Code standards](#code-standards) sections below.
+- Add unit tests AND BDD scenarios for any new or changed masking rule.
+- Run `make check` until it is clean before pushing.
+- If your change edits any of the files bundled into `llms-full.txt` (documentation, examples, `README.md`, `CONTRIBUTING.md`, etc.), also regenerate it with `./scripts/gen-llms-full.sh` and commit the refreshed `llms-full.txt` in the same commit — CI enforces this.
+
+### 5. Commit (signed, conventional-commit message)
+
+Commits must follow the [Commits](#commits) format and must be cryptographically signed — see [§ Signing your commits](#signing-your-commits). If you have not set up signing yet, do that once and all future commits are covered.
+
+```sh
+git add <files>
+git commit -m "feat(rules): add de_steuer_id masking rule (#NNN)"
+```
+
+### 6. Push to your fork
+
+```sh
+git push -u origin feature/short-descriptive-name
+```
+
+Because you are pushing to YOUR fork, branch protection on the upstream repository does not apply at this stage.
+
+### 7. Open a pull request
+
+On GitHub, navigate to your fork; a banner will prompt you to open a PR against `axonops/mask:main`. Fill in the [pull request template](.github/PULL_REQUEST_TEMPLATE.md) — describe the change, link the issue, tick the checklist items you have satisfied.
+
+### 8. Sign the CLA (first time only)
+
+On your first PR, the CLA Assistant bot comments asking you to sign. Post this exact phrase as a new PR comment — case-sensitive, verbatim, no leading/trailing punctuation:
+
+> I have read the CLA Document and I hereby sign the CLA
+
+Your signature is recorded in `signatures/version1/cla.json` and you appear in [`CONTRIBUTORS.md`](./CONTRIBUTORS.md) automatically. Every future PR you open passes the CLA check without any extra step.
+
+### 9. Iterate on review feedback
+
+CI runs on every push to your PR branch. If anything fails, fix the root cause and push again — no need to close and re-open. Reviewers may ask for changes; address them with additional commits on the same branch. Keep the branch up to date with upstream main with `git fetch upstream && git rebase upstream/main` when needed.
+
+You do not need to squash your own commits — the maintainer squash-merges on your behalf at the end, so extra iteration commits on the PR branch are expected and fine.
+
+### 10. Merge
+
+A maintainer with write access squash-merges the PR once CI is green, the CLA is signed, and any review feedback is resolved. External contributors cannot self-merge (GitHub disables the button). You do not need to do anything at this stage — after the merge, GitHub closes the PR and your commit lands on `main` with a clean squashed history.
+
+Your branch can be deleted once the merge lands. GitHub usually offers a button for this on the PR page.
+
 ## Ground rules
 
 - **Zero runtime dependencies.** The library MUST remain stdlib-only. PRs that add a runtime dependency will not be merged.
