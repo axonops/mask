@@ -58,7 +58,7 @@ Branch-name prefixes used in this project: `feature/`, `fix/`, `docs/`, `chore/`
 - Follow the [Ground rules](#ground-rules), [Commits](#commits), [Pull requests](#pull-requests), [Testing](#testing), and [Code standards](#code-standards) sections below.
 - Add unit tests AND BDD scenarios for any new or changed masking rule.
 - Run `make check` until it is clean before pushing.
-- If your change edits any of the files bundled into `llms-full.txt` (documentation, examples, `README.md`, `CONTRIBUTING.md`, etc.), also regenerate it with `./scripts/gen-llms-full.sh` and commit the refreshed `llms-full.txt` in the same commit — CI enforces this.
+- If your change edits any of the files bundled into `llms-full.txt` (documentation, examples, `README.md`, `CONTRIBUTING.md`, etc.), also regenerate it with `make llms-full` and commit the refreshed `llms-full.txt` in the same commit — CI enforces this via `make llms-full-check`.
 
 ### 5. Commit (signed, conventional-commit message)
 
