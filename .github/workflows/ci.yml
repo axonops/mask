@@ -416,7 +416,7 @@ jobs:
           go-version: "1.26"
           cache: true
       - name: Install benchstat
-        run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20240730213412-bd2cd0152fca
+        run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20260409210113-8e83ce0f7b1c
       - name: Run make bench-regression
         run: make bench-regression
       - name: Attach benchstat report
