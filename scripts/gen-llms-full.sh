@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gen-llms-full.sh — regenerate llms-full.txt from the canonical source
 # files (llms.txt, README.md, doc.go, CONTRIBUTING.md, SECURITY.md,
-# docs/v0.9.0-requirements.md, and the full godoc output) in a stable
-# order.
+# docs/rules.md, docs/extending.md, and the full godoc output) in a
+# stable order.
 #
 # The script is idempotent: running it twice produces no diff.
 # `llms-full.txt` is the single concatenated corpus an AI assistant can

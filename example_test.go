@@ -192,3 +192,182 @@ func ExampleApply_structuredLogRedaction() {
 	fmt.Println(strings.Join(out, " "))
 	// Output: email_address=a****@example.com payment_card_pan=4111-11**-****-1111 us_ssn=***-**-6789 ipv4_address=192.168.*.* jwt_token=eyJh****.****.****.
 }
+
+// ---------------------------------------------------------------------------
+// Per-rule worked examples. Each example demonstrates a common rule with
+// a real-shaped input and the expected masked output, so readers of
+// pkg.go.dev can see at a glance what "PAN masking" or "IBAN masking"
+// actually produces.
+// ---------------------------------------------------------------------------
+
+// ExampleApply_paymentCardPAN shows the PCI DSS display mode implemented
+// by `payment_card_pan`: preserve the first 6 (issuer identification
+// number) and last 4 digits, mask the middle.
+func ExampleApply_paymentCardPAN() {
+	fmt.Println(mask.Apply(mask.RulePaymentCardPAN, "4111-1111-1111-1111"))
+	// Output: 4111-11**-****-1111
+}
+
+// ExampleApply_iban preserves the country code, check digits, and last
+// four characters of an IBAN — the same display mode most banking UIs
+// use for account identifiers.
+func ExampleApply_iban() {
+	fmt.Println(mask.Apply(mask.RuleIBAN, "GB82WEST12345698765432"))
+	// Output: GB82**************5432
+}
+
+// ExampleApply_uuid preserves the first 8 and last 4 hex runes of a
+// canonical UUID; non-canonical forms fail closed to a same-length mask.
+func ExampleApply_uuid() {
+	fmt.Println(mask.Apply(mask.RuleUUID, "550e8400-e29b-41d4-a716-446655440000"))
+	// Output: 550e8400-****-****-****-********0000
+}
+
+// ExampleApply_ipv4Address preserves the first two octets and masks the
+// last two — enough to keep a network-level view without leaking the
+// host identifier.
+func ExampleApply_ipv4Address() {
+	fmt.Println(mask.Apply(mask.RuleIPv4Address, "192.168.1.42"))
+	// Output: 192.168.*.*
+}
+
+// ExampleApply_jwtToken masks a JWT's three segments with fixed 4-rune
+// blocks and keeps the first 4 runes of the header segment, so log
+// viewers can tell two different JWTs apart without exposing any claim.
+func ExampleApply_jwtToken() {
+	fmt.Println(mask.Apply(mask.RuleJWTToken, "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc"))
+	// Output: eyJh****.****.****.
+}
+
+// ExampleApply_bearerToken masks an HTTP Authorization header value,
+// preserving the `Bearer` scheme and the first 6 runes of the token so
+// two different tokens produce distinguishable log output.
+func ExampleApply_bearerToken() {
+	fmt.Println(mask.Apply(mask.RuleBearerToken, "Bearer abc123def456"))
+	// Output: Bearer abc123****...
+}
+
+// ExampleApply_urlCredentials redacts the userinfo segment of a URL
+// (e.g. embedded basic-auth credentials) while preserving scheme, host,
+// path, and query — useful when logging third-party service URLs that
+// sometimes carry credentials inline.
+func ExampleApply_urlCredentials() {
+	fmt.Println(mask.Apply(mask.RuleURLCredentials, "https://admin:s3cret@db.example.com/mydb"))
+	// Output: https://****:****@db.example.com/mydb
+}
+
+// ExampleApply_apiKey preserves the first 4 and last 4 runes of an API
+// key (enough for log triage) and same-length-masks the middle.
+func ExampleApply_apiKey() {
+	fmt.Println(mask.Apply(mask.RuleAPIKey, "AKIAIOSFODNN7EXAMPLE"))
+	// Output: AKIA************MPLE
+}
+
+// ExampleApply_password always emits a fixed 8-rune mask regardless of
+// the source length so the password's length is not inferable from the
+// masked output.
+func ExampleApply_password() {
+	fmt.Println(mask.Apply(mask.RulePassword, "MyP@ssw0rd!"))
+	// Output: ********
+}
+
+// ExampleApply_phoneNumber preserves the country-code literal (`+NN`)
+// and the last four digits while masking the rest.
+func ExampleApply_phoneNumber() {
+	fmt.Println(mask.Apply(mask.RulePhoneNumber, "+44 7911 123456"))
+	// Output: +44 **** **3456
+}
+
+// ExampleApply_ukNINO preserves the 2-letter prefix and 1-letter suffix
+// of a UK National Insurance Number, masking the six middle digits.
+func ExampleApply_ukNINO() {
+	fmt.Println(mask.Apply(mask.RuleUKNINO, "AB123456C"))
+	// Output: AB******C
+}
+
+// ExampleApply_postalCode shows the shape-aware UK postcode masker:
+// the outward code (`SW1A`) is preserved and the inward code is masked.
+func ExampleApply_postalCode() {
+	fmt.Println(mask.Apply(mask.RulePostalCode, "SW1A 2AA"))
+	// Output: SW1A ***
+}
+
+// ExampleApply_geoCoordinates reduces a "lat,lon" pair to roughly 1.1 km
+// precision by truncating each half to two decimal places.
+func ExampleApply_geoCoordinates() {
+	fmt.Println(mask.Apply(mask.RuleGeoCoordinates, "37.7749,-122.4194"))
+	// Output: 37.77**,-122.41**
+}
+
+// ---------------------------------------------------------------------------
+// Primitive worked examples. Use these inside a custom RuleFunc when the
+// masking shape is exactly one primitive.
+// ---------------------------------------------------------------------------
+
+// ExampleKeepLastN keeps the last n runes and masks the rest.
+func ExampleKeepLastN() {
+	fmt.Println(mask.KeepLastN("Sensitive", 4, '*'))
+	// Output: *****tive
+}
+
+// ExampleKeepFirstLast keeps the first and last runes, masks the middle —
+// the typical shape for long account numbers.
+func ExampleKeepFirstLast() {
+	fmt.Println(mask.KeepFirstLast("SensitiveData", 4, 4, '*'))
+	// Output: Sens*****Data
+}
+
+// ExamplePreserveDelimiters masks every rune except those listed in
+// `delim`, which are kept verbatim. Useful when a format's separators
+// carry structural meaning (e.g. the dashes in a card number).
+func ExamplePreserveDelimiters() {
+	fmt.Println(mask.PreserveDelimiters("AB-12-CD", "-", '*'))
+	// Output: **-**-**
+}
+
+// ExampleReducePrecision reduces the decimal precision of a numeric
+// string by masking trailing digits. Negative numbers keep their sign.
+func ExampleReducePrecision() {
+	fmt.Println(mask.ReducePrecision("37.7749295", 2, '*'))
+	// Output: 37.77*****
+}
+
+// ---------------------------------------------------------------------------
+// Factory worked examples. These return a RuleFunc ready for Register.
+// ---------------------------------------------------------------------------
+
+// ExampleReplaceRegexFunc shows the canonical "redact a free-text format
+// not in the built-in catalogue" shape. The pattern is compiled once at
+// factory-call time and the returned RuleFunc reuses the compiled matcher
+// for every Apply. Go's `regexp` is RE2-backed, so there is no ReDoS risk.
+func ExampleReplaceRegexFunc() {
+	r, err := mask.ReplaceRegexFunc(`\d{6,}`, "[REDACTED]")
+	if err != nil {
+		panic(err) // an invalid pattern is a programmer bug
+	}
+	fmt.Println(r("Order #1234567 shipped"))
+	// Output: Order #[REDACTED] shipped
+}
+
+// ExampleDeterministicHashFunc shows zero-option use of the hashing
+// factory — output is a truncated SHA-256 hex digest with an algo
+// prefix. For production pseudonymisation, pair with [WithKeyedSalt].
+func ExampleDeterministicHashFunc() {
+	r := mask.DeterministicHashFunc()
+	fmt.Println(r("alice@example.com"))
+	// Output: sha256:ff8d9819fc0e12bf
+}
+
+// ExampleDeterministicHashFunc_salted shows the keyed-hashing production
+// path: one atomic `WithKeyedSalt(salt, version)` call configures both
+// halves. The output format is `<algo>:<version>:<hex16>`. Load the
+// salt from a secret store, not a literal — this example uses a literal
+// only for runnability.
+func ExampleDeterministicHashFunc_salted() {
+	r := mask.DeterministicHashFunc(mask.WithKeyedSalt("example-salt", "v1"))
+	out := r("alice@example.com")
+	// The specific hex depends on HMAC-SHA256(salt, value); demonstrate
+	// the stable output shape instead of pinning the exact digest.
+	fmt.Println(strings.HasPrefix(out, "sha256:v1:") && len(out) == len("sha256:v1:")+16)
+	// Output: true
+}
