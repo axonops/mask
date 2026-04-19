@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gen-llms-full.sh — regenerate llms-full.txt from the canonical source
 # files (llms.txt, README.md, doc.go, CONTRIBUTING.md, SECURITY.md,
-# docs/rules.md, docs/extending.md, and the full godoc output) in a
-# stable order.
+# docs/rules.md, docs/extending.md, docs/hashing.md, and the full godoc
+# output) in a stable order.
 #
 # The script is idempotent: running it twice produces no diff.
 # `llms-full.txt` is the single concatenated corpus an AI assistant can
@@ -18,7 +18,8 @@
 #   5. SECURITY.md
 #   6. docs/rules.md
 #   7. docs/extending.md
-#   8. go doc -all github.com/axonops/mask
+#   8. docs/hashing.md
+#   9. go doc -all github.com/axonops/mask
 
 set -euo pipefail
 
@@ -79,6 +80,7 @@ section "CONTRIBUTING.md" "CONTRIBUTING.md"
 section "SECURITY.md" "SECURITY.md"
 section "docs/rules.md" "docs/rules.md"
 section "docs/extending.md" "docs/extending.md"
+section "docs/hashing.md" "docs/hashing.md"
 section "Full godoc reference (go doc -all)" "godoc"
 
 # Ensure a single trailing newline.

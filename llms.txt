@@ -39,7 +39,7 @@
 - `mask.ReducePrecision(v, decimals, c) string`
 - `mask.DeterministicHash(v) string` — returns `sha256:<16-hex>` (unsalted).
 
-> **WARNING** — `DeterministicHash` without a salt is pseudonymisation, not anonymisation. For production use configure `WithKeyedSalt(salt, version)` on `DeterministicHashFunc` and register that as a rule. See the "Deterministic hashing" example below.
+> **WARNING** — `DeterministicHash` without a salt is pseudonymisation, not anonymisation. For production use configure `WithKeyedSalt(salt, version)` on `DeterministicHashFunc` and register that as a rule. See the "Deterministic hashing" example below and the dedicated [`docs/hashing.md`](./docs/hashing.md) guide for the salt-and-version policy, wire format, rotation procedure, and fail-closed contract.
 
 **Factory primitive helpers** (return a `RuleFunc` suitable for `Register`):
 
@@ -110,6 +110,8 @@ _ = mask.Register("user_id", mask.DeterministicHashFunc(
 // mask.Apply("user_id", "alice@example.com") → "sha256:v1:<hex16>"
 ```
 
+`WithKeyedSalt(salt, version)` is atomic — both arguments are required and validated together. An empty salt or a version not matching `^[A-Za-z0-9._-]{1,32}$` fails the rule closed (every Apply emits `[REDACTED]`) rather than silently producing an unsalted-looking hash. To rotate the salt, change the version too and deploy the `(new_salt, new_version)` pair in the same release — downstream consumers distinguish populations by the version prefix. Full rotation, algorithm-selection, collision-bound, and operational policy is in [`docs/hashing.md`](./docs/hashing.md).
+
 ## Rule catalogue
 
 Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static references in [docs/rules.md](./docs/rules.md).
@@ -136,8 +138,9 @@ Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static ref
 
 ## Further reading
 
-- [`llms-full.txt`](./llms-full.txt) — complete source bundle for agents that want the full corpus. Section order: `llms.txt`, `README.md`, package godoc (`doc.go`), `CONTRIBUTING.md`, `SECURITY.md`, `docs/rules.md`, `docs/extending.md`, full `go doc -all` reference.
+- [`llms-full.txt`](./llms-full.txt) — complete source bundle for agents that want the full corpus. Section order: `llms.txt`, `README.md`, package godoc (`doc.go`), `CONTRIBUTING.md`, `SECURITY.md`, `docs/rules.md`, `docs/extending.md`, `docs/hashing.md`, full `go doc -all` reference.
 - [`README.md`](./README.md) — human-facing documentation with regulatory positioning (PCI / HIPAA / GDPR), worked custom-rule examples, and a full rule table.
+- [`docs/hashing.md`](./docs/hashing.md) — dedicated guide for `deterministic_hash`: pseudonymisation vs anonymisation, atomic salt-and-version contract, wire format, fail-closed behaviour, rotation procedure, supported algorithms, and the 64-bit truncation collision bound.
 - [`SECURITY.md`](./SECURITY.md) — threat model and disclosure.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — contribution, testing, and release policy.
 - [pkg.go.dev/github.com/axonops/mask](https://pkg.go.dev/github.com/axonops/mask) — godoc.
