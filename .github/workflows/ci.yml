@@ -405,9 +405,17 @@ jobs:
   benchstat-regression-guard:
     name: Benchmark regression guard
     runs-on: ubuntu-latest
-    # Skip on Dependabot-authored PRs: the shared-runner jitter plus
-    # third-party dependency bumps cannot legitimately move our in-tree
-    # benchmarks, so any variance there is noise.
+    # CAVEAT: ubuntu-latest is a shared GitHub-hosted runner. Shared
+    # runners exhibit ±5-15% variance between runs for nanosecond-scale
+    # benchmarks, which can fire the guard on pure jitter. If this job
+    # flakes repeatedly, options are (a) move to a dedicated runner,
+    # (b) raise the time/op threshold (keeping allocs/op strict since
+    # allocation counts are deterministic), or (c) make the job
+    # advisory rather than blocking. See CONTRIBUTING.md §Performance
+    # baseline for the policy.
+    #
+    # Skip on Dependabot-authored PRs: dependency bumps cannot
+    # legitimately move in-tree benchmarks, so variance there is noise.
     if: github.actor != 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v6.0.2

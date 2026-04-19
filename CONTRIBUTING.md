@@ -93,6 +93,8 @@ make bench > bench.txt
 
 **Reading a regression report:** benchstat prints three tables — `time/op`, `alloc/op`, `allocs/op` — each with `old`, `new`, and `delta` columns. A row with `+5.00%` and `(p=0.000 n=5+5)` means 5% slower with high statistical significance. A `~` in the delta column means no measurable change. The guard fires on positive deltas above threshold; negative deltas (improvements) are always accepted.
 
+> **Known caveat — shared-runner noise.** The guard currently runs on `ubuntu-latest`, a shared GitHub-hosted runner. Those runners share CPU with neighbouring workloads and exhibit ±5-15% variance between runs for nanosecond-scale benchmarks, which can fire this guard on pure jitter. We are watching it in practice; if it flakes repeatedly we will either (a) move the job to a dedicated runner, (b) raise the time/op threshold (keeping `allocs/op` strict since allocation counts are deterministic), or (c) make the job advisory-only rather than build-blocking. If you see a regression report on a PR that does not touch the hot path and re-running CI clears it, that is likely what happened — flag it on the PR and we will tune the threshold.
+
 ## Code standards
 
 - Google Go Style Guide baseline.
