@@ -48,9 +48,9 @@ const (
 // msisdnKeepFirst / msisdnKeepLast are the preserved window counts
 // on MSISDN. The spec example uses a 2-digit country code (UK 44);
 // country codes can be 1-3 digits but a strict lookup table is out
-// of scope for v0.9.0. Operators needing strict per-country
-// handling should route such fields through `phone_number` in
-// E.164 form instead.
+// of scope for the initial release. Operators needing strict
+// per-country handling should route such fields through
+// `phone_number` in E.164 form instead.
 const (
 	// msisdnMinLen and msisdnMaxLen are inclusive bounds; inputs
 	// outside this range fail closed to SameLengthMask.

@@ -38,9 +38,9 @@
 
 ---
 
-## ⚠ Status
+## ✅ Status
 
-`mask` is pre-release software (`v0.x`). The public API may change between minor versions until `v1.0.0`. Pin the exact version in your `go.mod` and review the [CHANGELOG](./CHANGELOG.md) before upgrading.
+`mask` is **stable** from `v1.0.0` onwards and follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html): breaking changes to the public API only in a new major version. Pin a specific tag in your `go.mod` and review the [CHANGELOG](./CHANGELOG.md) on every upgrade.
 
 ## 🔍 Overview
 
