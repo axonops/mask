@@ -39,6 +39,7 @@ jobs:
             fmt
             fmt-check
             bench
+            bench-regression
             coverage
             tidy
             tidy-check
@@ -400,3 +401,28 @@ jobs:
           distribution: goreleaser
           version: v2.7.0
           args: check
+
+  benchstat-regression-guard:
+    name: Benchmark regression guard
+    runs-on: ubuntu-latest
+    # Skip on Dependabot-authored PRs: the shared-runner jitter plus
+    # third-party dependency bumps cannot legitimately move our in-tree
+    # benchmarks, so any variance there is noise.
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20240730213412-bd2cd0152fca
+      - name: Run make bench-regression
+        run: make bench-regression
+      - name: Attach benchstat report
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: benchstat-report
+          path: bench-regression.txt
+          if-no-files-found: ignore

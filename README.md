@@ -16,8 +16,7 @@
 
 ---
 
-<details>
-<summary><b>Table of contents</b></summary>
+**Table of contents**
 
 - [⚠️ Status](#-status)
 - [🔍 Overview](#-overview)
@@ -36,8 +35,6 @@
 - [🤝 Contributing](#-contributing)
 - [🔐 Security](#-security)
 - [📄 Licence](#-licence)
-
-</details>
 
 ---
 

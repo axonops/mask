@@ -63,6 +63,36 @@ Before opening a PR, run the full quality gate (`make check`). Internally this p
 
 See `CLAUDE.md` (developer-local, not checked into the repo) for the authoritative project-specific testing requirements.
 
+### Performance baseline
+
+`bench.txt` at the repo root is the committed benchmark baseline. CI runs the `benchstat-regression-guard` job on every PR, which compares a fresh benchmark run against `bench.txt` and fails the build if any measurement regresses beyond the threshold.
+
+**Thresholds (enforced by `scripts/check-bench-regression.sh`):**
+
+- `time/op`: any regression of 10% or more at p ≤ 0.05 fails the build.
+- `allocs/op`: any increase at all fails the build.
+- `alloc/op` (bytes): same threshold as `time/op`.
+
+**Checking locally before pushing:**
+
+```sh
+go install golang.org/x/perf/cmd/benchstat@latest
+make bench-regression
+```
+
+The target runs `go test -bench=. -benchmem -run=^$ -count=5 .`, pipes through `benchstat`, and exits non-zero if any regression crosses the threshold. The full report is written to `bench-regression.txt`.
+
+**Regenerating the baseline after a legitimate optimisation:**
+
+```sh
+make bench > bench.txt
+# Manually trim the trailing 'PASS' / 'ok' lines so the file ends with
+# the final Benchmark* line. Commit the updated bench.txt in the same
+# PR as the optimisation.
+```
+
+**Reading a regression report:** benchstat prints three tables — `time/op`, `alloc/op`, `allocs/op` — each with `old`, `new`, and `delta` columns. A row with `+5.00%` and `(p=0.000 n=5+5)` means 5% slower with high statistical significance. A `~` in the delta column means no measurable change. The guard fires on positive deltas above threshold; negative deltas (improvements) are always accepted.
+
 ## Code standards
 
 - Google Go Style Guide baseline.
