@@ -79,7 +79,9 @@ HEADER
 	echo "|---|---|---|---|"
 
 	# Sort by signed_at so the table has a stable, meaningful order
-	# (oldest first). Unknown timestamps sort last.
+	# (oldest first). A pullRequestNo of 0 means "handcrafted / bootstrap
+	# signature" (no real PR to link) — rendered as an em-dash rather
+	# than a dead link.
 	echo "$entries" | jq -r '
 		map({
 			name: (.name // .login // "unknown"),
@@ -90,7 +92,9 @@ HEADER
 		})
 		| sort_by(.signed)
 		| .[]
-		| "| \(.name) | [@\(.login)](https://github.com/\(.login)) | \(.signed[:10]) | [#\(.pr)](https://github.com/axonops/mask/pull/\(.pr)) |"
+		| "| \(.name) | [@\(.login)](https://github.com/\(.login)) | \(.signed[:10]) | " +
+		  (if .pr == 0 then "—" else "[#\(.pr)](https://github.com/axonops/mask/pull/\(.pr))" end) +
+		  " |"
 	'
 
 	echo
