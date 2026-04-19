@@ -7,4 +7,12 @@ Agreement](./CLA.md) and contributed to `github.com/axonops/mask`.
 > by `.github/workflows/contributors.yml` every time a new signature
 > lands. Do not edit it by hand — edits are overwritten.
 
-_No contributors have signed yet. Be the first — open a pull request._
+## Signatories
+
+| Contributor | GitHub | Signed (UTC) | First PR |
+|---|---|---|---|
+| Johnny Miller | [@millerjp](https://github.com/millerjp) | 2026-04-19 | [#40](https://github.com/axonops/mask/pull/40) |
+
+---
+
+_1 contributor so far. Full signature records live in [`signatures/version1/cla.json`](./signatures/version1/cla.json)._

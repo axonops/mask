@@ -90,9 +90,13 @@ func TestGovernance_CLAWorkflowExists(t *testing.T) {
 	// through the `main` branch protection.
 	assert.Contains(t, s, "CLA_ASSISTANT_PAT",
 		"CLA workflow must reference the CLA_ASSISTANT_PAT secret for the bot push")
-	// Allowlist must include the project owner and the expected bots.
-	assert.Contains(t, s, "millerjp")
+	// Allowlist must cover the automation bots that cannot sign via PR
+	// comment. Humans (including the project owner) are deliberately NOT
+	// allowlisted — they go through the signing flow once and are then
+	// recorded in signatures/version1/cla.json.
 	assert.Contains(t, s, "dependabot[bot]")
+	assert.Contains(t, s, "renovate[bot]")
+	assert.Contains(t, s, "github-actions[bot]")
 }
 
 func TestGovernance_ContributorsWorkflowExists(t *testing.T) {

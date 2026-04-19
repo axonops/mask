@@ -3,9 +3,3 @@ contact_links:
   - name: "💬 Questions and discussions"
     url: https://github.com/axonops/mask/discussions
     about: Ask questions, share ideas, or discuss usage in GitHub Discussions.
-  - name: "🔐 Security vulnerabilities"
-    url: https://github.com/axonops/mask/blob/main/SECURITY.md
-    about: Report security vulnerabilities privately via the SECURITY.md process — do NOT open a public issue.
-  - name: "📜 Code of Conduct"
-    url: https://github.com/axonops/mask/blob/main/CODE_OF_CONDUCT.md
-    about: Review the community standards before interacting in issues or pull requests.
