@@ -7,12 +7,11 @@ name: Scorecard supply-chain security
 #   https://scorecard.dev/viewer/?uri=github.com/axonops/mask
 # stay current.
 #
-# Action pinning: ossf/scorecard-action MUST be pinned by 40-hex
-# commit SHA because Scorecard's own Pinned-Dependencies check
-# downgrades any action pinned by a mutable ref. Do NOT "normalise"
-# that pin to a semver tag — it degrades the very score we publish.
-# The other actions use the same semver-tag convention as ci.yml so
-# Dependabot's existing grouping covers them.
+# Action pinning: every action ref is pinned by 40-hex commit SHA
+# with the equivalent semver tag in a trailing comment. Required by
+# Scorecard's own Pinned-Dependencies check, and applied repo-wide
+# per .github/dependabot.yml's policy. Dependabot updates both the
+# SHA and the tag comment together when a new release ships.
 
 on:
   push:
@@ -58,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -72,7 +71,7 @@ jobs:
           publish_results: true
 
       - name: Upload SARIF artifact
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: scorecard-sarif
           path: results.sarif
@@ -80,6 +79,6 @@ jobs:
           retention-days: 5
 
       - name: Upload SARIF to Code Scanning
-        uses: github/codeql-action/upload-sarif@v4.35.4
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
         with:
           sarif_file: results.sarif

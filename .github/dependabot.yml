@@ -1,3 +1,10 @@
+# Dependabot configuration.
+#
+# Policy: every GitHub Actions reference in .github/workflows/ is
+# pinned by 40-hex commit SHA with a trailing `# vX.Y.Z` comment.
+# Dependabot maintains both the SHA and the trailing tag comment
+# together when a new release ships — do not strip the comment.
+# Enforcement is in `TestGovernance_AllActionsSHAPinned`.
 version: 2
 
 updates:
@@ -37,3 +44,14 @@ updates:
       - P2
     commit-message:
       prefix: ci
+    # Group all GitHub Actions updates into one PR per weekly cycle.
+    # Reduces churn on the workflow YAML and keeps SHA + tag-comment
+    # bumps atomic across related refs.
+    groups:
+      github-actions-all:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+          - minor
+          - major

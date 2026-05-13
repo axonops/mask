@@ -15,9 +15,12 @@
 package mask_test
 
 import (
+	"bufio"
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -83,9 +86,15 @@ func TestGovernance_CLAWorkflowExists(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(body, &v), "cla.yml must be valid YAML")
 
 	s := string(body)
-	// The action must be pinned to a specific version, not @main or @master.
-	assert.Regexp(t, `contributor-assistant/github-action@v\d+\.\d+\.\d+`, s,
-		"CLA action must be pinned to a semver tag")
+	// The action must be pinned to a full 40-hex commit SHA with a
+	// trailing `# vX.Y.Z` comment. Pinning by tag alone would let an
+	// upstream tag retag silently expose the CLA_ASSISTANT_PAT in
+	// env to whoever opens a PR (pull_request_target trigger). The
+	// repo-wide policy in TestGovernance_AllActionsSHAPinned enforces
+	// the same shape on every workflow; this assertion stays as a
+	// targeted regression guard on the highest-blast-radius ref.
+	assert.Regexp(t, `contributor-assistant/github-action@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+`, s,
+		"CLA action must be pinned to a 40-hex commit SHA with a trailing `# vX.Y.Z` comment")
 	// The PAT secret must be wired — using GITHUB_TOKEN alone cannot push
 	// through the `main` branch protection.
 	assert.Contains(t, s, "CLA_ASSISTANT_PAT",
@@ -345,5 +354,56 @@ func TestGovernance_WorkflowsLeastPrivilegeBaseline(t *testing.T) {
 			"%s workflow-level `permissions:` must contain a string `contents` key", path)
 		assert.Equalf(t, "read", cv,
 			"%s workflow-level `permissions.contents` must be `read`", path)
+	}
+}
+
+// TestGovernance_AllActionsSHAPinned asserts that every `uses:` line
+// in every workflow under .github/workflows/ pins its action by a
+// full 40-hex commit SHA with a trailing `# vX.Y.Z` comment. Pinning
+// by mutable tag would let a compromised upstream retag silently
+// land malicious action code in CI/release runs — the
+// Pinned-Dependencies check in OpenSSF Scorecard scores this
+// directly, and `.github/dependabot.yml` documents the same policy.
+//
+// The trailing comment is mandatory: it preserves human-readable
+// version information so reviewers can tell at a glance what an
+// action's tag was at pin time, and Dependabot keeps the SHA and
+// the comment in sync on update.
+func TestGovernance_AllActionsSHAPinned(t *testing.T) {
+	t.Parallel()
+	files, err := filepath.Glob(".github/workflows/*.yml")
+	require.NoError(t, err, "filepath.Glob must succeed")
+	require.NotEmpty(t, files, "no workflow files found under .github/workflows/")
+
+	// usesLine catches `uses:` at any indentation, optionally
+	// preceded by a YAML list-item dash. The captured ref must match
+	// `<owner>/<repo>(/<subpath>)?@<40-hex> # vX.Y.Z[...optional...]`
+	// with no leeway on the SHA shape or the trailing comment.
+	usesLine := regexp.MustCompile(`^\s*-?\s*uses:\s*(\S+)`)
+	pinned := regexp.MustCompile(`^[\w./-]+@[0-9a-f]{40}$`)
+	commentTrailer := regexp.MustCompile(`\s+#\s+v\d+\.\d+\.\d+`)
+
+	for _, path := range files {
+		body, err := os.ReadFile(path)
+		require.NoErrorf(t, err, "read %s", path)
+
+		scanner := bufio.NewScanner(bytes.NewReader(body))
+		lineNo := 0
+		for scanner.Scan() {
+			lineNo++
+			line := scanner.Text()
+			m := usesLine.FindStringSubmatch(line)
+			if m == nil {
+				continue
+			}
+			ref := m[1]
+			assert.Truef(t, pinned.MatchString(ref),
+				"%s:%d: `uses: %s` must be SHA-pinned (`<owner>/<repo>[/<subpath>]@<40-hex>`); tag form is forbidden",
+				path, lineNo, ref)
+			assert.Regexpf(t, commentTrailer, line,
+				"%s:%d: `uses: %s` must carry a trailing `# vX.Y.Z` comment so reviewers and Dependabot can track the pinned version",
+				path, lineNo, ref)
+		}
+		require.NoErrorf(t, scanner.Err(), "scan %s", path)
 	}
 }
