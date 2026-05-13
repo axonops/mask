@@ -175,6 +175,7 @@ Full catalogue: runtime via `mask.Rules()` and `mask.Describe(name)`; static ref
   **String Masking for Go Services — PII, PCI, PHI, zero dependencies**
 
   [![CI](https://github.com/axonops/mask/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/axonops/mask/actions/workflows/ci.yml)
+  [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/axonops/mask/badge)](https://scorecard.dev/viewer/?uri=github.com/axonops/mask)
   [![Go Reference](https://pkg.go.dev/badge/github.com/axonops/mask.svg)](https://pkg.go.dev/github.com/axonops/mask)
   [![Go Report Card](https://goreportcard.com/badge/github.com/axonops/mask)](https://goreportcard.com/report/github.com/axonops/mask)
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)

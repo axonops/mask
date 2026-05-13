@@ -226,3 +226,57 @@ func TestGovernance_IssueTemplatesExist(t *testing.T) {
 		assert.NoError(t, err, "%s must exist", path)
 	}
 }
+
+func TestGovernance_ScorecardWorkflowExists(t *testing.T) {
+	t.Parallel()
+	body, err := os.ReadFile(".github/workflows/scorecard.yml")
+	require.NoError(t, err, ".github/workflows/scorecard.yml must exist")
+
+	var v any
+	require.NoError(t, yaml.Unmarshal(body, &v), "scorecard.yml must be valid YAML")
+
+	s := string(body)
+
+	// Least-privilege permission scopes required by Scorecard. SARIF
+	// upload needs security-events:write; publish_results requires
+	// the OIDC token (id-token:write); the Token-Permissions and
+	// Pinned-Dependencies checks need actions:read; the analysis
+	// itself needs contents:read.
+	for _, scope := range []string{
+		"security-events: write",
+		"id-token: write",
+		"actions: read",
+	} {
+		assert.Contains(t, s, scope,
+			"scorecard.yml must declare permission scope %q", scope)
+	}
+
+	// `contents: read` must appear at BOTH the workflow level (default
+	// least-privilege baseline) AND the job level (GitHub replaces,
+	// not merges, when a job overrides permissions). A bare Contains
+	// check would pass if only one of the two were present.
+	assert.GreaterOrEqualf(t,
+		strings.Count(s, "contents: read"), 2,
+		"scorecard.yml must declare `contents: read` at workflow AND job level")
+
+	// The Scorecard action MUST be pinned by 40-hex commit SHA, not a
+	// mutable tag — Scorecard's own Pinned-Dependencies check
+	// downgrades the score otherwise. The equivalent semver tag
+	// travels in a trailing comment for human readability.
+	assert.Regexp(t, `ossf/scorecard-action@[0-9a-f]{40}`, s,
+		"ossf/scorecard-action must be pinned by full 40-hex commit SHA")
+
+	// publish_results: true is what posts the score to scorecard.dev
+	// so the README badge stays live. Disabling it silently breaks
+	// the public viewer.
+	assert.Contains(t, s, "publish_results: true",
+		"scorecard.yml must publish results to scorecard.dev")
+
+	// Mirror ci.yml: bot pushes that only touch signatures or the
+	// generated contributors list must not retrigger the scan.
+	// Regex form tolerates quoted, single-quoted, or bare-scalar YAML.
+	assert.Regexp(t, `(?s)paths-ignore:.*signatures/\*\*`, s,
+		"scorecard.yml must paths-ignore signatures/**")
+	assert.Regexp(t, `(?s)paths-ignore:.*CONTRIBUTORS\.md`, s,
+		"scorecard.yml must paths-ignore CONTRIBUTORS.md")
+}

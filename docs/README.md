@@ -15,6 +15,7 @@ Deep-dive documentation for `github.com/axonops/mask`. The project [README](../R
 ## Elsewhere
 
 - [pkg.go.dev/github.com/axonops/mask](https://pkg.go.dev/github.com/axonops/mask) — generated Go API reference.
+- [OpenSSF Scorecard report](https://scorecard.dev/viewer/?uri=github.com/axonops/mask) — automated supply-chain security score, refreshed weekly.
 - [`../llms.txt`](../llms.txt) and [`../llms-full.txt`](../llms-full.txt) — AI-assistant-oriented documentation bundle.
 - [`../SECURITY.md`](../SECURITY.md) — threat model and coordinated disclosure.
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — how to contribute.
