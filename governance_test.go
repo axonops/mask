@@ -280,3 +280,70 @@ func TestGovernance_ScorecardWorkflowExists(t *testing.T) {
 	assert.Regexp(t, `(?s)paths-ignore:.*CONTRIBUTORS\.md`, s,
 		"scorecard.yml must paths-ignore CONTRIBUTORS.md")
 }
+
+// TestGovernance_WorkflowsLeastPrivilegeBaseline asserts that every
+// workflow under .github/workflows/ declares a workflow-level
+// `permissions:` block containing exactly `contents: read`. Per-job
+// blocks may elevate further (GitHub replaces, not merges, when a job
+// overrides); this assertion only pins the workflow-level baseline so
+// any future job added without its own block inherits the least-
+// privilege default.
+//
+// The list of workflows is pinned here rather than discovered from
+// disk so adding a new workflow without a baseline is a forced test
+// failure rather than a silent omission. A glob cross-check below
+// catches the inverse mistake — adding a workflow file but forgetting
+// to register it in this list.
+func TestGovernance_WorkflowsLeastPrivilegeBaseline(t *testing.T) {
+	t.Parallel()
+	pinned := []string{
+		".github/workflows/ci.yml",
+		".github/workflows/cla.yml",
+		".github/workflows/contributors.yml",
+		".github/workflows/dependabot-automerge.yml",
+		".github/workflows/release.yml",
+		".github/workflows/scorecard.yml",
+	}
+
+	// Cross-check: every workflow on disk must be in the pinned list.
+	// Adding a new workflow file without registering it here would
+	// otherwise let the new workflow ship without a least-privilege
+	// audit.
+	onDisk, err := filepath.Glob(".github/workflows/*.yml")
+	require.NoError(t, err, "filepath.Glob must succeed")
+	require.ElementsMatch(t, pinned, onDisk,
+		"every .github/workflows/*.yml file must be registered in this test's pinned list")
+
+	for _, path := range pinned {
+		body, err := os.ReadFile(path)
+		require.NoErrorf(t, err, "%s must exist", path)
+
+		// String-form assertion: `contents: read` appears at the top
+		// level. The regex anchors `permissions:` at column zero so it
+		// cannot accidentally match a job-scoped block (which is always
+		// indented), and tolerates intervening YAML comment lines.
+		s := string(body)
+		assert.Regexpf(t,
+			`(?m)^permissions:\s*(?:\n[ \t]+#[^\n]*)*\n[ \t]+contents:\s*read\b`,
+			s,
+			"%s must declare workflow-level `permissions: contents: read`", path)
+
+		// Structural assertion: the workflow-level `permissions:`
+		// mapping contains exactly one key (`contents: read`). Any
+		// other top-level scope must move to a per-job block. This
+		// closes the loophole where adding `pull-requests: write` at
+		// workflow level alongside `contents: read` would still
+		// satisfy the string regex.
+		var doc map[string]any
+		require.NoErrorf(t, yaml.Unmarshal(body, &doc), "%s must be valid YAML", path)
+		perms, ok := doc["permissions"].(map[string]any)
+		require.Truef(t, ok, "%s must declare a workflow-level `permissions:` mapping", path)
+		assert.Lenf(t, perms, 1,
+			"%s workflow-level `permissions:` must contain exactly one key (`contents: read`); add elevated scopes per-job instead", path)
+		cv, ok := perms["contents"].(string)
+		require.Truef(t, ok,
+			"%s workflow-level `permissions:` must contain a string `contents` key", path)
+		assert.Equalf(t, "read", cv,
+			"%s workflow-level `permissions.contents` must be `read`", path)
+	}
+}

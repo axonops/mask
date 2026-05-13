@@ -16,6 +16,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - `phone_number` and `mobile_phone_number` now recognise the ITU-T `00<CC>` international access prefix in addition to `+<CC>`. Inputs like `0044 7911 123456` mask to `0044 **** **3456` (country code preserved, subscriber masked) instead of failing closed. The `00` prefix is kept verbatim — it is not rewritten to `+`. Inputs with a single domestic leading `0` (e.g. `07911 123456`) are unaffected. ([#55](https://github.com/axonops/mask/issues/55))
 - Compact form (`00CC<digits>` with no separator between country code and subscriber) is accepted on the `00` path to match the dial-string convention. The `+` parser continues to require a separator after the country code; this asymmetry is deliberate and documented in the rule godoc. ([#55](https://github.com/axonops/mask/issues/55))
 
+### Security
+
+- Tightened workflow token permissions to a `contents: read` workflow-level baseline across `cla.yml`, `contributors.yml`, `dependabot-automerge.yml`, and `release.yml`. Jobs that need elevated scopes (`contents: write`, `pull-requests: write`, `statuses: write`) now declare them per-job rather than workflow-wide, so a future job added to one of these workflows inherits read-only by default. Dropped the redundant `actions: write` scope from the CLA Assistant flow. Governance test `TestGovernance_WorkflowsLeastPrivilegeBaseline` pins the baseline (single `contents: read` key) across all six workflow files. ([#66](https://github.com/axonops/mask/issues/66))
+
 ## Upgrading
 
 From `v1.0.0` onwards `mask` follows the standard Go semantic-versioning

@@ -6,19 +6,24 @@ on:
   pull_request_target:
     types: [opened, closed, synchronize]
 
-# Explicit permissions because repository-level workflow permissions
-# may be read-only. The PAT below carries the actual push authority
-# through branch protection; GITHUB_TOKEN is used for PR comments and
-# status updates.
+# Workflow-level least-privilege baseline. The CLAAssistant job below
+# elevates only the scopes contributor-assistant/github-action actually
+# uses: contents (commit signature file), pull-requests (post the
+# not-signed / all-signed / lock-after-merge comments), and statuses
+# (set the CLA status check that branch protection consumes). The
+# CLA_ASSISTANT_PAT secret remains the actual push authority through
+# branch protection on main; GITHUB_TOKEN's scopes cover only the
+# read/comment/status surface.
 permissions:
-  actions: write
-  contents: write
-  pull-requests: write
-  statuses: write
+  contents: read
 
 jobs:
   CLAAssistant:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
     # Skip unless the trigger is either a relevant PR event or a comment
     # that looks like a signature / recheck request. The action filter
     # inside the step duplicates this; having it at the job level avoids
