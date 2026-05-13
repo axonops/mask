@@ -17,6 +17,12 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# Workflow-level least-privilege baseline. Every job below declares
+# its own `permissions:` block so this baseline applies only as a
+# safety net for any future job added without an explicit override.
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: Verify quality gate

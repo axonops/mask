@@ -4,15 +4,21 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+# Workflow-level least-privilege baseline. The automerge job below
+# elevates the two scopes `gh pr merge --auto --squash` requires:
+# pull-requests (to enable the auto-merge state) and contents (the
+# eventual squash commit fires once required checks pass).
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   automerge:
     name: Enable auto-merge for patch-level test-dependency updates
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Inspect Dependabot metadata
         id: meta

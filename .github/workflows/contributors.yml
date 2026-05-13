@@ -10,13 +10,22 @@ on:
 # that pushed the signature is skipped via [skip ci] conventions
 # elsewhere, but this workflow only triggers on the signatures path
 # so unrelated main-branch pushes do not spin up this runner.
+#
+# Workflow-level least-privilege baseline. The regenerate job below
+# elevates `contents: write` to remain forward-compatible if the
+# CLA_ASSISTANT_PAT secret is ever removed in favour of GITHUB_TOKEN-
+# based pushes — the PAT carries the actual push authority today
+# (both fetch and push via actions/checkout's `token:` input), so
+# GITHUB_TOKEN's `contents:` scope is effectively unused.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   regenerate:
     name: Regenerate CONTRIBUTORS.md
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6.0.2
         with:
