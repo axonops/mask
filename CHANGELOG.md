@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- OpenSSF Scorecard weekly workflow (`.github/workflows/scorecard.yml`) that publishes a supply-chain posture score to `scorecard.dev` and uploads SARIF results to the GitHub Code scanning Security tab. Triggers on push to `main`, every PR against `main`, a weekly cron (Saturday 01:30 UTC), and `workflow_dispatch` for manual verification. Governance test `TestGovernance_ScorecardWorkflowExists` asserts the workflow's permission scopes, SHA-pinned action ref, `publish_results: true`, and `paths-ignore` policy. ([#52](https://github.com/axonops/mask/issues/52))
+- OpenSSF Scorecard badge in the README badge row (linking to the live viewer), and an Elsewhere link to the Scorecard report in `docs/README.md`. ([#52](https://github.com/axonops/mask/issues/52))
+
 ### Fixed
 
 - `phone_number` and `mobile_phone_number` now recognise the ITU-T `00<CC>` international access prefix in addition to `+<CC>`. Inputs like `0044 7911 123456` mask to `0044 **** **3456` (country code preserved, subscriber masked) instead of failing closed. The `00` prefix is kept verbatim — it is not rewritten to `+`. Inputs with a single domestic leading `0` (e.g. `07911 123456`) are unaffected. ([#55](https://github.com/axonops/mask/issues/55))
