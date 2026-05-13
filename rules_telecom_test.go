@@ -68,10 +68,175 @@ func TestApply_MobilePhoneNumber_Alias(t *testing.T) {
 		"+44 7911 123456",
 		"(555) 123-4567",
 		"07911 123456",
+		"0044 7911 123456",
 		"",
 		"nonsense",
 	}
 	for _, in := range cases {
+		t.Run(in, func(t *testing.T) {
+			assert.Equal(t, m.Apply("phone_number", in), m.Apply("mobile_phone_number", in))
+		})
+	}
+}
+
+// TestApply_phone_number_00_prefix exercises the `00<CC>` international
+// access prefix path added for #55. Expected values are derived by
+// applying the same masking pipeline as the `+<CC>` form: the prefix
+// (including the `00` and the terminating separator when present) is
+// echoed verbatim, every body digit except the last 4 is masked, and
+// structural separators are preserved.
+//
+// Where the issue's hand-traced expected outputs disagree with this
+// length-preserving rule (the multi-segment `0033 1 42 86 83 26` /
+// `00352 26 12 34` cases), the test follows the rule, not the issue —
+// the contract is "treat 00 as equivalent to +", and the actual `+`
+// output for the parallel input is what defines that contract.
+func TestApply_phone_number_00_prefix(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	cases := []struct{ name, in, want string }{
+		{"spaced", "0044 7911 123456", "0044 **** **3456"},
+		{"compact", "00441234567890", "00441*****7890"},
+		{"dashed", "001-212-555-0100", "001-***-***-0100"},
+		{"short_country_1_digit_cc", "001 555 0100", "001 *** 0100"},
+		{"long_country", "00352 26 12 34", "00352 ** 12 34"},
+		{"france_spaced", "0033 1 42 86 83 26", "0033 * ** ** 83 26"},
+		{"compact_dashed", "001-555-0100", "001-***-0100"},
+		{"00_alone", "00", "**"},
+		{"00_country_only", "007", "***"},
+		{"00_cc_only_no_body", "0044", "****"},
+		{"domestic_0_not_affected", "07911 123456", "***** **3456"},
+		{"no_cc_before_separator", "00 7911 123456", "** **** **3456"},
+		// `"00 "` and `"00-"` route through the empty-prefix branch
+		// (v[2] is not an ASCII digit, so split00Prefix is not
+		// entered), then SameLengthMask collapses the input because
+		// the body fails isTelecomBody on a trailing separator.
+		{"00_then_separator_no_cc", "00 ", "***"},
+		{"00_then_dash_no_cc", "00-", "***"},
+		{"00_nul_at_v2", "00\x00", "***"},
+		{"leading_zero_cc", "00044 7911 123456", "***** **** **3456"},
+		// 4-digit "CC" in spaced form: v[2]=' ' is not a digit, so
+		// split00Prefix isn't entered. The whole input becomes the
+		// body, which IS well-formed (digit+sep+digit), so masking
+		// proceeds normally — surprising but documented.
+		{"spaced_4_digit_cc_routes_to_empty_prefix", "00 1234 5678901", "** **** ***8901"},
+		// Letter inside a body that follows a successfully-parsed 00CC
+		// prefix — split00Prefix returns the prefix, then isTelecomBody
+		// rejects the body, then SameLengthMask collapses the whole.
+		{"valid_00cc_then_letter_in_body", "00441234A567", "************"},
+		// Compact form has inherent CC-length ambiguity. The parser
+		// greedily consumes up to ccMaxDigits CC digits, so an input
+		// like "001234567 8901" is interpreted as CC=123 (not CC=1,
+		// 12, or 1234). Documented behaviour, not a bug — the issue's
+		// stated heuristic is "same as the + path", and the + path
+		// caps at 3 digits too. Pins the actual output so future
+		// changes are visible.
+		{"compact_greedy_three_digit_cc", "001234567 8901", "00123**** 8901"},
+		{"compact_short_body", "0044123", "*******"},
+		{"compact_body_exactly_four", "00441234", "********"},
+		{"trailing_space_fails_closed", "0044 7911 123456 ", "*****************"},
+		{"trailing_separator_fails_closed", "0044-", "*****"},
+		{"nbsp_after_prefix_fails_closed", "0044 7911 123456", "****************"},
+		{"nul_byte_fails_closed", "0044\x007911 123456", "****************"},
+		{"arabic_indic_body_fails_closed", "0044 ٠٧٩١١ ١٢٣٤٥٦", "*****************"},
+		// `é` is one rune (two bytes). SameLengthMask emits one mask
+		// rune per input rune, so the expected length is 17 chars
+		// (not 18 bytes).
+		{"multibyte_after_prefix_fails_closed", "0044é 7911 123456", "*****************"},
+		// ASCII control byte (BEL, \x07) after a valid 00CC — exercises
+		// the same non-digit non-separator return path of split00Prefix
+		// as the multibyte case, but with a single-byte rune.
+		{"control_byte_after_cc_fails_closed", "0044\x07 7911 123456", "*****************"},
+		// `+` after a valid 00CC — `+` is not a telecom separator, so
+		// split00Prefix returns false. Pins behaviour against any
+		// future change that adds `+` to the separator set.
+		{"plus_after_cc_fails_closed", "0044+7911", "*********"},
+		// Devanagari zero (U+0966, bytes 0xE0 0xA5 0xA6) inside the CC
+		// window. The leading byte 0xE0 fails isASCIIDecDigit so the
+		// loop exits, and 0xE0 is also not a telecom separator, so the
+		// fail-closed arm fires. Pins the ASCII-only digit gate
+		// against any future widening to unicode.IsDigit.
+		{"unicode_digit_in_cc_window_fails_closed", "00०44 7911 123456", "*****************"},
+		// Symmetric `+` branch case: a non-separator non-digit byte
+		// directly after `+CC` fails closed. Mirrors
+		// `control_byte_after_cc_fails_closed` on the `+` path so the
+		// two branches stay in step.
+		{"plus_then_non_separator_fails_closed", "+44A", "****"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("phone_number", tc.in), "input %q", tc.in)
+		})
+	}
+}
+
+// TestApply_phone_number_00_prefix_spaced is named after the issue
+// acceptance criterion verbatim so the issue-closer agent can match
+// the AC text directly. Behaviour is exercised by the umbrella test;
+// this is a thin assertion for traceability.
+func TestApply_phone_number_00_prefix_spaced(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "0044 **** **3456", mask.New().Apply("phone_number", "0044 7911 123456"))
+}
+
+func TestApply_phone_number_00_prefix_compact(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "00441*****7890", mask.New().Apply("phone_number", "00441234567890"))
+}
+
+func TestApply_phone_number_00_prefix_dashed(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "001-***-***-0100", mask.New().Apply("phone_number", "001-212-555-0100"))
+}
+
+func TestApply_phone_number_00_prefix_short_country(t *testing.T) {
+	t.Parallel()
+	// 1-digit country code (US/NANP) with space separators — distinct
+	// shape from the dashed variant.
+	assert.Equal(t, "001 *** 0100", mask.New().Apply("phone_number", "001 555 0100"))
+}
+
+func TestApply_phone_number_00_prefix_long_country(t *testing.T) {
+	t.Parallel()
+	// 3-digit country code (Luxembourg). See the docstring on
+	// TestApply_phone_number_00_prefix for the rationale on why the
+	// expected output is "00352 ** 12 34" rather than the issue's
+	// hand-traced "00352 ** **34".
+	assert.Equal(t, "00352 ** 12 34", mask.New().Apply("phone_number", "00352 26 12 34"))
+}
+
+func TestApply_phone_number_00_alone(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "**", mask.New().Apply("phone_number", "00"))
+}
+
+func TestApply_phone_number_00_country_only(t *testing.T) {
+	t.Parallel()
+	// Country code with no subscriber body — fails closed over the
+	// whole prefix, mirroring "+44" → "***".
+	assert.Equal(t, "***", mask.New().Apply("phone_number", "007"))
+}
+
+func TestApply_phone_number_domestic_0_not_affected(t *testing.T) {
+	t.Parallel()
+	// Single domestic leading zero — must continue routing through
+	// the empty-prefix branch, NOT the new 00-prefix branch.
+	assert.Equal(t, "***** **3456", mask.New().Apply("phone_number", "07911 123456"))
+}
+
+func TestApply_mobile_phone_number_00_prefix(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	// Alias inherits the 00-prefix fix automatically because it
+	// shares the same masker closure. Assert equivalence with
+	// phone_number for the new branch, mirroring the existing alias
+	// test pattern.
+	for _, in := range []string{
+		"0044 7911 123456",
+		"001-212-555-0100",
+		"00",
+		"007",
+	} {
 		t.Run(in, func(t *testing.T) {
 			assert.Equal(t, m.Apply("phone_number", in), m.Apply("mobile_phone_number", in))
 		})
@@ -351,23 +516,24 @@ func TestTelecom_NoPanicOnAdversarialInput(t *testing.T) {
 func TestTelecom_IdempotencyMatrix(t *testing.T) {
 	t.Parallel()
 	m := mask.New()
-	cases := []struct{ name, in string }{
-		{"phone_number", "+44 7911 123456"},
-		{"mobile_phone_number", "+44 7911 123456"},
-		{"imei", "353456789012345"},
-		{"imsi", "310260123456789"},
-		{"msisdn", "447911123456"},
-		{"postal_code", "SW1A 2AA"},
-		{"geo_latitude", "37.7749295"},
-		{"geo_longitude", "-122.4194155"},
-		{"geo_coordinates", "37.7749,-122.4194"},
+	cases := []struct{ name, rule, in string }{
+		{"phone_number", "phone_number", "+44 7911 123456"},
+		{"phone_number_00_prefix", "phone_number", "0044 7911 123456"},
+		{"mobile_phone_number", "mobile_phone_number", "+44 7911 123456"},
+		{"imei", "imei", "353456789012345"},
+		{"imsi", "imsi", "310260123456789"},
+		{"msisdn", "msisdn", "447911123456"},
+		{"postal_code", "postal_code", "SW1A 2AA"},
+		{"geo_latitude", "geo_latitude", "37.7749295"},
+		{"geo_longitude", "geo_longitude", "-122.4194155"},
+		{"geo_coordinates", "geo_coordinates", "37.7749,-122.4194"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			first := m.Apply(tc.name, tc.in)
-			second := m.Apply(tc.name, first)
+			first := m.Apply(tc.rule, tc.in)
+			second := m.Apply(tc.rule, first)
 			assert.NotEqual(t, first, second,
-				"rule %q was expected to be non-idempotent (output collapses to same-length mask)", tc.name)
+				"rule %q was expected to be non-idempotent (output collapses to same-length mask)", tc.rule)
 		})
 	}
 }

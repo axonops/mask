@@ -365,7 +365,7 @@ If you are looking for the right rule for a common field, start here.
 | An email address | [`email_address`](./docs/rules.md#identity) | `alice@example.com` → `a****@example.com` |
 | A credit card number | [`payment_card_pan`](./docs/rules.md#financial) | `4111-1111-1111-1111` → `4111-11**-****-1111` |
 | A US Social Security Number | [`us_ssn`](./docs/rules.md#country-specific-identity) | `123-45-6789` → `***-**-6789` |
-| A phone number | [`phone_number`](./docs/rules.md#telecom-and-location) | `+44 7911 123456` → `+44 **** **3456` |
+| A phone number | [`phone_number`](./docs/rules.md#telecom-and-location) | `+44 7911 123456` → `+44 **** **3456`; `0044 7911 123456` → `0044 **** **3456` |
 | An IPv4 address | [`ipv4_address`](./docs/rules.md#technology) | `192.168.1.42` → `192.168.*.*` |
 | A UUID | [`uuid`](./docs/rules.md#technology) | `550e8400-e29b-41d4-a716-446655440000` → `550e8400-****-****-****-********0000` |
 | An IBAN | [`iban`](./docs/rules.md#financial) | `GB82WEST12345698765432` → `GB82**************5432` |
@@ -1193,7 +1193,7 @@ Phone numbers, mobile identifiers, postcodes, and geographic coordinates.
 | `imsi` | Preserves the first 5 (MCC+MNC) and last 4 digits of a 15-digit IMSI. | `310260123456789` → `31026******6789` |
 | `mobile_phone_number` | Alias of `phone_number`. | `+44 7911 123456` → `+44 **** **3456` |
 | `msisdn` | Preserves the first 2 and last 4 digits of a 10-15 digit MSISDN. | `447911123456` → `44******3456` |
-| `phone_number` | Preserves a leading `+NN` country code (if present) and the last 4 digits; masks middle digits while preserving structural separators. | `+44 7911 123456` → `+44 **** **3456` |
+| `phone_number` | Preserves a leading `+NN` country code or `00NN` international access prefix (if present) and the last 4 digits; masks middle digits while preserving structural separators. The `00` prefix is kept verbatim, not rewritten to `+`. Inputs with a single domestic leading `0` (e.g. `07911 123456`) are treated as having no country-code prefix. The `00` parser also accepts compact form (`00CC<digits>` with no separator between the country code and the subscriber number); the `+` parser requires a separator after the country code. | `+44 7911 123456` → `+44 **** **3456`; `0044 7911 123456` → `0044 **** **3456` |
 | `postal_code` | Shape-aware across UK (outward code), US 5-digit ZIP (first 3), and Canada (FSA); other shapes fail closed. | `SW1A 2AA` → `SW1A ***` |
 
 ---
