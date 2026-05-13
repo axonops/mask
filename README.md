@@ -196,7 +196,7 @@ If you are looking for the right rule for a common field, start here.
 | An email address | [`email_address`](./docs/rules.md#identity) | `alice@example.com` → `a****@example.com` |
 | A credit card number | [`payment_card_pan`](./docs/rules.md#financial) | `4111-1111-1111-1111` → `4111-11**-****-1111` |
 | A US Social Security Number | [`us_ssn`](./docs/rules.md#country-specific-identity) | `123-45-6789` → `***-**-6789` |
-| A phone number | [`phone_number`](./docs/rules.md#telecom-and-location) | `+44 7911 123456` → `+44 **** **3456` |
+| A phone number | [`phone_number`](./docs/rules.md#telecom-and-location) | `+44 7911 123456` → `+44 **** **3456`; `0044 7911 123456` → `0044 **** **3456` |
 | An IPv4 address | [`ipv4_address`](./docs/rules.md#technology) | `192.168.1.42` → `192.168.*.*` |
 | A UUID | [`uuid`](./docs/rules.md#technology) | `550e8400-e29b-41d4-a716-446655440000` → `550e8400-****-****-****-********0000` |
 | An IBAN | [`iban`](./docs/rules.md#financial) | `GB82WEST12345698765432` → `GB82**************5432` |

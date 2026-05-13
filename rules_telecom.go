@@ -93,19 +93,28 @@ func isTelecomSeparator(r rune) bool {
 
 // ---------- phone_number / mobile_phone_number ----------
 
-// maskPhoneNumber preserves a leading `+NN` country code literal
-// and the last 4 digits, masking every other digit while keeping
-// structural separators verbatim. Inputs without a `+` prefix
-// route through the same helper with an empty prefix — the whole
-// input is treated as the body. Inputs whose body contains fewer
-// than 4 digits fail closed over the whole value (the prefix is
-// NOT echoed on short bodies).
+// maskPhoneNumber preserves a leading `+NN` country code literal OR
+// the ITU-T `00NN` international access prefix and the last 4 digits,
+// masking every other digit while keeping structural separators
+// verbatim. The `00` prefix is preserved verbatim in the output — it
+// is NOT rewritten to `+`. Inputs without a recognised prefix route
+// through the same helper with an empty prefix — the whole input is
+// treated as the body. Inputs whose body contains fewer than 4 digits
+// fail closed over the whole value (the prefix is NOT echoed on short
+// bodies).
 //
 // Spec examples:
 //
-//	+44 7911 123456   → +44 **** **3456
-//	(555) 123-4567    → (***) ***-4567
-//	+1-800-555-0199   → +1-***-***-0199
+//	+44 7911 123456    → +44 **** **3456
+//	(555) 123-4567     → (***) ***-4567
+//	+1-800-555-0199    → +1-***-***-0199
+//	0044 7911 123456   → 0044 **** **3456
+//	001-212-555-0100   → 001-***-***-0100
+//
+// `00<CC>` recognition is shape-based, not semantic: the parser does
+// not validate the country code against an ITU-T table. Inputs
+// starting with a single domestic `0` (e.g. `07911 123456`) fall
+// through unchanged and are treated as having no country-code prefix.
 //
 // The rule accepts `mobile_phone_number` as an alias — the spec
 // notes "prefer one international abstraction unless business rules
@@ -127,15 +136,43 @@ func maskPhoneNumber(v string, c rune) string {
 	return keepFirstLastNonSepWithPrefix(prefix, body, 0, phoneKeepLast, bodyDigits, c, isTelecomSeparator)
 }
 
-// splitPhonePrefix returns ("+NN", rest, true) when v starts with a
-// `+` followed by 1-3 ASCII digits terminated by a separator.
+// splitPhonePrefix dispatches on the leading byte of v and delegates
+// to a prefix-shape-specific helper. Two prefix shapes are recognised:
+//
+//   - `+NN` followed by a separator (or end of string): see
+//     [splitPlusPrefix]. 1-3 digit country code; no compact form.
+//   - `00NN` followed by a separator OR another digit (compact form):
+//     see [split00Prefix]. 1-3 digit country code; the leading CC
+//     digit must be non-zero.
+//
 // Otherwise returns ("", v, true) — the whole value is the body.
-// Returns (_, _, false) only when the leading `+` is malformed
-// (zero or >3 digits before separator / end of string).
+// Returns (_, _, false) only when a recognised prefix is malformed.
+//
+// The caller must ensure v is non-empty; [maskPhoneNumber] guards
+// this at its call site.
+//
+// DELIBERATE divergence between the two prefixes: compact form
+// (`00CC<digits>` with no separator between CC and body) is accepted
+// for `00`, rejected for `+`. The `00` access prefix is typographically
+// packed against the CC in real dial strings (e.g. "00441234567890");
+// `+` is a typographic sigil that is almost always followed by a
+// separator. Do NOT mirror compact-form acceptance to `+` without
+// revisiting #55 AC #5.
 func splitPhonePrefix(v string) (string, string, bool) {
-	if v[0] != '+' {
-		return "", v, true
+	switch v[0] {
+	case '+':
+		return splitPlusPrefix(v)
+	case '0':
+		if len(v) >= 3 && v[1] == '0' && isASCIIDecDigit(v[2]) && v[2] != '0' {
+			return split00Prefix(v)
+		}
 	}
+	return "", v, true
+}
+
+// splitPlusPrefix consumes the `+NN` shape. Caller must ensure
+// v[0] == '+'.
+func splitPlusPrefix(v string) (string, string, bool) {
 	i := 1
 	for i < len(v) && i-1 < ccMaxDigits && isASCIIDecDigit(v[i]) {
 		i++
@@ -154,6 +191,45 @@ func splitPhonePrefix(v string) (string, string, bool) {
 	// Prefix includes the terminating separator so the body walk
 	// starts on the first body digit/separator.
 	return v[:i+1], v[i+1:], true
+}
+
+// split00Prefix consumes the `00<CC>` international access prefix.
+// Caller must ensure len(v) >= 3, v[0] == '0', v[1] == '0', and v[2]
+// is a non-zero ASCII digit. Inputs that fail those gates (e.g.
+// `"00"` on length, `"00 "` / `"00-"` / `"00A"` / `"00\x00"` on the
+// digit gate, `"00044"` on the non-zero gate) never enter here —
+// they route through the empty-prefix branch in [splitPhonePrefix].
+//
+// Returns ("00<CC>", "", true) when the CC consumes the rest of v
+// (e.g. `"0044"` alone). Returns ("00<CC>", body, true) when a
+// separator terminates the CC. Returns ("00<CC>", body, true) with
+// no separator between prefix and body when the compact form fires
+// (e.g. `"00441234567890"`). Returns (_, _, false) on a non-digit
+// non-separator byte after the CC.
+func split00Prefix(v string) (string, string, bool) {
+	i := 3
+	for i < len(v) && i-2 < ccMaxDigits && isASCIIDecDigit(v[i]) {
+		i++
+	}
+	if i == len(v) {
+		// `0044` alone — whole value is the prefix, body empty.
+		// Mirrors the `+44`-alone branch in splitPlusPrefix.
+		// Downstream keepFirstLastNonSepWithPrefix sees bodyDigits=0
+		// and falls back to SameLengthMask over the whole value.
+		return v, "", true
+	}
+	if isASCIIDecDigit(v[i]) {
+		// CC hit the cap of ccMaxDigits and the next byte is still a
+		// digit. Accept as COMPACT form — see the divergence note on
+		// splitPhonePrefix.
+		return v[:i], v[i:], true
+	}
+	if isTelecomSeparator(rune(v[i])) {
+		return v[:i+1], v[i+1:], true
+	}
+	// Non-digit, non-separator byte after the CC (e.g. multi-byte
+	// UTF-8 lead byte, NUL, control char, `+`). Fail closed.
+	return "", "", false
 }
 
 // isTelecomBody reports whether body consists only of ASCII digits
@@ -487,12 +563,12 @@ func registerTelecomRules(m *Masker) {
 	m.mustRegisterBuiltin("phone_number", phone,
 		RuleInfo{
 			Name: "phone_number", Category: "telecom", Jurisdiction: "global",
-			Description: "Preserves a leading +NN country code (if present) and the last 4 digits; masks middle digits while preserving structural separators. Example: +44 7911 123456 → +44 **** **3456.",
+			Description: "Preserves a leading +NN country code or 00NN international access prefix (if present) and the last 4 digits; masks middle digits while preserving structural separators. The 00 prefix is kept verbatim, not rewritten to +. Inputs with a single domestic leading 0 (e.g. 07911 123456) are treated as having no country-code prefix. The 00 parser accepts compact form (00CC<digits> with no separator); the + parser requires a separator after the country code. Example: +44 7911 123456 → +44 **** **3456; 0044 7911 123456 → 0044 **** **3456.",
 		})
 	m.mustRegisterBuiltin("mobile_phone_number", phone,
 		RuleInfo{
 			Name: "mobile_phone_number", Category: "telecom", Jurisdiction: "global",
-			Description: "Alias of `phone_number` — identical input-to-output behaviour. Exists so callers with mobile-specific schema naming can register that name without re-wrapping. Prefer `phone_number` for new code; register a distinct custom rule if mobile-specific masking matters to your workload. Example: +44 7911 123456 → +44 **** **3456.",
+			Description: "Alias of `phone_number` — identical input-to-output behaviour, including the 00NN international access prefix and compact-form support. Exists so callers with mobile-specific schema naming can register that name without re-wrapping. Prefer `phone_number` for new code; register a distinct custom rule if mobile-specific masking matters to your workload. Example: +44 7911 123456 → +44 **** **3456; 0044 7911 123456 → 0044 **** **3456.",
 		})
 	m.mustRegisterBuiltin("imei",
 		func(v string) string { return maskIMEI(v, m.maskChar()) },

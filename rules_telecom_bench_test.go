@@ -34,6 +34,16 @@ func BenchmarkApply_phone_number_long(b *testing.B) {
 	// 30-digit body: exercises the O(n) isTelecomBody + countPhoneDigits loops.
 	runBench(b, "phone_number", "+44 7911 123456 789012 345678 901234")
 }
+func BenchmarkApply_phone_number_00_prefix_spaced(b *testing.B) {
+	runBench(b, "phone_number", "0044 7911 123456")
+}
+func BenchmarkApply_phone_number_00_prefix_compact(b *testing.B) {
+	runBench(b, "phone_number", "00441234567890")
+}
+func BenchmarkApply_phone_number_00_prefix_short(b *testing.B) {
+	// "00" alone — exercises the fall-through path and SameLengthMask.
+	runBench(b, "phone_number", "00")
+}
 func BenchmarkApply_mobile_phone_number(b *testing.B) {
 	runBench(b, "mobile_phone_number", "+44 7911 123456")
 }

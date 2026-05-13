@@ -278,6 +278,24 @@ func ExampleApply_phoneNumber() {
 	// Output: +44 **** **3456
 }
 
+// ExampleApply_phoneNumber_internationalPrefix shows that the ITU-T
+// `00<CC>` international access prefix is recognised in addition to
+// `+<CC>`. The `00` is preserved verbatim in the output, not rewritten
+// to `+`.
+func ExampleApply_phoneNumber_internationalPrefix() {
+	fmt.Println(mask.Apply(mask.RulePhoneNumber, "0044 7911 123456"))
+	// Output: 0044 **** **3456
+}
+
+// ExampleApply_phoneNumber_compactInternationalPrefix shows that the
+// `00<CC>` prefix is also accepted in compact form (no separator
+// between the country code and the subscriber number). Compact form
+// is `00`-only; the `+` parser continues to require a separator.
+func ExampleApply_phoneNumber_compactInternationalPrefix() {
+	fmt.Println(mask.Apply(mask.RulePhoneNumber, "00441234567890"))
+	// Output: 00441*****7890
+}
+
 // ExampleApply_ukNINO preserves the 2-letter prefix and 1-letter suffix
 // of a UK National Insurance Number, masking the six middle digits.
 func ExampleApply_ukNINO() {

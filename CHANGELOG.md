@@ -6,7 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-No unreleased changes.
+### Fixed
+
+- `phone_number` and `mobile_phone_number` now recognise the ITU-T `00<CC>` international access prefix in addition to `+<CC>`. Inputs like `0044 7911 123456` mask to `0044 **** **3456` (country code preserved, subscriber masked) instead of failing closed. The `00` prefix is kept verbatim — it is not rewritten to `+`. Inputs with a single domestic leading `0` (e.g. `07911 123456`) are unaffected. ([#55](https://github.com/axonops/mask/issues/55))
+- Compact form (`00CC<digits>` with no separator between country code and subscriber) is accepted on the `00` path to match the dial-string convention. The `+` parser continues to require a separator after the country code; this asymmetry is deliberate and documented in the rule godoc. ([#55](https://github.com/axonops/mask/issues/55))
 
 ## Upgrading
 

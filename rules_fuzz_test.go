@@ -84,7 +84,27 @@ func FuzzApply_DateOfBirth(f *testing.F) {
 }
 
 func FuzzApply_PhoneNumber(f *testing.F) {
-	seeds := []string{"", "+44 7911 123456", "+1 (555) 123-4567", "07911 123456", "+447911123456"}
+	seeds := []string{
+		"",
+		"+44 7911 123456",
+		"+1 (555) 123-4567",
+		"07911 123456",
+		"+447911123456",
+		"0044 7911 123456",
+		"00441234567890",
+		"001-212-555-0100",
+		"00",
+		"007",
+		// Failure-path seeds for the new 00 branch. The fuzzer is
+		// unlikely to discover these quickly because they require a
+		// specific 4-byte prefix shape.
+		"00\x00",
+		"00\xff7911 123456",
+		"0044\x00body",
+		"0044\xffbody",
+		"00 ",
+		"+44\x00",
+	}
 	for _, s := range seeds {
 		f.Add(s)
 	}

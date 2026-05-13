@@ -128,7 +128,7 @@ Phone numbers, mobile identifiers, postcodes, and geographic coordinates.
 | `imsi` | Preserves the first 5 (MCC+MNC) and last 4 digits of a 15-digit IMSI. | `310260123456789` → `31026******6789` |
 | `mobile_phone_number` | Alias of `phone_number`. | `+44 7911 123456` → `+44 **** **3456` |
 | `msisdn` | Preserves the first 2 and last 4 digits of a 10-15 digit MSISDN. | `447911123456` → `44******3456` |
-| `phone_number` | Preserves a leading `+NN` country code (if present) and the last 4 digits; masks middle digits while preserving structural separators. | `+44 7911 123456` → `+44 **** **3456` |
+| `phone_number` | Preserves a leading `+NN` country code or `00NN` international access prefix (if present) and the last 4 digits; masks middle digits while preserving structural separators. The `00` prefix is kept verbatim, not rewritten to `+`. Inputs with a single domestic leading `0` (e.g. `07911 123456`) are treated as having no country-code prefix. The `00` parser also accepts compact form (`00CC<digits>` with no separator between the country code and the subscriber number); the `+` parser requires a separator after the country code. | `+44 7911 123456` → `+44 **** **3456`; `0044 7911 123456` → `0044 **** **3456` |
 | `postal_code` | Shape-aware across UK (outward code), US 5-digit ZIP (first 3), and Canada (FSA); other shapes fail closed. | `SW1A 2AA` → `SW1A ***` |
 
 ---

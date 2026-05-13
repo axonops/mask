@@ -25,6 +25,40 @@ Feature: Telecom and location masking rules
     When I apply "phone_number" to "+44 7911 123456"
     Then the result is "+44 XXXX XX3456"
 
+  Scenario Outline: Mask phone numbers with 00 international prefix
+    # `00<CC>` is the ITU-T E.123 international access prefix used as
+    # an alternative to `+` across most of Europe, Africa, Asia, and
+    # Oceania. The `00` is preserved verbatim — not rewritten to `+`.
+    # Compact form (no separator between CC and body) is accepted for
+    # `00` only; the `+` parser rejects compact form (see scenario
+    # below pinning that asymmetry).
+    Given a fresh masker
+    When I apply "phone_number" to "<input>"
+    Then the result is "<expected>"
+
+    Examples:
+      | input              | expected           |
+      | 0044 7911 123456   | 0044 **** **3456   |
+      | 001-212-555-0100   | 001-***-***-0100   |
+      | 00352 26 12 34     | 00352 ** 12 34     |
+      | 00441234567890     | 00441*****7890     |
+      | 00                 | **                 |
+      | 007                | ***                |
+      | 00044 7911 123456  | ***** **** **3456  |
+      | 00 7911 123456     | ** **** **3456     |
+      | 00-                | ***                |
+      | 0044123            | *******            |
+      | 07911 123456       | ***** **3456       |
+
+  Scenario: phone_number rejects compact form on the + prefix
+    # Deliberate divergence: `00<CC><digits>` is accepted as compact
+    # form, `+<CC><digits>` is not. Documented in rules_telecom.go
+    # splitPhonePrefix. This scenario pins the asymmetry against
+    # accidental "consistency fixes".
+    Given a fresh masker
+    When I apply "phone_number" to "+441234567890"
+    Then the result is "*************"
+
   Scenario Outline: mobile_phone_number is an alias of phone_number
     Given a fresh masker
     When I apply "mobile_phone_number" to "<input>"
@@ -34,6 +68,7 @@ Feature: Telecom and location masking rules
       | input            | expected         |
       | +44 7911 123456  | +44 **** **3456  |
       | 07911 123456     | ***** **3456     |
+      | 0044 7911 123456 | 0044 **** **3456 |
       | (555) 123-4567   | (***) ***-4567   |
       | 1-800-FLOWERS    | *************    |
       |                  |                  |
