@@ -256,6 +256,41 @@ func TestConcurrent_Apply_IsSafe(t *testing.T) {
 	wg.Wait()
 }
 
+// TestZeroValueMasker_ParallelFirstApply guards against a regression in
+// the ensureInit race: initOnce stores an empty rule map BEFORE
+// builtinsOnce registers the built-ins, so a parallel first-Apply
+// reader that observed the pointer between the two Once calls used to
+// see an empty registry and fall through to FullRedactMarker. Apply
+// must call ensureInit on every entry so neither Once leaks a partly
+// initialised state to readers.
+func TestZeroValueMasker_ParallelFirstApply(t *testing.T) {
+	t.Parallel()
+	const (
+		runs    = 20
+		workers = 100
+	)
+	for run := 0; run < runs; run++ {
+		var m mask.Masker // zero-value — neither Once has fired
+		gate := make(chan struct{})
+		results := make([]string, workers)
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for i := 0; i < workers; i++ {
+			go func() {
+				defer wg.Done()
+				<-gate
+				results[i] = m.Apply("email_address", "alice@example.com")
+			}()
+		}
+		close(gate)
+		wg.Wait()
+		const want = "a****@example.com"
+		for i, got := range results {
+			require.Equalf(t, want, got, "run %d worker %d", run, i)
+		}
+	}
+}
+
 // TestConcurrent_MultipleInstances_AreIsolated exercises two Maskers in
 // parallel to guard against accidentally shared state through the atomic
 // pointer indirection.

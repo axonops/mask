@@ -234,15 +234,15 @@ func (m *Masker) MaskChar() rune {
 //
 // Example: m.Apply("email_address", "alice@example.com") → "a****@example.com".
 func (m *Masker) Apply(rule, value string) string {
-	// Fast path: once initialised the registry pointer is non-nil and reads
-	// are lock-free. The slow-path ensureInit call only fires on a Masker
-	// that has never been touched — for New()-constructed Maskers it runs
-	// during construction.
+	// ensureInit must run on every Apply, not just when the rules
+	// pointer is nil. initOnce stores an empty rule map BEFORE
+	// builtinsOnce registers the built-ins, so a parallel reader
+	// that observes the pointer between those two Once calls would
+	// see an empty registry and fall through to FullRedactMarker.
+	// sync.Once's fast path after first use is a single atomic
+	// load + branch, so the cost is negligible.
+	m.ensureInit()
 	rm := m.rules.Load()
-	if rm == nil {
-		m.ensureInit()
-		rm = m.rules.Load()
-	}
 	e, ok := (*rm)[rule]
 	if !ok {
 		return FullRedactMarker
