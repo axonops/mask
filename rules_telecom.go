@@ -384,29 +384,48 @@ func maskUKPostalCode(v string, c rune) (string, bool) {
 	return b.String(), true
 }
 
-// isUKOutwardCode reports whether s is a valid outward-code shape:
-// first byte is A-Z; remaining 1-3 bytes are A-Z or 0-9 with at
-// least one digit somewhere (outward codes always contain a
-// district digit).
+// outwardCodePatterns enumerates the six BS 7666 UK outward-code
+// shapes as 'A' (letter) / '9' (digit) signatures:
+//
+//	A9      — letter + digit                 (e.g. M1)
+//	A99     — letter + two digits            (e.g. B33)
+//	AA9     — two letters + digit            (e.g. CR2)
+//	AA99    — two letters + two digits       (e.g. DN55)
+//	A9A     — letter + digit + letter        (e.g. W1A)
+//	AA9A    — two letters + digit + letter   (e.g. SW1A)
+//
+// Anything else — including the previously-accepted shapes A1AA,
+// A11A, AAAA — is rejected so the caller falls back to same-length
+// mask. Surfaced by the corpus harness (#54); validator rewrite
+// tracked in #71.
+var outwardCodePatterns = map[string]struct{}{
+	"A9":   {},
+	"A99":  {},
+	"AA9":  {},
+	"AA99": {},
+	"A9A":  {},
+	"AA9A": {},
+}
+
+// isUKOutwardCode reports whether s matches one of the six BS 7666
+// outward-code patterns above.
 func isUKOutwardCode(s string) bool {
 	if len(s) < 2 || len(s) > 4 {
 		return false
 	}
-	if !isASCIIUpperLetter(s[0]) {
-		return false
-	}
-	sawDigit := false
-	for i := 1; i < len(s); i++ {
-		b := s[i]
+	var sig [4]byte
+	for i := 0; i < len(s); i++ {
 		switch {
-		case isASCIIUpperLetter(b):
-		case isASCIIDecDigit(b):
-			sawDigit = true
+		case isASCIIUpperLetter(s[i]):
+			sig[i] = 'A'
+		case isASCIIDecDigit(s[i]):
+			sig[i] = '9'
 		default:
 			return false
 		}
 	}
-	return sawDigit
+	_, ok := outwardCodePatterns[string(sig[:len(s)])]
+	return ok
 }
 
 // isUKInwardCode reports whether s is `d[A-Z]{2}`.
