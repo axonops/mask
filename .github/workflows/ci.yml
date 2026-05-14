@@ -42,6 +42,8 @@ jobs:
             check
             test
             test-bdd
+            test-corpus
+            corpus-regen
             lint
             vet
             fmt
