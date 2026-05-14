@@ -953,6 +953,8 @@ make corpus-regen   # rewrites every <rule>.txt's generated section + .corpus.lo
 
 Every fixture line is `input<TAB>expected`. The harness reads the line, calls `mask.Apply(rule, input)`, and asserts the result equals `expected`. Expected outputs come from `mask.Apply` at generation time — the corpus locks current behaviour. A rule change that affects a fixture line surfaces as a CI failure on `corpus-lock-fresh`; rerun `make corpus-regen` and commit the diff.
 
+**Go version note.** The generator uses `math/rand/v2`. PCG state is stable across Go versions but the `r.IntN(n)` rejection-sampling implementation has changed between Go patch releases (observed between 1.26.1 and 1.26.3). If `corpus-lock-fresh` fails on a green local run, your toolchain may be ahead of or behind CI's `go-version: "1.26"`. Match CI by installing the same patch (`go install golang.org/dl/go1.26.X@latest && go1.26.X download`) and re-run `GO=$(go env GOPATH)/bin/go1.26.X make corpus-regen`.
+
 **Adding fixtures.** For a new rule, run `go run -tags corpushelper ./tests/corpus/_tools/bootstrap` once — it scaffolds a minimal canonical file from `RuleInfo.Description` for every rule that doesn't yet have one. To extend the canonical section of an existing rule, pipe inputs through `expect`:
 
 ```sh
