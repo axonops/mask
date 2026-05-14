@@ -73,7 +73,7 @@ func (databaseDSNGen) Generate(seed uint64) []Pair {
 			u, p, r.IntN(100), db))
 	}
 
-	// With params.
+	// With multiple non-secret params.
 	for i := 0; i < 40; i++ {
 		u := users[r.IntN(len(users))]
 		p := randomHex(r, 16)
@@ -86,9 +86,12 @@ func (databaseDSNGen) Generate(seed uint64) []Pair {
 			"tls=true",
 			"timeout=30s",
 			"interpolateParams=true",
+			"multiStatements=true",
+			"readTimeout=10s",
+			"writeTimeout=10s",
 		}
-		// Build 1-3 params.
-		n := 1 + r.IntN(3)
+		// Build 1-4 params.
+		n := 1 + r.IntN(4)
 		var ps string
 		for j := 0; j < n; j++ {
 			if j > 0 {
@@ -97,6 +100,23 @@ func (databaseDSNGen) Generate(seed uint64) []Pair {
 			ps += params[r.IntN(len(params))]
 		}
 		inputs = append(inputs, fmt.Sprintf("%s:%s@tcp(%s)/%s?%s", u, p, h, db, ps))
+	}
+
+	// Multi-param DSN with a SECRET keyword in the query. The
+	// current parser only redacts userinfo, so the query passes
+	// through verbatim — a behaviour gap tracked in #72. These
+	// fixtures pin the current behaviour so a future fix surfaces
+	// as a deliberate corpus diff.
+	secretQueryKeys := []string{"password", "client_secret", "token",
+		"refresh_token", "private_key"}
+	for i := 0; i < 25; i++ {
+		u := users[r.IntN(len(users))]
+		p := randomHex(r, 16)
+		h := hosts[r.IntN(4)]
+		db := dbnames[r.IntN(len(dbnames))]
+		sk := secretQueryKeys[r.IntN(len(secretQueryKeys))]
+		inputs = append(inputs, fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&%s=%s&parseTime=true",
+			u, p, h, db, sk, randomHex(r, 16)))
 	}
 
 	// Empty password.

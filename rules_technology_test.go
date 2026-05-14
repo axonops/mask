@@ -408,6 +408,111 @@ func TestApply_ConnectionString_OAuthAndCloudSecrets(t *testing.T) {
 	}
 }
 
+// TestApply_ConnectionString_MultiParamQuery pins the per-pair
+// behaviour of the query masker when multiple parameters appear in
+// any position relative to a secret. PostgreSQL, MongoDB, and
+// MySQL/MariaDB connection strings routinely chain non-secret
+// structural params (`sslmode`, `application_name`, `connectTimeout`,
+// `replicaSet`) with credential params, and the rule must redact
+// only the secret values regardless of order, count, or repetition.
+func TestApply_ConnectionString_MultiParamQuery(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	cases := []struct{ name, in, want string }{
+		// Secret BEFORE non-secret.
+		{"secret first then non-secret",
+			"postgres://host/db?client_secret=abc&sslmode=verify-full",
+			"postgres://host/db?client_secret=****&sslmode=verify-full"},
+
+		// Secret AFTER non-secret.
+		{"non-secret first then secret",
+			"postgres://host/db?sslmode=verify-full&password=plain",
+			"postgres://host/db?sslmode=verify-full&password=****"},
+
+		// Secret in the MIDDLE.
+		{"secret between two non-secrets",
+			"postgres://host/db?sslmode=verify-full&client_secret=abc&application_name=myapp",
+			"postgres://host/db?sslmode=verify-full&client_secret=****&application_name=myapp"},
+
+		// Two adjacent secrets — both must redact.
+		{"two adjacent secrets",
+			"postgres://host/db?client_secret=abc&refresh_token=def",
+			"postgres://host/db?client_secret=****&refresh_token=****"},
+
+		// Four different secret keywords in one query.
+		{"four secrets of different keywords",
+			"postgres://host/db?token=t&secret=s&apikey=k&password=p",
+			"postgres://host/db?token=****&secret=****&apikey=****&password=****"},
+
+		// Repeated same key — both occurrences must redact.
+		{"repeated same secret key",
+			"postgres://host/db?password=a&password=b",
+			"postgres://host/db?password=****&password=****"},
+
+		// Realistic PostgreSQL mix: structural sandwich + secret.
+		{"postgres realistic mix",
+			"postgres://host/db?application_name=myapp&password=secret&sslmode=require",
+			"postgres://host/db?application_name=myapp&password=****&sslmode=require"},
+
+		// MongoDB-style with auth + replicaSet + secret.
+		{"mongodb mix with replicaSet",
+			"mongodb://host/db?replicaSet=rs0&authSource=admin&password=hunter2&w=majority",
+			"mongodb://host/db?replicaSet=rs0&authSource=admin&password=****&w=majority"},
+
+		// Five secrets of distinct families redacted together.
+		{"five secrets across families",
+			"postgres://host/db?password=p&client_secret=c&refresh_token=r&aws_secret_access_key=a&private_key=k",
+			"postgres://host/db?password=****&client_secret=****&refresh_token=****&aws_secret_access_key=****&private_key=****"},
+
+		// Secret with empty value still masks.
+		{"empty-value secret still masks",
+			"postgres://host/db?password=&sslmode=require",
+			"postgres://host/db?password=****&sslmode=require"},
+
+		// Non-secret key whose name CONTAINS a secret keyword as a
+		// substring (`secretsauce`, `application_name`, `my_token_id`)
+		// must NOT be matched — the lookup is whole-key, not
+		// substring. Pinning this prevents a future "lax substring
+		// match" refactor from over-masking innocuous keys.
+		{"secret-substring keys not matched",
+			"postgres://user@host/db?secretsauce=ok&my_token_id=abc&application_name=myapp",
+			"postgres://****@host/db?secretsauce=ok&my_token_id=abc&application_name=myapp"},
+
+		// Non-secret key whose name HAPPENS to contain `secret` as a
+		// substring sits next to a genuine `secret=` param.
+		{"substring next to real secret",
+			"postgres://host/db?secretsauce=ok&secret=actual",
+			"postgres://host/db?secretsauce=ok&secret=****"},
+
+		// Mixed: userinfo + multiple params + secret in middle.
+		{"userinfo plus mixed query",
+			"postgres://admin:adminpwd@db.example.com:5432/myapp?sslmode=require&client_secret=osc&application_name=svc",
+			"postgres://****:****@db.example.com:5432/myapp?sslmode=require&client_secret=****&application_name=svc"},
+
+		// JDBC-style with user/password as separate query params:
+		// the current parser does not understand the `jdbc:postgresql://`
+		// double-scheme form so the rule fails closed. Pin the
+		// behaviour here so a future JDBC enhancement surfaces as
+		// a deliberate change to this assertion.
+		{"jdbc double-scheme fails closed",
+			"jdbc:postgresql://host/db?user=admin&password=hunter2&ssl=true",
+			"**************************************************************"},
+
+		// Query parameter values that contain a literal `=` sign.
+		// The first `=` separates key from value; subsequent `=`
+		// signs are part of the value and must not confuse the
+		// matcher.
+		{"value contains equals sign",
+			"postgres://host/db?signature=base64=padded==&sslmode=require",
+			"postgres://host/db?signature=****&sslmode=require"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("connection_string", tc.in))
+		})
+	}
+}
+
 // ---------- database_dsn ----------
 
 func TestApply_DatabaseDSN(t *testing.T) {
