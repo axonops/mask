@@ -24,11 +24,12 @@ type Pair struct {
 }
 
 // Generator produces a deterministic sequence of fixture inputs for
-// one rule. Implementations MUST be pure functions of the rule name
-// (no math/rand without a fixed seed, no time-dependent values, no
-// map iteration without sort) so the output is byte-stable.
+// one rule. Implementations receive a 64-bit seed derived from the
+// rule name and MUST be pure functions of that seed (no math/rand
+// without it, no time-dependent values, no map iteration without
+// sort) so the output is byte-stable across machines and re-runs.
 type Generator interface {
-	Generate() []Pair
+	Generate(seed uint64) []Pair
 }
 
 // generators is the per-rule registry. A missing rule yields an empty
@@ -46,4 +47,26 @@ func register(rule string, g Generator) {
 		panic("corpus generator: duplicate registration for " + rule)
 	}
 	generators[rule] = g
+}
+
+// seedFor derives a deterministic 64-bit seed from a rule name via
+// FNV-1a. Two generators registered for distinct rules get distinct
+// seeds without contributors having to pick an unused magic number —
+// a manual collision was a high-severity API ergonomics concern in
+// the earlier seed design (per-generator `seedXxx` constants).
+//
+// The high bit is forced to keep the seed away from the all-zero
+// state PCG handles specially; the value is otherwise stable as long
+// as the rule name itself doesn't change.
+func seedFor(rule string) uint64 {
+	const (
+		offset64 = 14695981039346656037
+		prime64  = 1099511628211
+	)
+	h := uint64(offset64)
+	for i := 0; i < len(rule); i++ {
+		h ^= uint64(rule[i])
+		h *= prime64
+	}
+	return h | (1 << 63)
 }

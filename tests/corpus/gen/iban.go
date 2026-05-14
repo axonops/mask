@@ -17,7 +17,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"strings"
 )
@@ -28,8 +27,8 @@ import (
 // letters and non-alphanumerics fail closed to SameLengthMask.
 type ibanGen struct{}
 
-func (ibanGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedIBAN))
+func (ibanGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	// Sample country prefixes drawn from real ISO 13616 lengths.
 	countries := []struct {
@@ -146,9 +145,6 @@ func groupBy(s string, n int, sep string) string {
 	return b.String()
 }
 
-const seedIBAN uint64 = 0xDEC0DE04
-
 func init() {
 	register("iban", ibanGen{})
-	_ = fmt.Sprintf // keep fmt available for future variants
 }

@@ -61,6 +61,16 @@ Format rules (enforced by `TestCorpusFormatStrict`):
 
 ### Hand-curate canonical inputs
 
+For a brand-new rule that has no fixture file yet, scaffold the file from `RuleInfo.Description`'s `Example:` clause:
+
+```sh
+go run -tags corpushelper ./tests/corpus/_tools/bootstrap
+```
+
+The tool writes a minimal canonical file for every registered rule that doesn't already have one. Existing files are left untouched. Output is shipped under tests/corpus/<rule>.txt with the canonical banner and a single fixture pinning the documented example.
+
+To grow an existing canonical section, pipe inputs through the `expect` helper to fill in the expected column from `mask.Apply`:
+
 ```sh
 printf 'one input per line\nfoo@bar.com\n07700 900123\n' \
   | go run -tags corpushelper ./tests/corpus/_tools/expect <rule>
@@ -70,32 +80,38 @@ The helper streams `input<TAB>mask.Apply(rule, input)` to stdout. Append the rel
 
 ### Add or extend a generator
 
+Create `tests/corpus/gen/<rule>.go`, build tag `corpusgen`, package `main`. The Generator interface takes a 64-bit seed (derived deterministically from the rule name inside `register`, so contributors don't pick magic numbers):
+
 ```go
 //go:build corpusgen
 
 package main
 
+import "math/rand/v2"
+
 type myRuleGen struct{}
 
-func (myRuleGen) Generate() []Pair {
-    r := rand.New(rand.NewPCG(0xC0FFEE, seedMyRule))
+func (myRuleGen) Generate(seed uint64) []Pair {
+    r := rand.New(rand.NewPCG(0xC0FFEE, seed))
     var inputs []string
     // …deterministic input strategy…
     return uniqueLinesToPairs(inputs)
 }
 
-const seedMyRule uint64 = 0xDEC0DEXX  // unique constant
-
 func init() { register("my_rule", myRuleGen{}) }
 ```
 
-Generators MUST be deterministic — fixed PCG seed, sorted map iteration, no `time.Now()`. The `corpus-lock-fresh` CI job will fail if a re-run produces a diff against the committed `.corpus.lock`.
+Shared helpers in this package: `randomDigits(r, n)`, `randomHex(r, n)`, `randomUpper(r, n)`, `randomHextet(r, n)`, `randomB64URL(r, n)`, `randomBICChars(r, n)`, `groupBy(s, n, sep)`, `uniqueLines(in)`, `uniqueLinesToPairs(in)`. Look at `tests/corpus/gen/iban.go` and `tests/corpus/gen/phone_number.go` as reference implementations.
+
+Generators MUST be deterministic — fixed PCG seed (via the `seed` parameter), sorted map iteration, no `time.Now()`. The `corpus-lock-fresh` CI job will fail if a re-run produces a diff against the committed `.corpus.lock`.
 
 ## Latent-bug discovery
 
-If a generated fixture line looks suspicious (the rule under-redacts, leaks a separator, or fails closed on a valid input), DO NOT fix the generated line by hand. Instead:
+If a generated fixture line looks suspicious (the rule under-redacts, leaks a separator, or fails closed on a valid input), the default is to fix the rule in the same PR. The corpus is meant to surface bugs, not codify them.
 
-1. Add a `# BUG?` comment above a representative input in the **canonical** section.
+If the fix is genuinely out of scope for the current PR (large refactor, separate concern, or you don't yet know what the correct behaviour is):
+
+1. Add a `# BUG?` comment above a representative fixture line in the **canonical** section.
 2. Open a follow-up issue describing the discrepancy.
 3. Fix the rule in a separate PR — the corpus will reflect the fix at the next `make corpus-regen`.
 

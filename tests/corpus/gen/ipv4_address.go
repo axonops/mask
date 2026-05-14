@@ -24,8 +24,8 @@ import (
 // ipv4AddressGen — four 0-255 octets separated by dots.
 type ipv4AddressGen struct{}
 
-func (ipv4AddressGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedIPv4Address))
+func (ipv4AddressGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 
 	for i := 0; i < 120; i++ {
@@ -78,7 +78,5 @@ func (ipv4AddressGen) Generate() []Pair {
 	}
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedIPv4Address uint64 = 0xDEC0DE15
 
 func init() { register("ipv4_address", ipv4AddressGen{}) }

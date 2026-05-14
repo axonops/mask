@@ -101,15 +101,15 @@ func panInputs(seed uint64) []Pair {
 
 type paymentCardPANGen struct{}
 
-func (paymentCardPANGen) Generate() []Pair { return panInputs(seedPaymentCardPAN) }
+func (paymentCardPANGen) Generate(seed uint64) []Pair { return panInputs(seed) }
 
 type paymentCardPANFirst6Gen struct{}
 
-func (paymentCardPANFirst6Gen) Generate() []Pair { return panInputs(seedPaymentCardPANFirst6) }
+func (paymentCardPANFirst6Gen) Generate(seed uint64) []Pair { return panInputs(seed) }
 
 type paymentCardPANLast4Gen struct{}
 
-func (paymentCardPANLast4Gen) Generate() []Pair { return panInputs(seedPaymentCardPANLast4) }
+func (paymentCardPANLast4Gen) Generate(seed uint64) []Pair { return panInputs(seed) }
 
 // uniqueLinesToPairs dedups and wraps a slice of inputs as Pair values.
 func uniqueLinesToPairs(in []string) []Pair {
@@ -120,12 +120,6 @@ func uniqueLinesToPairs(in []string) []Pair {
 	}
 	return out
 }
-
-const (
-	seedPaymentCardPAN       uint64 = 0xDEC0DE05
-	seedPaymentCardPANFirst6 uint64 = 0xDEC0DE06
-	seedPaymentCardPANLast4  uint64 = 0xDEC0DE07
-)
 
 func init() {
 	register("payment_card_pan", paymentCardPANGen{})

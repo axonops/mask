@@ -27,8 +27,8 @@ import (
 // are preserved.
 type personNameGen struct{}
 
-func (personNameGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPersonName))
+func (personNameGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	givens := []string{
 		"Alice", "Bob", "Carol", "Dan", "Erin", "Fadi", "Greta",
@@ -112,8 +112,6 @@ func (personNameGen) Generate() []Pair {
 
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedPersonName uint64 = 0xDEC0DE0C
 
 func init() {
 	register("person_name", personNameGen{})

@@ -103,9 +103,18 @@ func buildFile(name string, info mask.RuleInfo) string {
 		if input == "" || input == "(empty)" {
 			continue
 		}
-		// Confirm mask.Apply is well-defined for the input.
-		expected := mask.Apply(name, input)
-		fmt.Fprintf(&b, "%s\t%s\n", input, expected)
+		docExpected := strings.TrimSpace(m[2])
+		actual := mask.Apply(name, input)
+		// Warn loudly when the documented example disagrees with what
+		// mask.Apply currently produces. The corpus locks current
+		// behaviour, so a silent override here would hide a real
+		// drift between the rule and its godoc.
+		if docExpected != "" && docExpected != actual {
+			fmt.Fprintf(os.Stderr,
+				"%s: documented example %q → %q disagrees with mask.Apply output %q — locking the latter\n",
+				name, input, docExpected, actual)
+		}
+		fmt.Fprintf(&b, "%s\t%s\n", input, actual)
 		added++
 	}
 	if added == 0 {

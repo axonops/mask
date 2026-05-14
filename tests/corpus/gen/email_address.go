@@ -29,8 +29,8 @@ import (
 // etc.) fail closed to same-length mask.
 type emailAddressGen struct{}
 
-func (emailAddressGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedEmailAddress))
+func (emailAddressGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	localChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-+"
 	domains := []string{
@@ -129,8 +129,6 @@ func (emailAddressGen) Generate() []Pair {
 	}
 	return out
 }
-
-const seedEmailAddress uint64 = 0xDEC0DE03
 
 func init() {
 	register("email_address", emailAddressGen{})

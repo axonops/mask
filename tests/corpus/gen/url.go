@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"math/rand/v2"
-	"strings"
 )
 
 // urlGen exercises the URL masker: preserves scheme, host, and port
@@ -28,8 +27,8 @@ import (
 // defensively.
 type urlGen struct{}
 
-func (urlGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedURL))
+func (urlGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	schemes := []string{"https", "http", "ws", "wss", "ftp", "ftps"}
 	hosts := []string{
@@ -146,11 +145,6 @@ func (urlGen) Generate() []Pair {
 
 	return uniqueLinesToPairs(inputs)
 }
-
-// silence unused-import warning if the file ever drops fmt usage.
-var _ = strings.Builder{}
-
-const seedURL uint64 = 0xDEC0DE0A
 
 func init() {
 	register("url", urlGen{})

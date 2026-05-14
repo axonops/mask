@@ -291,6 +291,38 @@ func TestZeroValueMasker_ParallelFirstApply(t *testing.T) {
 	}
 }
 
+// TestZeroValueMasker_ParallelFirstHasRule is the symmetric regression
+// for [Masker.loadRules] (and therefore [Masker.HasRule], [Masker.Rules],
+// [Masker.Describe], [Masker.DescribeAll]). Same race as the Apply path:
+// a parallel first reader between initOnce and builtinsOnce could see
+// an empty registry. loadRules now calls ensureInit unconditionally.
+func TestZeroValueMasker_ParallelFirstHasRule(t *testing.T) {
+	t.Parallel()
+	const (
+		runs    = 20
+		workers = 100
+	)
+	for run := 0; run < runs; run++ {
+		var m mask.Masker // zero-value
+		gate := make(chan struct{})
+		results := make([]bool, workers)
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for i := 0; i < workers; i++ {
+			go func() {
+				defer wg.Done()
+				<-gate
+				results[i] = m.HasRule("email_address")
+			}()
+		}
+		close(gate)
+		wg.Wait()
+		for i, ok := range results {
+			require.Truef(t, ok, "run %d worker %d: HasRule returned false for a registered rule", run, i)
+		}
+	}
+}
+
 // TestConcurrent_MultipleInstances_AreIsolated exercises two Maskers in
 // parallel to guard against accidentally shared state through the atomic
 // pointer indirection.

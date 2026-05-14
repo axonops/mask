@@ -28,8 +28,8 @@ import (
 // present.
 type streetAddressGen struct{}
 
-func (streetAddressGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedStreetAddress))
+func (streetAddressGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	streetTypes := []string{"Street", "Road", "Avenue", "Lane", "Way",
 		"Drive", "Court", "Boulevard", "Place", "Square", "Terrace",
@@ -125,8 +125,6 @@ func (streetAddressGen) Generate() []Pair {
 
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedStreetAddress uint64 = 0xDEC0DE0D
 
 func init() {
 	register("street_address", streetAddressGen{})

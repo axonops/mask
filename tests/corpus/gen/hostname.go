@@ -25,8 +25,8 @@ import (
 // hostnameGen — domain names of varying depth.
 type hostnameGen struct{}
 
-func (hostnameGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedHostname))
+func (hostnameGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	tlds := []string{"com", "org", "net", "io", "co.uk", "edu", "gov",
 		"local", "internal", "dev", "test", "info"}
 	labels := []string{"example", "api", "web", "auth", "db", "cache",
@@ -91,7 +91,5 @@ func (hostnameGen) Generate() []Pair {
 
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedHostname uint64 = 0xDEC0DE16
 
 func init() { register("hostname", hostnameGen{}) }

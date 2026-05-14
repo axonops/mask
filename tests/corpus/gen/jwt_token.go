@@ -27,8 +27,8 @@ import (
 // final dot per the spec example.
 type jwtTokenGen struct{}
 
-func (jwtTokenGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedJWTToken))
+func (jwtTokenGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	var inputs []string
 
@@ -110,8 +110,6 @@ func randomB64URL(r *rand.Rand, n int) string {
 
 // silence unused-import warning if strings drops from active use.
 var _ = strings.Repeat
-
-const seedJWTToken uint64 = 0xDEC0DE0E
 
 func init() {
 	register("jwt_token", jwtTokenGen{})

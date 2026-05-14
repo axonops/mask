@@ -28,8 +28,8 @@ import (
 // naturally with the general phone distribution.
 type mobilePhoneNumberGen struct{}
 
-func (mobilePhoneNumberGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedMobilePhoneNumber))
+func (mobilePhoneNumberGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	ccs := []string{"1", "44", "33", "49", "61", "353", "971", "39", "34"}
 	seps := []string{" ", "-", ".", "  ", " - "}
@@ -98,8 +98,6 @@ func (mobilePhoneNumberGen) Generate() []Pair {
 
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedMobilePhoneNumber uint64 = 0xDEC0DE11
 
 func init() {
 	register("mobile_phone_number", mobilePhoneNumberGen{})

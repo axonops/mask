@@ -1,0 +1,10 @@
+# Disable trailing-whitespace trimming for corpus fixtures. Many editors
+# strip trailing whitespace on save by default, which would silently
+# transform a `<input>\t<empty-expected>\n` line into `<input>\n` and
+# break the harness (which insists on exactly one tab per fixture).
+# Generators also emit such lines for rules whose mask.Apply returns
+# the empty string for some inputs (e.g. nullify).
+[*.txt]
+trim_trailing_whitespace = false
+end_of_line = lf
+insert_final_newline = true

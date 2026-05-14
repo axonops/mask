@@ -29,7 +29,6 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -96,7 +95,7 @@ func regenerateFile(path, rule string) error {
 		if !mask.HasRule(rule) {
 			return fmt.Errorf("generator registered for %q but rule is not", rule)
 		}
-		pairs := g.Generate()
+		pairs := g.Generate(seedFor(rule))
 		out.WriteString("#\n")
 		out.WriteString(fmt.Sprintf("# %d generated fixtures for rule %q.\n", len(pairs), rule))
 		out.WriteString("# Inputs come from a deterministic per-rule strategy; expected\n")
@@ -183,10 +182,3 @@ func uniqueLines(in []string) []string {
 	}
 	return out
 }
-
-// silence unused-helper warnings when no generators reference these
-// helpers yet — keeps `go vet` quiet during scaffolding.
-var (
-	_ = uniqueLines
-	_ = bufio.NewScanner
-)

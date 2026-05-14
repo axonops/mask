@@ -28,8 +28,8 @@ import (
 
 type sameLengthMaskGen struct{}
 
-func (sameLengthMaskGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedSameLengthMask))
+func (sameLengthMaskGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		inputs = append(inputs, randomDigits(r, 1+r.IntN(40)))
@@ -52,8 +52,8 @@ func (sameLengthMaskGen) Generate() []Pair {
 
 type nullifyGen struct{}
 
-func (nullifyGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedNullify))
+func (nullifyGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		inputs = append(inputs, randomHex(r, 1+r.IntN(40)))
@@ -66,8 +66,8 @@ func (nullifyGen) Generate() []Pair {
 
 type deterministicHashGen struct{}
 
-func (deterministicHashGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedDeterministicHash))
+func (deterministicHashGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		inputs = append(inputs, fmt.Sprintf("user%d@example.com", r.IntN(1_000_000)))
@@ -86,8 +86,8 @@ func (deterministicHashGen) Generate() []Pair {
 
 type diagnosisCodeGen struct{}
 
-func (diagnosisCodeGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedDiagnosisCode))
+func (diagnosisCodeGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	// ICD-10 shapes: letter + 2 digits + optional .nn
 	var inputs []string
 	for i := 0; i < 80; i++ {
@@ -109,8 +109,8 @@ func (diagnosisCodeGen) Generate() []Pair {
 
 type prescriptionTextGen struct{}
 
-func (prescriptionTextGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPrescriptionText))
+func (prescriptionTextGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	drugs := []string{"amoxicillin", "ibuprofen", "metformin", "lisinopril",
 		"sertraline", "amlodipine", "omeprazole", "atorvastatin"}
@@ -129,8 +129,8 @@ func (prescriptionTextGen) Generate() []Pair {
 
 type privateKeyPEMGen struct{}
 
-func (privateKeyPEMGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPrivateKeyPEM))
+func (privateKeyPEMGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	headers := []string{"PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY",
 		"OPENSSH PRIVATE KEY", "PGP PRIVATE KEY BLOCK"}
@@ -152,8 +152,8 @@ func (privateKeyPEMGen) Generate() []Pair {
 
 type paymentCardCVVGen struct{}
 
-func (paymentCardCVVGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPaymentCardCVV))
+func (paymentCardCVVGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// 3-digit CVV.
 	for i := 0; i < 80; i++ {
@@ -179,8 +179,8 @@ func (paymentCardCVVGen) Generate() []Pair {
 
 type paymentCardPINGen struct{}
 
-func (paymentCardPINGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPaymentCardPIN))
+func (paymentCardPINGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		inputs = append(inputs, fmt.Sprintf("%04d", r.IntN(10000)))
@@ -198,8 +198,8 @@ func (paymentCardPINGen) Generate() []Pair {
 
 type auMedicareGen struct{}
 
-func (auMedicareGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedAUMedicare))
+func (auMedicareGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		inputs = append(inputs, fmt.Sprintf("%04d %05d %d",
@@ -216,8 +216,8 @@ func (auMedicareGen) Generate() []Pair {
 
 type sgNRICFINGen struct{}
 
-func (sgNRICFINGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedSGNRICFIN))
+func (sgNRICFINGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	prefixes := []string{"S", "T", "F", "G", "M"}
 	for i := 0; i < 80; i++ {
@@ -234,8 +234,8 @@ func (sgNRICFINGen) Generate() []Pair {
 
 type mxCURPGen struct{}
 
-func (mxCURPGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedMXCURP))
+func (mxCURPGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		// 4 letters + 6 digits + 6 letters + 2 alphanumeric = 18 chars.
@@ -253,8 +253,8 @@ func (mxCURPGen) Generate() []Pair {
 
 type mxRFCGen struct{}
 
-func (mxRFCGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedMXRFC))
+func (mxRFCGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// 4-letter natural-person form.
 	for i := 0; i < 50; i++ {
@@ -278,8 +278,8 @@ func (mxRFCGen) Generate() []Pair {
 
 type cnResidentIDGen struct{}
 
-func (cnResidentIDGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedCNResidentID))
+func (cnResidentIDGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		// 17 digits + check digit (digit or X).
@@ -295,8 +295,8 @@ func (cnResidentIDGen) Generate() []Pair {
 
 type zaNationalIDGen struct{}
 
-func (zaNationalIDGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedZANationalID))
+func (zaNationalIDGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 100; i++ {
 		inputs = append(inputs, randomDigits(r, 13))
@@ -309,8 +309,8 @@ func (zaNationalIDGen) Generate() []Pair {
 
 type esDNINIFNIEGen struct{}
 
-func (esDNINIFNIEGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedESDNINIFNIE))
+func (esDNINIFNIEGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// DNI: 8 digits + letter.
 	for i := 0; i < 60; i++ {
@@ -333,8 +333,8 @@ func (esDNINIFNIEGen) Generate() []Pair {
 
 type driverLicenseGen struct{}
 
-func (driverLicenseGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedDriverLicense))
+func (driverLicenseGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// Mixed alphanumeric — varies wildly by jurisdiction.
 	for i := 0; i < 80; i++ {
@@ -358,8 +358,8 @@ func (driverLicenseGen) Generate() []Pair {
 
 type genericNationalIDGen struct{}
 
-func (genericNationalIDGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedGenericNationalID))
+func (genericNationalIDGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// Mixed: similar to driver_license but no leading-prefix bias.
 	for i := 0; i < 80; i++ {
@@ -376,8 +376,8 @@ func (genericNationalIDGen) Generate() []Pair {
 
 type taxIdentifierGen struct{}
 
-func (taxIdentifierGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedTaxIdentifier))
+func (taxIdentifierGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// US-EIN: NN-NNNNNNN.
 	for i := 0; i < 40; i++ {
@@ -399,8 +399,8 @@ func (taxIdentifierGen) Generate() []Pair {
 
 type medicalRecordNumberGen struct{}
 
-func (medicalRecordNumberGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedMedicalRecordNumber))
+func (medicalRecordNumberGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		prefix := []string{"MRN-", "MR", "PT", "NHS"}[r.IntN(4)]
@@ -414,8 +414,8 @@ func (medicalRecordNumberGen) Generate() []Pair {
 
 type healthPlanBeneficiaryGen struct{}
 
-func (healthPlanBeneficiaryGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedHealthPlanBeneficiary))
+func (healthPlanBeneficiaryGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		prefix := []string{"HPB-", "BEN-", "MEM"}[r.IntN(3)]
@@ -429,8 +429,8 @@ func (healthPlanBeneficiaryGen) Generate() []Pair {
 
 type medicalDeviceIdentifierGen struct{}
 
-func (medicalDeviceIdentifierGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedMedicalDeviceIdentifier))
+func (medicalDeviceIdentifierGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		prefix := []string{"DEV-SN-", "DEV-", "SN-", "ID-"}[r.IntN(4)]
@@ -445,8 +445,8 @@ func (medicalDeviceIdentifierGen) Generate() []Pair {
 // geoLatGen, geoLonGen, geoCoordGen — decimal precision reduction.
 type geoLatitudeGen struct{}
 
-func (geoLatitudeGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedGeoLatitude))
+func (geoLatitudeGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		lat := -90.0 + r.Float64()*180.0
@@ -467,8 +467,8 @@ func (geoLatitudeGen) Generate() []Pair {
 
 type geoLongitudeGen struct{}
 
-func (geoLongitudeGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedGeoLongitude))
+func (geoLongitudeGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		lon := -180.0 + r.Float64()*360.0
@@ -486,8 +486,8 @@ func (geoLongitudeGen) Generate() []Pair {
 
 type geoCoordinatesGen struct{}
 
-func (geoCoordinatesGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedGeoCoordinates))
+func (geoCoordinatesGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		lat := -90.0 + r.Float64()*180.0
@@ -513,33 +513,6 @@ func (geoCoordinatesGen) Generate() []Pair {
 	}
 	return uniqueLinesToPairs(inputs)
 }
-
-const (
-	seedSameLengthMask          uint64 = 0xDEC0DE70
-	seedNullify                 uint64 = 0xDEC0DE71
-	seedDeterministicHash       uint64 = 0xDEC0DE72
-	seedDiagnosisCode           uint64 = 0xDEC0DE73
-	seedPrescriptionText        uint64 = 0xDEC0DE74
-	seedPrivateKeyPEM           uint64 = 0xDEC0DE75
-	seedPaymentCardCVV          uint64 = 0xDEC0DE76
-	seedPaymentCardPIN          uint64 = 0xDEC0DE77
-	seedAUMedicare              uint64 = 0xDEC0DE80
-	seedSGNRICFIN               uint64 = 0xDEC0DE81
-	seedMXCURP                  uint64 = 0xDEC0DE82
-	seedMXRFC                   uint64 = 0xDEC0DE83
-	seedCNResidentID            uint64 = 0xDEC0DE84
-	seedZANationalID            uint64 = 0xDEC0DE85
-	seedESDNINIFNIE             uint64 = 0xDEC0DE86
-	seedDriverLicense           uint64 = 0xDEC0DE90
-	seedGenericNationalID       uint64 = 0xDEC0DE91
-	seedTaxIdentifier           uint64 = 0xDEC0DE92
-	seedMedicalRecordNumber     uint64 = 0xDEC0DEA0
-	seedHealthPlanBeneficiary   uint64 = 0xDEC0DEA1
-	seedMedicalDeviceIdentifier uint64 = 0xDEC0DEA2
-	seedGeoLatitude             uint64 = 0xDEC0DEB0
-	seedGeoLongitude            uint64 = 0xDEC0DEB1
-	seedGeoCoordinates          uint64 = 0xDEC0DEB2
-)
 
 func init() {
 	register("same_length_mask", sameLengthMaskGen{})

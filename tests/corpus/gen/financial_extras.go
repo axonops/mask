@@ -26,8 +26,8 @@ import (
 // and spaces.
 type bankAccountNumberGen struct{}
 
-func (bankAccountNumberGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedBankAccount))
+func (bankAccountNumberGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		// 8-12 digit accounts.
@@ -54,8 +54,8 @@ func (bankAccountNumberGen) Generate() []Pair {
 // ukSortCodeGen — 6 digits, NN-NN-NN.
 type ukSortCodeGen struct{}
 
-func (ukSortCodeGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedUKSortCode))
+func (ukSortCodeGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		inputs = append(inputs, fmt.Sprintf("%02d-%02d-%02d",
@@ -77,8 +77,8 @@ func (ukSortCodeGen) Generate() []Pair {
 // usABARoutingNumberGen — 9 digits, no separators.
 type usABARoutingNumberGen struct{}
 
-func (usABARoutingNumberGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedUSABA))
+func (usABARoutingNumberGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 100; i++ {
 		inputs = append(inputs, randomDigits(r, 9))
@@ -97,8 +97,8 @@ func (usABARoutingNumberGen) Generate() []Pair {
 // swiftBICGen — 8 or 11 upper-case alphanumeric characters.
 type swiftBICGen struct{}
 
-func (swiftBICGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedSWIFTBIC))
+func (swiftBICGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// 8-character form.
 	for i := 0; i < 60; i++ {
@@ -143,8 +143,8 @@ func randomBICChars(r *rand.Rand, n int) string {
 // full_redact but for currency values.
 type monetaryAmountGen struct{}
 
-func (monetaryAmountGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedMonetaryAmount))
+func (monetaryAmountGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	currencies := []string{"$", "£", "€", "¥", "₹", "₩", "USD", "GBP", "EUR"}
 	for i := 0; i < 80; i++ {
@@ -167,14 +167,6 @@ func (monetaryAmountGen) Generate() []Pair {
 	inputs = append(inputs, "$0.00", "$0", "free", "-$1,234.56")
 	return uniqueLinesToPairs(inputs)
 }
-
-const (
-	seedBankAccount    uint64 = 0xDEC0DE30
-	seedUKSortCode     uint64 = 0xDEC0DE31
-	seedUSABA          uint64 = 0xDEC0DE32
-	seedSWIFTBIC       uint64 = 0xDEC0DE33
-	seedMonetaryAmount uint64 = 0xDEC0DE34
-)
 
 func init() {
 	register("bank_account_number", bankAccountNumberGen{})

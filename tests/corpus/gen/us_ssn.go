@@ -25,8 +25,8 @@ import (
 // `AAA-GG-SSSS` and `AAAGGSSSS`.
 type usSSNGen struct{}
 
-func (usSSNGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedUSSSN))
+func (usSSNGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 
 	// Canonical hyphenated.
@@ -64,7 +64,5 @@ func (usSSNGen) Generate() []Pair {
 	}
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedUSSSN uint64 = 0xDEC0DE12
 
 func init() { register("us_ssn", usSSNGen{}) }

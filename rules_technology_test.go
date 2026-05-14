@@ -376,6 +376,38 @@ func TestApply_ConnectionString(t *testing.T) {
 	}
 }
 
+// TestApply_ConnectionString_OAuthAndCloudSecrets pins redaction
+// of OAuth, cloud-provider, and Azure-style secret query parameters
+// that the original secretQueryKeys list at rules_technology.go:79
+// did not cover. Each case sits on a well-formed authority URL so
+// the rule reaches the query-parsing path rather than falling back
+// to same-length mask.
+func TestApply_ConnectionString_OAuthAndCloudSecrets(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	cases := []struct{ name, in, want string }{
+		{"oauth client_secret", "postgres://user@host/db?client_secret=abc123", "postgres://****@host/db?client_secret=****"},
+		{"oauth refresh_token", "postgres://user@host/db?refresh_token=rt-xyz", "postgres://****@host/db?refresh_token=****"},
+		{"oauth id_token", "postgres://user@host/db?id_token=eyJabc", "postgres://****@host/db?id_token=****"},
+		{"aws secret access key", "postgres://user@host/db?aws_secret_access_key=AKIAEX", "postgres://****@host/db?aws_secret_access_key=****"},
+		{"private_key", "postgres://user@host/db?private_key=PEMbody", "postgres://****@host/db?private_key=****"},
+		{"azure connectionstring", "postgres://user@host/db?connectionstring=Server%3Db1", "postgres://****@host/db?connectionstring=****"},
+		{"signature", "postgres://user@host/db?signature=base64data", "postgres://****@host/db?signature=****"},
+		{"sig short form", "postgres://user@host/db?sig=abcdef", "postgres://****@host/db?sig=****"},
+		{"sas token", "postgres://user@host/db?sas=svxyz", "postgres://****@host/db?sas=****"},
+		{"bearer in query", "postgres://user@host/db?bearer=ya29.A0Ab", "postgres://****@host/db?bearer=****"},
+		{"upper case key", "postgres://user@host/db?CLIENT_SECRET=abc", "postgres://****@host/db?CLIENT_SECRET=****"},
+		{"percent-encoded key", "postgres://user@host/db?client%5Fsecret=abc", "postgres://****@host/db?client%5Fsecret=****"},
+		{"mixed with non-secret", "postgres://host/db?sslmode=verify-full&client_secret=abc", "postgres://host/db?sslmode=verify-full&client_secret=****"},
+		{"existing password key untouched", "postgres://host/db?password=plain", "postgres://host/db?password=****"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("connection_string", tc.in))
+		})
+	}
+}
+
 // ---------- database_dsn ----------
 
 func TestApply_DatabaseDSN(t *testing.T) {

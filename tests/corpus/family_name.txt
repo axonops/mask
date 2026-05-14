@@ -14,53 +14,53 @@ Smith	S****
 # Inputs come from a deterministic per-rule strategy; expected
 # outputs are mask.Apply at generation time.
 #
-Andersen	A*******
-O'Brien	O******
-D'Angelo	D*******
-Saint-Pierre	S***********
-MacDonald	M********
 Park	P***
-Nakamura	N*******
-Smith-Jones	S**********
 van der Berg	v***********
-Garcia	G*****
+Jones	J****
 Ng	N*
-Lee	L**
+MacDonald	M********
+de la Cruz	d*********
+Khan	K***
+Saint-Pierre	S***********
+Smith	S****
 Müller	M*****
 Tanaka	T*****
-Patel	P****
-Yamada	Y*****
-Rodríguez	R********
-Wong	W***
-Le Roux	L******
 Schmidt	S******
-Smith	S****
-Jones	J****
-de la Cruz	d*********
-SMITH	S****
-YAMADA	Y*****
-LEE	L**
-O'BRIEN	O******
-VAN DER BERG	V***********
-D'ANGELO	D*******
+Lee	L**
+Nakamura	N*******
+Wong	W***
+D'Angelo	D*******
+Garcia	G*****
+Rodríguez	R********
+Smith-Jones	S**********
+Andersen	A*******
+Yamada	Y*****
+O'Brien	O******
+Patel	P****
+MÜLLER	M*****
+JONES	J****
+KHAN	K***
 GARCIA	G*****
-ANDERSEN	A*******
-TANAKA	T*****
-SAINT-PIERRE	S***********
+RODRÍGUEZ	R********
+LE ROUX	L******
 DE LA CRUZ	D*********
+LEE	L**
+SMITH	S****
+MACDONALD	M********
+TANAKA	T*****
+SCHMIDT	S******
+WONG	W***
+VAN DER BERG	V***********
 SMITH-JONES	S**********
-NAKAMURA	N*******
-PARK	P***
-wong	w***
-khan	k***
-garcia	g*****
-tanaka	t*****
-patel	p****
-saint-pierre	s***********
-van der berg	v***********
-lee	l**
-andersen	a*******
-müller	m*****
-schmidt	s******
-jones	j****
+nakamura	n*******
+macdonald	m********
+le roux	l******
+smith-jones	s**********
+o'brien	o******
 park	p***
+jones	j****
+tanaka	t*****
+d'angelo	d*******
+patel	p****
+müller	m*****
+yamada	y*****

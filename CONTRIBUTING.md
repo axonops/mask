@@ -217,7 +217,7 @@ Before opening a PR, run the full quality gate (`make check`). Internally this p
 - BDD tests live under `tests/bdd/`. Feature files in `tests/bdd/features/`, step definitions in `tests/bdd/steps/`.
 - Every masking rule and every primitive has at least one `Scenario Outline` with `Examples` covering canonical, formatted, malformed, empty, and (where applicable) unicode inputs.
 - Benchmarks live in `*_bench_test.go` files and call `b.ReportAllocs()`.
-- A bulk fixture corpus lives under `tests/corpus/` — see [Corpus harness](#corpus-harness) below.
+- A bulk fixture corpus lives under `tests/corpus/` — see [Corpus harness](#corpus-harness) below. Adding a new masking rule requires creating a fixture file there (`tests/corpus/<rule>.txt`); `TestCorpusCompleteness` will fail in CI if you forget. The `bootstrap` helper writes a minimal scaffold from `RuleInfo.Description`.
 
 ### Corpus harness
 
@@ -246,18 +246,18 @@ make corpus-regen   # rewrites every <rule>.txt's generated section + .corpus.lo
 
 Every fixture line is `input<TAB>expected`. The harness reads the line, calls `mask.Apply(rule, input)`, and asserts the result equals `expected`. Expected outputs come from `mask.Apply` at generation time — the corpus locks current behaviour. A rule change that affects a fixture line surfaces as a CI failure on `corpus-lock-fresh`; rerun `make corpus-regen` and commit the diff.
 
-**Adding fixtures.** Add inputs to the canonical section of an existing file (use `tests/corpus/_tools/expect` to have `mask.Apply` fill in the expected column). To grow the generated section, add or extend the per-rule generator at `tests/corpus/gen/<rule>.go` with build tag `corpusgen`.
+**Adding fixtures.** For a new rule, run `go run -tags corpushelper ./tests/corpus/_tools/bootstrap` once — it scaffolds a minimal canonical file from `RuleInfo.Description` for every rule that doesn't yet have one. To extend the canonical section of an existing rule, pipe inputs through `expect`:
 
-**Surfacing latent rule bugs.** If a fixture forces the generator to emit output that looks wrong, mark the affected fixture line with a `# BUG?` comment in the canonical section and open a follow-up issue. Do not edit the generated section by hand — the `corpus-lock-fresh` CI job will fail.
+```sh
+printf 'foo@bar.com\nbaz@example.org\n' \
+  | go run -tags corpushelper ./tests/corpus/_tools/expect email_address
+```
 
-**File-format rules** (enforced by `TestCorpusFormatStrict`):
+The helper streams `input<TAB>mask.Apply(rule, input)` for each input line — append the output to the canonical section. To grow the generated section, add or extend the per-rule generator at `tests/corpus/gen/<rule>.go` with build tag `corpusgen`. See `tests/corpus/README.md` for the generator skeleton.
 
-- UTF-8, LF line endings, no BOM.
-- Each fixture line contains exactly one TAB separator.
-- Comments start with `#`. Blank lines are ignored.
-- Optional pragma `# corpus: escaped` near the top enables `\\ \t \n \r \xNN \uXXXX` decoding for the rest of the file. Use it sparingly — the byte-literal common case is unambiguous.
+**Surfacing latent rule bugs.** Default: fix the rule in the same PR. The corpus is designed to surface bugs, not lock them in. If the fix is genuinely out of scope, mark the affected fixture line with a `# BUG?` comment in the canonical section and open a follow-up issue. Do not edit the generated section by hand — the `corpus-lock-fresh` CI job will fail.
 
-See `CLAUDE.md` (developer-local, not checked into the repo) for the authoritative project-specific testing requirements.
+**File-format rules** are documented in [tests/corpus/README.md](tests/corpus/README.md). Highlights: UTF-8, LF endings, one TAB per fixture line, `#` for comments, optional `# corpus: escaped` pragma for files with control-character inputs.
 
 ### Performance baseline
 

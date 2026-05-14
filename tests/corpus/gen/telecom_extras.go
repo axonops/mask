@@ -24,8 +24,8 @@ import (
 // imeiGen — 15 digits, no separators.
 type imeiGen struct{}
 
-func (imeiGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedIMEI))
+func (imeiGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 100; i++ {
 		inputs = append(inputs, randomDigits(r, 15))
@@ -55,8 +55,8 @@ func (imeiGen) Generate() []Pair {
 // imsiGen — 14 or 15 digits, MCC+MNC+MSIN.
 type imsiGen struct{}
 
-func (imsiGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedIMSI))
+func (imsiGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		inputs = append(inputs, randomDigits(r, 15))
@@ -76,8 +76,8 @@ func (imsiGen) Generate() []Pair {
 // optional + prefix.
 type msisdnGen struct{}
 
-func (msisdnGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedMSISDN))
+func (msisdnGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 80; i++ {
 		inputs = append(inputs, "+"+randomDigits(r, 10+r.IntN(5)))
@@ -100,12 +100,6 @@ func (msisdnGen) Generate() []Pair {
 	}
 	return uniqueLinesToPairs(inputs)
 }
-
-const (
-	seedIMEI   uint64 = 0xDEC0DE40
-	seedIMSI   uint64 = 0xDEC0DE41
-	seedMSISDN uint64 = 0xDEC0DE42
-)
 
 func init() {
 	register("imei", imeiGen{})

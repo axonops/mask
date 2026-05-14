@@ -74,18 +74,46 @@ const apiKeyKeepEach = 4
 
 // secretQueryKeys lists the connection_string query parameter names
 // whose VALUES we redact. Keys match case-insensitively against the
-// lowercase form. Keep narrow — over-matching risks masking
-// structural params consumers rely on.
+// lowercase, percent-decoded form (see [isSecretKey]). Keep narrow —
+// over-matching risks masking structural params consumers rely on.
+//
+// The list deliberately includes header-style names that are also
+// commonly observed as query parameters in OAuth, SAML, and signed-URL
+// flows (`bearer`, `authorization`). Header names that are NOT
+// observed as query params in the wild (e.g. `cookie`) stay out.
 var secretQueryKeys = map[string]struct{}{
-	"password":     {},
-	"passwd":       {},
-	"pwd":          {},
-	"apikey":       {},
-	"api_key":      {},
+	// Password family.
+	"password": {},
+	"passwd":   {},
+	"pwd":      {},
+	// API-key family.
+	"apikey":  {},
+	"api_key": {},
+	// Generic token / secret.
 	"token":        {},
 	"secret":       {},
 	"auth_token":   {},
 	"access_token": {},
+	// OAuth 2.0 / OIDC.
+	"client_secret":      {},
+	"client_credentials": {},
+	"refresh_token":      {},
+	"id_token":           {},
+	// Cloud-provider keys observed as query params in signed-URL and
+	// admin-API contexts.
+	"aws_secret_access_key": {},
+	"private_key":           {},
+	"sas":                   {},
+	"sastoken":              {},
+	"signature":             {},
+	"sig":                   {},
+	// Azure-style key=value connection-string blobs sometimes appear
+	// nested inside a parent connection string.
+	"connectionstring": {},
+	// Authorization-bearing values observed as query params (rarely)
+	// in OAuth client-credentials and SAML redirect flows.
+	"authorization": {},
+	"bearer":        {},
 }
 
 // ---------- rune / byte classifiers ----------
@@ -1189,7 +1217,7 @@ func registerTechnologyRules(m *Masker) {
 		func(v string) string { return maskConnectionString(v, m.maskChar()) },
 		RuleInfo{
 			Name: "connection_string", Category: "technology", Jurisdiction: "global",
-			Description: "Preserves scheme, host, port, path and non-secret query parameters; redacts userinfo and the values of known secret query parameters. Example: postgresql://admin:s3cret@db.example.com:5432/myapp → postgresql://****:****@db.example.com:5432/myapp.",
+			Description: "Preserves scheme, host, port, path and non-secret query parameters; redacts userinfo and the values of known secret query parameters (password family, OAuth client/refresh/id-token family, AWS secret access key, Azure connection-string and SAS, signature/sig). Example: postgresql://admin:s3cret@db.example.com:5432/myapp → postgresql://****:****@db.example.com:5432/myapp.",
 		})
 	m.mustRegisterBuiltin("database_dsn",
 		func(v string) string { return maskDatabaseDSN(v, m.maskChar()) },

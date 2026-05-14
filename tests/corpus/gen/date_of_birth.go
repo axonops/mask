@@ -29,8 +29,8 @@ import (
 // that as current behaviour.
 type dateOfBirthGen struct{}
 
-func (dateOfBirthGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedDateOfBirth))
+func (dateOfBirthGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	var inputs []string
 
@@ -114,8 +114,6 @@ func (dateOfBirthGen) Generate() []Pair {
 
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedDateOfBirth uint64 = 0xDEC0DE0B
 
 func init() {
 	register("date_of_birth", dateOfBirthGen{})

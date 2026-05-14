@@ -29,9 +29,9 @@ import (
 // structural separators (spaces, hyphens, dots, parentheses) verbatim.
 type phoneNumberGen struct{}
 
-func (phoneNumberGen) Generate() []Pair {
+func (phoneNumberGen) Generate(seed uint64) []Pair {
 	// Deterministic per-rule seed — same output across machines.
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPhoneNumber))
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	// Country codes covering 1-, 2-, and 3-digit forms.
 	ccs := []string{"1", "44", "33", "49", "61", "234", "255", "353", "420", "971"}
@@ -153,7 +153,6 @@ func randomDigits(r *rand.Rand, n int) string {
 // seedPhoneNumber is a per-generator seed constant. Mixing it with a
 // shared base spreads PCG sequences across generators while keeping
 // each one deterministic across machines and re-runs.
-const seedPhoneNumber uint64 = 0xDEC0DE01
 
 func init() {
 	register("phone_number", phoneNumberGen{})

@@ -24,8 +24,8 @@ import (
 // macAddressGen — 12 hex digits in 6 groups of 2.
 type macAddressGen struct{}
 
-func (macAddressGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedMACAddress))
+func (macAddressGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 
 	// Colon-separated lowercase.
@@ -80,7 +80,5 @@ func (macAddressGen) Generate() []Pair {
 	}
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedMACAddress uint64 = 0xDEC0DE13
 
 func init() { register("mac_address", macAddressGen{}) }

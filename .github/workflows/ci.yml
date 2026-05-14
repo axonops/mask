@@ -274,8 +274,14 @@ jobs:
           #    bearing files, so it inherits the same exclusion by construction;
           #    llms.txt names mistakes AI assistants should avoid and cites tool
           #    names in the "common mistakes" prose.
+          #  - tests/corpus/*.txt — machine-generated fixture data with random
+          #    alphanumeric runs that occasionally form forbidden tokens by
+          #    chance (e.g. a 3-letter trailing block happening to spell LLM
+          #    or GPT). The data is not authored prose; the attribution guard
+          #    has no purchase on it.
           files=$(git ls-files \
             | grep -Ev '^(CLAUDE\.md|\.claude/|\.github/workflows/ci\.yml|CONTRIBUTING\.md|SECURITY\.md|docs/v0\.9\.0-requirements\.md|\.gitignore|llms\.txt|llms-full\.txt)$' \
+            | grep -Ev '^tests/corpus/[^/]+\.txt$' \
             | grep -Ev '\.(png|jpg|jpeg|gif|ico|webp|svg|pdf|woff2?|ttf|otf|mp3|mp4|wav|zip|gz|tgz)$' \
             || true)
           hits=""

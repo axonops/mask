@@ -34,8 +34,8 @@ import (
 // issue rather than fixing it inline (per the locked decision).
 type connectionStringGen struct{}
 
-func (connectionStringGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedConnectionString))
+func (connectionStringGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	schemes := []string{"postgres", "postgresql", "mysql", "mariadb",
 		"mongodb", "mongodb+srv", "redis", "rediss",
@@ -145,8 +145,6 @@ func (connectionStringGen) Generate() []Pair {
 
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedConnectionString uint64 = 0xDEC0DE0F
 
 func init() {
 	register("connection_string", connectionStringGen{})

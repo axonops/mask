@@ -31,8 +31,8 @@ import (
 // canonical and open a follow-up if appropriate.
 type databaseDSNGen struct{}
 
-func (databaseDSNGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedDatabaseDSN))
+func (databaseDSNGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	users := []string{"root", "admin", "app", "service", "etl",
 		"replicator", "monitor", "ops"}
@@ -147,8 +147,6 @@ func (databaseDSNGen) Generate() []Pair {
 
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedDatabaseDSN uint64 = 0xDEC0DE10
 
 func init() {
 	register("database_dsn", databaseDSNGen{})

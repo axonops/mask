@@ -25,8 +25,8 @@ import (
 // givenNameGen — keeps first character; masks rest.
 type givenNameGen struct{}
 
-func (givenNameGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedGivenName))
+func (givenNameGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	pool := []string{"Alice", "Bob", "Carol", "Dan", "Erin", "Fadi",
 		"Greta", "Hugo", "Ines", "John", "Kara", "Liam", "Mia", "Noah",
 		"Olga", "Pedro", "Qiang", "Rosa", "Saanvi", "Tomás", "Ulla",
@@ -58,8 +58,8 @@ func (givenNameGen) Generate() []Pair {
 // familyNameGen — same shape as given_name; preserves first character.
 type familyNameGen struct{}
 
-func (familyNameGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedFamilyName))
+func (familyNameGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	pool := []string{"Smith", "Jones", "Patel", "Khan", "Garcia",
 		"Müller", "Schmidt", "Rodríguez", "Tanaka", "Yamada", "Lee",
 		"Park", "O'Brien", "MacDonald", "Smith-Jones",
@@ -81,8 +81,8 @@ func (familyNameGen) Generate() []Pair {
 // usernameGen — varied login shapes.
 type usernameGen struct{}
 
-func (usernameGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedUsername))
+func (usernameGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// alpha-numeric.
 	for i := 0; i < 80; i++ {
@@ -126,8 +126,8 @@ func (usernameGen) Generate() []Pair {
 // passportNumberGen — alphanumeric, varied lengths by country.
 type passportNumberGen struct{}
 
-func (passportNumberGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPassportNumber))
+func (passportNumberGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// Common shapes: 1-2 letters + 6-9 digits.
 	for i := 0; i < 80; i++ {
@@ -153,13 +153,6 @@ func (passportNumberGen) Generate() []Pair {
 	}
 	return uniqueLinesToPairs(inputs)
 }
-
-const (
-	seedGivenName      uint64 = 0xDEC0DE50
-	seedFamilyName     uint64 = 0xDEC0DE51
-	seedUsername       uint64 = 0xDEC0DE52
-	seedPassportNumber uint64 = 0xDEC0DE53
-)
 
 func init() {
 	register("given_name", givenNameGen{})

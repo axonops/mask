@@ -34,8 +34,8 @@ import (
 // section and file a follow-up.
 type postalCodeGen struct{}
 
-func (postalCodeGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPostalCode))
+func (postalCodeGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	var inputs []string
 
@@ -127,8 +127,6 @@ func randomUpper(r *rand.Rand, n int) string {
 	}
 	return string(b)
 }
-
-const seedPostalCode uint64 = 0xDEC0DE09
 
 func init() {
 	register("postal_code", postalCodeGen{})

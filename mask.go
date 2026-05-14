@@ -316,13 +316,15 @@ func (m *Masker) mustRegisterBuiltin(name string, fn RuleFunc, info RuleInfo) {
 
 // loadRules returns the current rule map, initialising the Masker lazily on
 // first access. Callers treat the returned pointer as immutable.
+//
+// ensureInit must run on every entry, not just when the rules pointer is
+// nil. initOnce stores an empty rule map BEFORE builtinsOnce registers the
+// built-ins, so a parallel reader that observed the pointer between the
+// two Once calls would see an empty registry. Symmetric with the same
+// guard on [Masker.Apply].
 func (m *Masker) loadRules() *ruleMap {
-	rm := m.rules.Load()
-	if rm == nil {
-		m.ensureInit()
-		rm = m.rules.Load()
-	}
-	return rm
+	m.ensureInit()
+	return m.rules.Load()
 }
 
 // Rules lists every rule name registered on this Masker (built-in and

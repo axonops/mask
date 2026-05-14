@@ -28,8 +28,8 @@ import (
 // adversarial, can leak even one character.
 type fullRedactGen struct{}
 
-func (fullRedactGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedFullRedact))
+func (fullRedactGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	var inputs []string
 
@@ -140,8 +140,6 @@ func randomASCII(r *rand.Rand, n int) string {
 	}
 	return string(b)
 }
-
-const seedFullRedact uint64 = 0xDEC0DE02
 
 func init() {
 	register("full_redact", fullRedactGen{})

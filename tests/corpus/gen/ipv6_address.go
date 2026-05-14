@@ -30,8 +30,8 @@ import (
 //     too many colons, non-hex characters
 type ipv6AddressGen struct{}
 
-func (ipv6AddressGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedIPv6Address))
+func (ipv6AddressGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 
 	var inputs []string
 
@@ -173,8 +173,6 @@ func randomHextet(r *rand.Rand, n int) string {
 	}
 	return string(b)
 }
-
-const seedIPv6Address uint64 = 0xDEC0DE08
 
 func init() {
 	register("ipv6_address", ipv6AddressGen{})

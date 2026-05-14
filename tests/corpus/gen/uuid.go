@@ -25,8 +25,8 @@ import (
 // uuidGen — 8-4-4-4-12 hex digits.
 type uuidGen struct{}
 
-func (uuidGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedUUID))
+func (uuidGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 
 	// Canonical lower-case.
@@ -87,7 +87,5 @@ func (uuidGen) Generate() []Pair {
 	}
 	return uniqueLinesToPairs(inputs)
 }
-
-const seedUUID uint64 = 0xDEC0DE14
 
 func init() { register("uuid", uuidGen{}) }

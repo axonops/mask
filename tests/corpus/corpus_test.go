@@ -108,7 +108,8 @@ const (
 // pragma represents the parser configuration carried across a single
 // file's fixture lines.
 type pragma struct {
-	escaped bool // # corpus: escaped — interpret escape sequences
+	escaped bool   // # corpus: escaped — interpret escape sequences
+	unknown string // non-empty when parsePragma saw `# corpus: <unknown>`
 }
 
 // TestMain validates the .corpus.lock file (if present) before any
@@ -237,6 +238,44 @@ func TestCorpusFormatStrict(t *testing.T) {
 	}
 }
 
+// TestCorpusLockCompleteness asserts that every .txt fixture file
+// has a corresponding entry in .corpus.lock. Without this, a
+// contributor who adds a new fixture file but forgets to regenerate
+// the lock would leave the new file unverified at TestMain time —
+// verifyLock only walks listed entries, so omissions are silent.
+func TestCorpusLockCompleteness(t *testing.T) {
+	t.Parallel()
+	files, err := safeGlob(corpusDir)
+	if err != nil {
+		t.Fatalf("glob corpus files: %v", err)
+	}
+	body, err := os.ReadFile(filepath.Join(corpusDir, lockFileName))
+	if os.IsNotExist(err) {
+		t.Skipf("%s does not exist — opt-in lock file is absent", lockFileName)
+	}
+	if err != nil {
+		t.Fatalf("read %s: %v", lockFileName, err)
+	}
+	listed := make(map[string]bool)
+	sc := bufio.NewScanner(strings.NewReader(string(body)))
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "  ", 2)
+		if len(parts) == 2 {
+			listed[parts[1]] = true
+		}
+	}
+	for _, p := range files {
+		base := filepath.Base(p)
+		if !listed[base] {
+			t.Errorf("%s: not listed in %s — run `make corpus-regen` and commit", base, lockFileName)
+		}
+	}
+}
+
 // TestCorpusUnknownRule is a defensive sanity check: applying a rule
 // name that is definitely not registered must return FullRedactMarker,
 // not echo the input. If this fails, the corpus's "unknown rule
@@ -281,6 +320,11 @@ func runCorpusFile(t *testing.T, rule, path string) {
 			continue
 		case strings.HasPrefix(trim, "#"):
 			if p, ok := parsePragma(trim); ok {
+				if p.unknown != "" {
+					t.Errorf("%s:%d: unknown pragma `# corpus: %s` — fix the typo or remove it",
+						path, lineNo, p.unknown)
+					continue
+				}
 				pr = p
 			}
 			continue
@@ -319,6 +363,15 @@ func runCorpusFile(t *testing.T, rule, path string) {
 
 		got := mask.Apply(rule, input)
 		total++
+
+		// Invariant first: every rule output is valid UTF-8. Asserted
+		// before the equality check so that a torn-UTF-8 output is
+		// surfaced even on a fixture that happens to match the same
+		// torn bytes in expected.
+		if !utf8.ValidString(got) {
+			t.Errorf("%s:%d: rule %s produced invalid UTF-8 for input %q: % x",
+				path, lineNo, rule, input, []byte(got))
+		}
 		if got != expected {
 			t.Errorf("%s:%d:\n  rule:  %s\n  input: %q\n  want:  %q\n  got:   %q",
 				path, lineNo, rule, input, expected, got)
@@ -326,12 +379,6 @@ func runCorpusFile(t *testing.T, rule, path string) {
 			continue
 		}
 		passed++
-
-		// Invariant: every rule output is valid UTF-8.
-		if !utf8.ValidString(got) {
-			t.Errorf("%s:%d: rule %s produced invalid UTF-8 for input %q: % x",
-				path, lineNo, rule, input, []byte(got))
-		}
 	}
 	if err := sc.Err(); err != nil {
 		t.Fatalf("%s: scanner error: %v", path, err)
@@ -406,7 +453,10 @@ func safeReadFile(path string) ([]byte, error) {
 }
 
 // parsePragma recognises pragma comments. Pragmas are lines whose
-// trimmed form starts with `# corpus:`.
+// trimmed form starts with `# corpus:`. Unknown pragma names are
+// reported via the bool return — runCorpusFile turns that into a
+// test failure rather than treating it as a benign comment. A typo
+// like `# corpus: escaepd` would otherwise become a silent no-op.
 func parsePragma(trim string) (pragma, bool) {
 	const pfx = "# corpus:"
 	if !strings.HasPrefix(trim, pfx) {
@@ -417,8 +467,7 @@ func parsePragma(trim string) (pragma, bool) {
 	case "escaped":
 		return pragma{escaped: true}, true
 	}
-	// Unknown pragmas are tolerated as ordinary comments.
-	return pragma{}, false
+	return pragma{unknown: rest}, true
 }
 
 // decodeEscapes interprets the escape sequences \\, \t, \n, \r,
@@ -463,6 +512,13 @@ func decodeEscapes(s string) (string, error) {
 			byteVal, err := hex.DecodeString(s[i+2 : i+4])
 			if err != nil {
 				return "", fmt.Errorf("col %d: malformed \\x escape %q: %v", i+1, s[i+2:i+4], err)
+			}
+			// Reject \xNN for NN >= 0x80 — a raw high byte produces
+			// invalid UTF-8 in the assembled input string, breaking
+			// the library-wide UTF-8 invariant. Authors who need
+			// non-ASCII characters use \uXXXX.
+			if byteVal[0] >= 0x80 {
+				return "", fmt.Errorf("col %d: \\x%02X is not a 7-bit ASCII byte; use \\uXXXX for non-ASCII", i+1, byteVal[0])
 			}
 			b.WriteByte(byteVal[0])
 			i += 4

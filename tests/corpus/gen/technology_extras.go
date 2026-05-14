@@ -24,8 +24,8 @@ import (
 // urlCredentialsGen — URLs with userinfo.
 type urlCredentialsGen struct{}
 
-func (urlCredentialsGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedURLCredentials))
+func (urlCredentialsGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	schemes := []string{"https", "http", "ftp", "ftps", "ssh"}
 	hosts := []string{"example.com", "internal.svc", "git.repo.org",
 		"server.example.org", "10.0.0.1"}
@@ -64,8 +64,8 @@ func (urlCredentialsGen) Generate() []Pair {
 // passwordGen — diverse strings; rule masks all.
 type passwordGen struct{}
 
-func (passwordGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedPassword))
+func (passwordGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// Hex passwords.
 	for i := 0; i < 40; i++ {
@@ -101,8 +101,8 @@ func (passwordGen) Generate() []Pair {
 // apiKeyGen — common API key shapes (prefix + hex/base32).
 type apiKeyGen struct{}
 
-func (apiKeyGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedAPIKey))
+func (apiKeyGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	// Generic — avoid real provider patterns that trip GitHub
 	// push protection (sk_test_<24-hex> for Stripe, ghp_, etc.).
@@ -128,8 +128,8 @@ func (apiKeyGen) Generate() []Pair {
 // bearerTokenGen — "Bearer ..." prefixed tokens.
 type bearerTokenGen struct{}
 
-func (bearerTokenGen) Generate() []Pair {
-	r := rand.New(rand.NewPCG(0xC0FFEE, seedBearerToken))
+func (bearerTokenGen) Generate(seed uint64) []Pair {
+	r := rand.New(rand.NewPCG(0xC0FFEE, seed))
 	var inputs []string
 	for i := 0; i < 60; i++ {
 		inputs = append(inputs, "Bearer "+randomB64URL(r, 30+r.IntN(60)))
@@ -148,13 +148,6 @@ func (bearerTokenGen) Generate() []Pair {
 	}
 	return uniqueLinesToPairs(inputs)
 }
-
-const (
-	seedURLCredentials uint64 = 0xDEC0DE60
-	seedPassword       uint64 = 0xDEC0DE61
-	seedAPIKey         uint64 = 0xDEC0DE62
-	seedBearerToken    uint64 = 0xDEC0DE63
-)
 
 func init() {
 	register("url_credentials", urlCredentialsGen{})
