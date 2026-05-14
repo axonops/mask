@@ -407,3 +407,62 @@ func TestGovernance_AllActionsSHAPinned(t *testing.T) {
 		require.NoErrorf(t, scanner.Err(), "scan %s", path)
 	}
 }
+
+// TestGovernance_ReleaseAttestations pins the SLSA/Sigstore build-
+// provenance attestation flow on .github/workflows/release.yml.
+// Required elements:
+//
+//   - actions/attest-build-provenance is referenced (any pin SHA).
+//   - The goreleaser job declares `id-token: write` and
+//     `attestations: write` (Sigstore needs both — OIDC for cert
+//     issuance, attestations for upload).
+//   - The attestation step gates on `inputs.dry_run != true` so a
+//     dispatch with `dry_run: true` never invokes Sigstore.
+//   - The step sets `continue-on-error: true` so a transient
+//     Sigstore/Fulcio outage cannot block a tag from going out.
+//
+// Drift on any of these is a release-supply-chain regression and
+// must surface here, not in production triage.
+func TestGovernance_ReleaseAttestations(t *testing.T) {
+	t.Parallel()
+	body, err := os.ReadFile(".github/workflows/release.yml")
+	require.NoError(t, err, ".github/workflows/release.yml must exist")
+
+	var v any
+	require.NoError(t, yaml.Unmarshal(body, &v), "release.yml must be valid YAML")
+
+	s := string(body)
+
+	assert.Regexp(t,
+		regexp.MustCompile(`actions/attest-build-provenance@[0-9a-f]{40}`), s,
+		"release.yml must reference SHA-pinned actions/attest-build-provenance")
+
+	for _, scope := range []string{"id-token: write", "attestations: write"} {
+		assert.Containsf(t, s, scope,
+			"release.yml must declare %q on the GoReleaser job for Sigstore signing", scope)
+	}
+
+	// The attestation step MUST be gated on the dry_run input so a
+	// validate-only dispatch never invokes Sigstore. Regex
+	// tolerates either `!= true` or `== false` shapes but pins the
+	// dry_run guard explicitly.
+	assert.Regexp(t,
+		regexp.MustCompile(`(?s)attest-build-provenance@[0-9a-f]+.*?if:\s*inputs\.dry_run\s*!=\s*true|(?s)if:\s*inputs\.dry_run\s*!=\s*true.*?attest-build-provenance@`), s,
+		"attest-build-provenance step must gate on inputs.dry_run != true")
+
+	// continue-on-error keeps a Sigstore outage from blocking a tag.
+	assert.Regexp(t,
+		regexp.MustCompile(`(?s)attest-build-provenance@[0-9a-f]+.*?continue-on-error:\s*true`), s,
+		"attest-build-provenance step must set continue-on-error: true so Sigstore outages don't block a release")
+
+	// SECURITY.md must document the consumer verification path so a
+	// downstream developer can validate a downloaded artefact without
+	// reading the workflow. The section name is pinned because
+	// SECURITY.md is the first place security-minded consumers look.
+	security, err := os.ReadFile("SECURITY.md")
+	require.NoError(t, err, "SECURITY.md must exist")
+	assert.Contains(t, string(security), "## Verifying a release",
+		"SECURITY.md must document the gh attestation verify path under '## Verifying a release'")
+	assert.Contains(t, string(security), "gh attestation verify",
+		"SECURITY.md must include the gh attestation verify command")
+}
