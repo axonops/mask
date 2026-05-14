@@ -102,11 +102,9 @@ func (databaseDSNGen) Generate(seed uint64) []Pair {
 		inputs = append(inputs, fmt.Sprintf("%s:%s@tcp(%s)/%s?%s", u, p, h, db, ps))
 	}
 
-	// Multi-param DSN with a SECRET keyword in the query. The
-	// current parser only redacts userinfo, so the query passes
-	// through verbatim — a behaviour gap tracked in #72. These
-	// fixtures pin the current behaviour so a future fix surfaces
-	// as a deliberate corpus diff.
+	// Multi-param DSN with a SECRET keyword in the query. After
+	// #72, the value of each curated secret key is redacted; the
+	// surrounding non-secret params pass through verbatim.
 	secretQueryKeys := []string{"password", "client_secret", "token",
 		"refresh_token", "private_key"}
 	for i := 0; i < 25; i++ {

@@ -212,6 +212,21 @@ Feature: Technology and infrastructure masking rules
       | user:pass@host/db                        | *****************                        |
       |                                          |                                          |
 
+  Scenario Outline: redacts secret query parameters in DSN form
+    Given a fresh masker
+    When I apply "database_dsn" to "<input>"
+    Then the result is "<expected>"
+
+    Examples:
+      | input                                                                  | expected                                                                |
+      | root:rootpwd@tcp(localhost:3306)/db?password=other                     | ****:****@tcp(localhost:3306)/db?password=****                          |
+      | user:pass@tcp(host:3306)/db?charset=utf8mb4&password=leak              | ****:****@tcp(host:3306)/db?charset=utf8mb4&password=****               |
+      | user:pass@tcp(host:3306)/db?password=leak&charset=utf8mb4              | ****:****@tcp(host:3306)/db?password=****&charset=utf8mb4               |
+      | user:pass@tcp(host:3306)/db?token=t&password=p&secret=s                | ****:****@tcp(host:3306)/db?token=****&password=****&secret=****        |
+      | user:pass@tcp(host:3306)/db?client_secret=abc                          | ****:****@tcp(host:3306)/db?client_secret=****                          |
+      | user:pass@tcp(host:3306)/db?aws_secret_access_key=AKIA                 | ****:****@tcp(host:3306)/db?aws_secret_access_key=****                  |
+      | user:pass@tcp(host:3306)/db?secretsauce=ok&password=leak               | ****:****@tcp(host:3306)/db?secretsauce=ok&password=****                |
+
   Scenario Outline: Mask UUIDs
     Given a fresh masker
     When I apply "uuid" to "<input>"
