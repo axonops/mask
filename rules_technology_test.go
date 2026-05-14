@@ -537,6 +537,81 @@ func TestApply_DatabaseDSN(t *testing.T) {
 	}
 }
 
+// TestApply_DatabaseDSN_QueryParamSecrets pins the redaction of
+// known-secret query parameters in DSN form. Reuses the same
+// curated keyword set as connection_string (rules_technology.go:79),
+// so the OAuth, AWS, Azure, signature, and credential families all
+// flow through `isSecretKey`. Surfaced by the multi-param corpus
+// pins added in #54; fixed in #72.
+func TestApply_DatabaseDSN_QueryParamSecrets(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	cases := []struct{ name, in, want string }{
+		{"secret query alone",
+			"root:rootpwd@tcp(localhost:3306)/db?password=other",
+			"****:****@tcp(localhost:3306)/db?password=****"},
+		{"secret AFTER non-secret",
+			"user:pass@tcp(host:3306)/db?charset=utf8mb4&password=leak",
+			"****:****@tcp(host:3306)/db?charset=utf8mb4&password=****"},
+		{"secret BEFORE non-secret",
+			"user:pass@tcp(host:3306)/db?password=leak&charset=utf8mb4",
+			"****:****@tcp(host:3306)/db?password=****&charset=utf8mb4"},
+		{"secret in MIDDLE of three params",
+			"user:pass@tcp(host:3306)/db?parseTime=true&password=leak&loc=UTC",
+			"****:****@tcp(host:3306)/db?parseTime=true&password=****&loc=UTC"},
+		{"multiple distinct secrets",
+			"user:pass@tcp(host:3306)/db?token=t&password=p&secret=s",
+			"****:****@tcp(host:3306)/db?token=****&password=****&secret=****"},
+		{"repeated same secret",
+			"user:pass@tcp(host:3306)/db?password=a&password=b",
+			"****:****@tcp(host:3306)/db?password=****&password=****"},
+		{"oauth client_secret",
+			"user:pass@tcp(host:3306)/db?client_secret=abc",
+			"****:****@tcp(host:3306)/db?client_secret=****"},
+		{"aws secret access key",
+			"user:pass@tcp(host:3306)/db?aws_secret_access_key=AKIAEX",
+			"****:****@tcp(host:3306)/db?aws_secret_access_key=****"},
+		{"private_key",
+			"user:pass@tcp(host:3306)/db?private_key=PEMbody",
+			"****:****@tcp(host:3306)/db?private_key=****"},
+		{"unix socket with secret",
+			"user:pass@unix(/tmp/mysql.sock)/dbname?password=p&charset=utf8mb4",
+			"****:****@unix(/tmp/mysql.sock)/dbname?password=****&charset=utf8mb4"},
+		{"upper-case secret key",
+			"user:pass@tcp(host:3306)/db?PASSWORD=leak",
+			"****:****@tcp(host:3306)/db?PASSWORD=****"},
+		{"substring-bait key not matched",
+			"user:pass@tcp(host:3306)/db?secretsauce=ok&password=leak",
+			"****:****@tcp(host:3306)/db?secretsauce=ok&password=****"},
+		{"empty value still redacts",
+			"user:pass@tcp(host:3306)/db?password=&charset=utf8mb4",
+			"****:****@tcp(host:3306)/db?password=****&charset=utf8mb4"},
+		{"all non-secret params pass through",
+			"user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=true&loc=UTC",
+			"****:****@tcp(host:3306)/db?charset=utf8mb4&parseTime=true&loc=UTC"},
+		// Percent-encoded characters in the key are decoded before
+		// the secretQueryKeys lookup — `pass%77ord` decodes to
+		// `password`. Pin this so a future refactor that drops the
+		// QueryUnescape step (rules_technology.go:957) doesn't
+		// silently leak via percent-encoding bypass.
+		{"percent-encoded secret key still redacts",
+			"user:pass@tcp(host:3306)/db?pass%77ord=leak",
+			"****:****@tcp(host:3306)/db?pass%77ord=****"},
+		// Bare flags are malformed per Go MySQL DSN grammar (which
+		// requires explicit `key=value`); the rule conservatively
+		// length-masks them rather than echoing bytes whose role is
+		// ambiguous. Documented in RuleInfo.Description.
+		{"bare flag length-masked",
+			"user:pass@tcp(host:3306)/db?parseTime",
+			"****:****@tcp(host:3306)/db?*********"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("database_dsn", tc.in))
+		})
+	}
+}
+
 // ---------- uuid ----------
 
 func TestApply_UUID(t *testing.T) {

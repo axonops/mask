@@ -1056,7 +1056,19 @@ func maskDatabaseDSN(v string, c rune) string {
 		writeMaskRunes(&b, c, 4)
 	}
 	b.WriteByte('@')
-	b.WriteString(rest)
+	// Split rest into pre-query (`protocol(addr)/db`) and query
+	// (`?key=val&...`). Userinfo is already covered by the writes
+	// above; query parameters need the secret-key redaction
+	// curated for connection_string (#70) since contributors
+	// commonly stash credentials in MySQL DSN params even though
+	// the canonical place is userinfo. Reuses writeConnStringQuery
+	// so the keyword list stays in one place.
+	if q := strings.IndexByte(rest, '?'); q >= 0 {
+		b.WriteString(rest[:q+1])
+		writeConnStringQuery(&b, rest[q+1:], c)
+	} else {
+		b.WriteString(rest)
+	}
 	return b.String()
 }
 
@@ -1223,7 +1235,7 @@ func registerTechnologyRules(m *Masker) {
 		func(v string) string { return maskDatabaseDSN(v, m.maskChar()) },
 		RuleInfo{
 			Name: "database_dsn", Category: "technology", Jurisdiction: "global",
-			Description: "Parses the Go MySQL DSN form `user:password@protocol(addr)/db` and redacts userinfo; preserves protocol, address, database and params. Example: user:password@tcp(localhost:3306)/dbname → ****:****@tcp(localhost:3306)/dbname.",
+			Description: "Parses the Go MySQL DSN form `user:password@protocol(addr)/db?params` and redacts userinfo and the values of any query parameters whose keys match the curated secret set (password family, OAuth, AWS, Azure — same keyword set as connection_string). Protocol, address, database, and well-formed non-secret `key=value` params pass through verbatim. Malformed pairs (bare flags, empty keys) are length-masked rather than echoed — the rule fails closed on inputs that depart from the documented MySQL DSN grammar. Example: user:password@tcp(localhost:3306)/dbname?charset=utf8mb4&password=other → ****:****@tcp(localhost:3306)/dbname?charset=utf8mb4&password=****.",
 		})
 	m.mustRegisterBuiltin("uuid",
 		func(v string) string { return maskUUID(v, m.maskChar()) },
