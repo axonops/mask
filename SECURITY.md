@@ -55,3 +55,29 @@ Please do **not** file a public GitHub issue for vulnerabilities.
 ## Disclosure policy
 
 Once a fix is released, the advisory is published on GitHub and the fix is referenced in the `CHANGELOG.md` entry under the relevant release.
+
+## Verifying a release
+
+Every published `mask` release artefact is signed with a SLSA build-provenance attestation produced by `.github/workflows/release.yml` running on a GitHub-hosted runner. The attestation binds each artefact to the specific workflow run, source commit, and tag that produced it. Consumers running [GitHub CLI](https://cli.github.com/) `2.49.0` or later can verify the chain without leaving the terminal:
+
+```sh
+# Replace v1.0.1 with the release you want to verify.
+gh release download v1.0.1 --repo axonops/mask --pattern '*.json' --dir /tmp/mask-verify
+gh attestation verify /tmp/mask-verify/metadata.json --owner axonops
+```
+
+A successful verification prints `Loaded digest ... Verification succeeded!` and exits 0. A failed verification — wrong owner, tampered bytes, missing attestation — exits non-zero and tells you exactly which check failed.
+
+You can also inspect the raw attestation envelope from the GitHub API:
+
+```sh
+gh api repos/axonops/mask/attestations/v1.0.1 --jq '.attestations[].bundle.dsseEnvelope.payload' \
+  | base64 -d \
+  | jq '.subject[0].name, .predicate.buildDefinition.externalParameters.workflow.path'
+```
+
+This returns the artefact name and the workflow file path the build ran from — useful for audit logs.
+
+The attestation step in the release workflow is wrapped in `continue-on-error: true` so that a transient Sigstore or Fulcio outage cannot block a tag from going out. If a particular release lacks an attestation, that is the most likely cause; the next release will restore the chain. The Go module proxy and `sum.golang.org` independently provide integrity for the `go get` path, so a missing attestation does not weaken the module-fetch supply chain — it only removes the attestation-based audit trail for the GitHub release artefacts.
+
+Pre-release tags (`-rc`, `-beta`) follow the same flow and are equally verifiable. See issue [#53](https://github.com/axonops/mask/issues/53) for the rollout context.

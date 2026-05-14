@@ -92,7 +92,17 @@ jobs:
     if: always() && needs.verify.result == 'success' && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
+      # `contents: write` — GoReleaser publishes the GitHub release.
+      # `id-token: write` and `attestations: write` — the
+      # `actions/attest-build-provenance` step below signs each
+      # GoReleaser artefact with a Sigstore short-lived cert minted
+      # against the workflow's OIDC token and uploads the resulting
+      # attestation to the repository's `/attestations` namespace.
+      # See SECURITY.md "Verifying a release" for the consumer
+      # verification path.
       contents: write
+      id-token: write
+      attestations: write
     steps:
       # On a real release the tag has just been pushed by the `tag`
       # job, so we check it out. On a dry run no tag exists yet;
@@ -122,6 +132,24 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Attach SLSA/Sigstore build-provenance attestations to every
+      # artefact GoReleaser emitted into dist/. Today that is just
+      # `metadata.json`; the glob generalises to whatever future
+      # release artefacts the GoReleaser config produces. Consumers
+      # verify with `gh attestation verify <artefact> --owner
+      # axonops` — see SECURITY.md "Verifying a release".
+      #
+      # `continue-on-error: true` is deliberate: a transient
+      # Sigstore/Fulcio outage must not block a tag from going out.
+      # The attestation can be regenerated later if needed; a
+      # blocked release cannot.
+      - name: Attach build-provenance attestations
+        if: inputs.dry_run != true
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        continue-on-error: true
+        with:
+          subject-path: dist/**/*
 
   proxy-warm:
     name: Warm Go module proxy
