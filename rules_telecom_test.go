@@ -333,6 +333,46 @@ func TestApply_PostalCode(t *testing.T) {
 	}
 }
 
+// TestPostalCode_UKOutwardCodeValidation pins the six BS 7666 outward-
+// code patterns recognised by isUKOutwardCode and the malformations
+// the validator must reject. Surfaced during corpus authoring (#54);
+// validator rewrite tracked in #71.
+func TestPostalCode_UKOutwardCodeValidation(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	// Each valid outward code is paired with an arbitrary inward
+	// "1AA" so the full mask call has something to redact.
+	valid := []struct{ in, want string }{
+		{"M1 1AA", "M1 ***"},     // AN
+		{"B33 1AA", "B33 ***"},   // ANN
+		{"CR2 1AA", "CR2 ***"},   // AAN
+		{"DN55 1AA", "DN55 ***"}, // AANN
+		{"W1A 1AA", "W1A ***"},   // A9A
+		{"SW1A 1AA", "SW1A ***"}, // AA9A
+	}
+	for _, tc := range valid {
+		t.Run("valid/"+tc.in, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("postal_code", tc.in))
+		})
+	}
+	// Each malformation must fall through to same-length mask. The
+	// first three were all silently accepted by the previous
+	// over-permissive validator that only required "first byte
+	// letter, rest [A-Z|0-9] with at least one digit".
+	invalid := []struct{ in, want string }{
+		{"A1AA 0AA", "********"}, // A9AA — not a BS 7666 form
+		{"A11A 0AA", "********"}, // ANNA — not a BS 7666 form
+		{"AAAA 1AA", "********"}, // no digit anywhere
+		{"1A 1AA", "******"},     // doesn't start with a letter
+		{"12 1AA", "******"},     // doesn't start with a letter
+	}
+	for _, tc := range invalid {
+		t.Run("invalid/"+tc.in, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("postal_code", tc.in))
+		})
+	}
+}
+
 // ---------- geo_latitude ----------
 
 func TestApply_GeoLatitude(t *testing.T) {

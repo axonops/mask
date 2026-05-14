@@ -12,6 +12,7 @@ GORELEASER   ?= goreleaser
 GO_FILES     := $(shell find . -type f -name '*.go' -not -path './.git/*' 2>/dev/null)
 PKG          := ./...
 BDD_PKG      := ./tests/bdd/...
+CORPUS_PKG   := ./tests/corpus/...
 COVER_OUT    := coverage.out
 COVER_HTML   := coverage.html
 
@@ -20,7 +21,7 @@ help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage: make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 .PHONY: check
-check: fmt-check vet lint tidy-check test test-bdd coverage security ## Run the full quality gate (mirrors CI)
+check: fmt-check vet lint tidy-check test test-bdd test-corpus coverage security ## Run the full quality gate (mirrors CI)
 
 .PHONY: test
 test: ## Run unit tests with race detector
@@ -33,6 +34,18 @@ test-bdd: ## Run BDD tests
 	else \
 		echo "tests/bdd not present yet — skipping BDD run"; \
 	fi
+
+.PHONY: test-corpus
+test-corpus: ## Run corpus fixture tests
+	@if [ -d tests/corpus ]; then \
+		$(GO) test -race -count=1 -tags corpus $(CORPUS_PKG); \
+	else \
+		echo "tests/corpus not present yet — skipping corpus run"; \
+	fi
+
+.PHONY: corpus-regen
+corpus-regen: ## Regenerate the corpus fixtures and .corpus.lock
+	$(GO) run -tags corpusgen ./tests/corpus/gen
 
 .PHONY: lint
 lint: ## Run golangci-lint

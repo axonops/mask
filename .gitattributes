@@ -1,0 +1,7 @@
+# Corpus fixture files are 95%+ machine-generated. Mark them as
+# generated so GitHub's PR diff UI collapses them by default and
+# they're excluded from language statistics. The hand-curated
+# canonical section at the top of each file is short enough that
+# reviewers can still expand the diff when they want to inspect it.
+tests/corpus/*.txt text eol=lf linguist-generated=true
+tests/corpus/.corpus.lock text eol=lf linguist-generated=true
