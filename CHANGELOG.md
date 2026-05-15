@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-05-15
+
 ### Added
 
 - OpenSSF Scorecard weekly workflow (`.github/workflows/scorecard.yml`) that publishes a supply-chain posture score to `scorecard.dev` and uploads SARIF results to the GitHub Code scanning Security tab. Triggers on push to `main`, every PR against `main`, a weekly cron (Saturday 01:30 UTC), and `workflow_dispatch` for manual verification. Governance test `TestGovernance_ScorecardWorkflowExists` asserts the workflow's permission scopes, SHA-pinned action ref, `publish_results: true`, and `paths-ignore` policy. ([#52](https://github.com/axonops/mask/issues/52))
