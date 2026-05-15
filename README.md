@@ -10,7 +10,7 @@
   [![Go Reference](https://pkg.go.dev/badge/github.com/axonops/mask.svg)](https://pkg.go.dev/github.com/axonops/mask)
   [![Go Report Card](https://goreportcard.com/badge/github.com/axonops/mask)](https://goreportcard.com/report/github.com/axonops/mask)
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
-  ![Status](https://img.shields.io/badge/status-pre--release-orange)
+  ![Status](https://img.shields.io/badge/status-stable%20v1.0.1-brightgreen)
 
   [🚀 Quick Start](#-quick-start) | [✨ Features](#-key-features) | [📚 Built-in Rules](#-built-in-rules) | [🛠 Primitives](#-utility-primitives) | [📖 Docs](./docs/) | [📡 API Reference](https://pkg.go.dev/github.com/axonops/mask)
 </div>
@@ -261,6 +261,8 @@ _ = mask.Register("employee_id", mask.KeepFirstNFunc(9)) // factory
 
 Violating this contract is a data race and will be reported by the Go race detector (`go test -race`). The library does NOT `defer recover()` around custom `RuleFunc` calls — a panic in a custom rule propagates out of `Apply`, by design. Custom rules MUST NOT panic; treat a panic as a programmer error and fix it at source.
 
+As of `v1.0.1`, the package-level registry's lazy initialisation is also safe under concurrent first-call: `Apply` and `HasRule` / `Rules` / `Describe` on a zero-value or never-touched `Masker` from many goroutines simultaneously no longer race against the built-in registrar. Previously a parallel first-caller could observe the registry between the empty-map publish and the built-in registration, falling through to `[REDACTED]` for every rule. Regression tests `TestZeroValueMasker_ParallelFirstApply` and `TestZeroValueMasker_ParallelFirstHasRule` pin the fix.
+
 ```go
 // Correct — register once at init time.
 func init() {
@@ -399,6 +401,8 @@ Before opening your first pull request:
 ## 🔐 Security
 
 See [SECURITY.md](./SECURITY.md) for the threat model, salt-rotation policy, and coordinated disclosure procedure. Security-sensitive issues should be reported privately per that document.
+
+Releases are signed with SLSA/Sigstore build-provenance attestations — verify with `gh attestation verify <artefact> --owner axonops`. See [SECURITY.md §Verifying a release](./SECURITY.md#verifying-a-release).
 
 ## 📄 Licence
 
