@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Stable releases now auto-post an announcement to the GitHub Discussions Announcements category via `.github/workflows/release-announcement.yml`. The workflow triggers on `release: published`, skips pre-releases and drafts, builds the body from the release notes plus a tag-pinned footer template at `.github/DISCUSSION_ANNOUNCEMENT_FOOTER.md`, and authenticates with `GITHUB_TOKEN`. Governance test `TestGovernance_ReleaseAnnouncementWorkflow` pins the trigger, the prerelease/draft filter, the `discussions: write` + `contents: read` permissions, the Announcements category id, and the footer-template reference. ([#51](https://github.com/axonops/mask/issues/51))
+
 ## [1.0.1] — 2026-05-15
 
 ### Added

@@ -311,6 +311,7 @@ The release process is:
 1. Update `CHANGELOG.md` and any version references in a PR to `main`.
 2. After merge, trigger the `Release` workflow via `workflow_dispatch` with the target tag, OR publish a GitHub Release.
 3. CI validates the quality gate, creates the tag, and runs GoReleaser.
+4. On a stable (non-prerelease) tag, `.github/workflows/release-announcement.yml` posts an announcement to the GitHub Discussions Announcements category automatically — the release notes that GoReleaser populated, plus an install-and-docs footer rendered from `.github/DISCUSSION_ANNOUNCEMENT_FOOTER.md` with the tag substituted in. Pre-releases (`-rc`, `-beta`) and drafts are skipped.
 
 Any local tagging attempt is a policy violation. The `devops` review agent treats local tagging in workflows or docs as a BLOCKING issue.
 
