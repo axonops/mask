@@ -408,6 +408,119 @@ func TestApply_ConnectionString_OAuthAndCloudSecrets(t *testing.T) {
 	}
 }
 
+// TestApply_ConnectionString_PassKey pins redaction of the `pass`
+// short-form password parameter. The corpus generator's
+// knownSecretKeys list at tests/corpus/gen/connection_string.go:90
+// always included `pass`, but the rule's own secretQueryKeys map
+// at rules_technology.go was missing it, so `?pass=...` inputs fell
+// through the secret-detection path and failed closed entirely
+// rather than redacting the value. Fix landed in #82.
+func TestApply_ConnectionString_PassKey(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	cases := []struct{ name, in, want string }{
+		{"bare pass key",
+			"postgres://host/db?pass=secret",
+			"postgres://host/db?pass=****"},
+		{"pass before non-secret",
+			"postgres://host/db?pass=secret&sslmode=verify-full",
+			"postgres://host/db?pass=****&sslmode=verify-full"},
+		{"pass after non-secret",
+			"postgres://host/db?sslmode=verify-full&pass=secret",
+			"postgres://host/db?sslmode=verify-full&pass=****"},
+		{"uppercase PASS",
+			"postgres://host/db?PASS=secret",
+			"postgres://host/db?PASS=****"},
+		{"mixed-case Pass",
+			"postgres://host/db?Pass=secret",
+			"postgres://host/db?Pass=****"},
+		{"percent-encoded key pa%73s decodes to pass",
+			"postgres://host/db?pa%73s=secret",
+			"postgres://host/db?pa%73s=****"},
+		// Substring-bait safety: `passcode_label` contains `pass`
+		// as a substring but must NOT match the whole-key lookup.
+		// Paired with a real `pass=` so the rule reaches the
+		// query-parsing path rather than failing closed for lack
+		// of any recognised secret.
+		{"substring-bait passcode_label not matched, real pass alongside",
+			"postgres://host/db?passcode_label=visible&pass=secret",
+			"postgres://host/db?passcode_label=visible&pass=****"},
+		// Substring-bait on its own (no real secret): rule sees no
+		// recognised secret and no userinfo, so it falls back to
+		// SameLengthMask of the whole input. Pins the fail-closed
+		// gate so `passcode_label` cannot accidentally start matching.
+		{"substring-bait passcode_label alone fails closed",
+			"postgres://host/db?passcode_label=visible",
+			"*****************************************"},
+		// Empty value — the writer still emits the redaction marker
+		// rather than echoing the empty value, mirroring the
+		// password-key behaviour. Pinned so a future refactor
+		// cannot start leaking empty-value secrets.
+		{"empty value pass=",
+			"postgres://host/db?pass=",
+			"postgres://host/db?pass=****"},
+		// Bare flag at end of query, no `=`, paired with a real
+		// secret so the writer is reached. `pass` with no value
+		// is same-length-masked by writeConnStringPair.
+		{"bare pass flag paired with real secret",
+			"postgres://host/db?pass&password=secret",
+			"postgres://host/db?****&password=****"},
+		// Duplicate key — each occurrence redacts.
+		{"duplicate pass= keys",
+			"postgres://host/db?pass=a&pass=b",
+			"postgres://host/db?pass=****&pass=****"},
+		// All four members of the short-form family side by side.
+		{"full password family together",
+			"postgres://host/db?password=a&passwd=b&pass=c&pwd=d",
+			"postgres://host/db?password=****&passwd=****&pass=****&pwd=****"},
+		// Co-existence with the documented password / passwd / pwd
+		// family — every member of the family redacts.
+		{"password sibling still redacts",
+			"postgres://host/db?password=secret",
+			"postgres://host/db?password=****"},
+		{"passwd sibling still redacts",
+			"postgres://host/db?passwd=secret",
+			"postgres://host/db?passwd=****"},
+		{"pwd sibling still redacts",
+			"postgres://host/db?pwd=secret",
+			"postgres://host/db?pwd=****"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("connection_string", tc.in))
+		})
+	}
+}
+
+// TestApply_ConnectionString_SecretKeysSupersetGenerator pins the
+// rule's secretQueryKeys set as a superset of the corpus generator's
+// knownSecretKeys list. The two lists diverged once — the rule
+// missed `pass` while the generator included it — and the corpus
+// silently locked the divergence in as fail-closed pins because the
+// corpus uses the rule itself as its oracle. This test prevents a
+// recurrence: any future addition to the generator's known list
+// must also appear in the rule. Mirrors the list at
+// tests/corpus/gen/connection_string.go:88-95.
+func TestApply_ConnectionString_SecretKeysSupersetGenerator(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	generatorKnown := []string{
+		"password", "passwd", "pass", "pwd",
+		"secret", "apikey", "api_key", "auth_token", "access_token", "token",
+		"client_secret", "client_credentials", "refresh_token", "id_token",
+		"aws_secret_access_key", "private_key", "sas", "sastoken",
+		"signature", "sig", "connectionstring", "bearer", "authorization",
+	}
+	for _, k := range generatorKnown {
+		t.Run(k, func(t *testing.T) {
+			in := "postgres://host/db?" + k + "=secret"
+			want := "postgres://host/db?" + k + "=****"
+			assert.Equal(t, want, m.Apply("connection_string", in),
+				"generator's knownSecretKeys[%q] must redact through the rule", k)
+		})
+	}
+}
+
 // TestApply_ConnectionString_MultiParamQuery pins the per-pair
 // behaviour of the query masker when multiple parameters appear in
 // any position relative to a secret. PostgreSQL, MongoDB, and
