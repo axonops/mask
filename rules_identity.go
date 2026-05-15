@@ -380,9 +380,8 @@ func maskBodyPreservingSpaces(b *strings.Builder, body string, c rune) {
 // Three formats are recognised:
 //
 //   - ISO `YYYY-M-D` (hyphen-separated, 1–2 digit M/D allowed)
-//   - Slash `D/M/YYYY` (the middle group is always emitted as four mask
-//     runes, regardless of M's rune count — this matches the spec
-//     example `15/03/1985` → `**/****/1985` exactly)
+//   - Slash `D/M/YYYY` (both day and month fields are width-matched to
+//     the input, mirroring the ISO branch — `15/03/1985` → `**/**/1985`)
 //   - Month name `Month D, YYYY` (full English month names, case-insensitive)
 //
 // Any other shape — year only, time suffix, dotted European, two-digit
@@ -400,11 +399,13 @@ func maskDateOfBirth(v string, c rune) string {
 	if year, mLen, dLen, ok := parseDOBISO(v); ok {
 		return buildDOB(c, year, "-", mLen, "-", dLen, "")
 	}
-	if dLen, year, ok := parseDOBSlash(v); ok {
-		// The middle group is always 4 mask runes regardless of the
-		// matched month width — see the date_of_birth row in
-		// docs/rules.md for the canonical examples.
-		return buildDOBPrefixedLiteral(c, dLen, "/", 4, "/", year)
+	if d1Len, d2Len, year, ok := parseDOBSlash(v); ok {
+		// Width-match both fields, mirroring the ISO branch. The
+		// previous implementation hardcoded the middle field to
+		// four mask runes regardless of input width — an internal
+		// inconsistency surfaced by the corpus harness in #54 and
+		// fixed in #80.
+		return buildDOBPrefixedLiteral(c, d1Len, "/", d2Len, "/", year)
 	}
 	if m := reDOBMonthName.FindStringSubmatch(v); m != nil {
 		if monthNameRecognised(m[1]) {
@@ -439,10 +440,11 @@ func parseDOBISO(v string) (year string, mLen, dLen int, ok bool) {
 }
 
 // parseDOBSlash parses D/M/YYYY or DD/MM/YYYY without allocating.
-// Returns the byte-length of the day field and the year substring;
-// the middle group is always a fixed 4 mask runes in the output so
-// the month-field width is not needed by callers.
-func parseDOBSlash(v string) (dLen int, year string, ok bool) {
+// Returns the byte-lengths of the first and second fields and the
+// year substring; both widths are used by the caller so the output
+// mask width matches the input width in each field, mirroring the
+// ISO branch.
+func parseDOBSlash(v string) (d1Len, d2Len int, year string, ok bool) {
 	if len(v) < 8 {
 		return
 	}
@@ -459,7 +461,7 @@ func parseDOBSlash(v string) (dLen int, year string, ok bool) {
 	if len(yr) != 4 || !allASCIIDigits(yr) {
 		return
 	}
-	return sep1, yr, true
+	return sep1, sep2, yr, true
 }
 
 // buildDOB emits "<year><sep1><nMask1><sep2><nMask2><tail>" in one

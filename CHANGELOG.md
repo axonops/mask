@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Stable releases now auto-post an announcement to the GitHub Discussions Announcements category via `.github/workflows/release-announcement.yml`. The workflow triggers on `release: published`, skips pre-releases and drafts, builds the body from the release notes plus a tag-pinned footer template at `.github/DISCUSSION_ANNOUNCEMENT_FOOTER.md`, and authenticates with `GITHUB_TOKEN`. Governance test `TestGovernance_ReleaseAnnouncementWorkflow` pins the trigger, the prerelease/draft filter, the `discussions: write` + `contents: read` permissions, the Announcements category id, and the footer-template reference. ([#51](https://github.com/axonops/mask/issues/51))
 
+### Fixed
+
+- `date_of_birth` slash form (`D/M/YYYY`, `DD/MM/YYYY`) now width-matches the middle field to the input month, mirroring the ISO branch. The previous implementation at `rules_identity.go:404-408` hardcoded the middle field to four mask runes regardless of input width, so `15/03/1985` emitted `**/****/1985` (and `1/1/2000` emitted `*/****/2000`) — an internal inconsistency surfaced by the corpus harness in [#54](https://github.com/axonops/mask/issues/54) and originally pinned as a deliberate quirk. Reviewed and corrected on 2026-05-15: `15/03/1985` now emits `**/**/1985`, `5/3/1985` emits `*/*/1985`, and asymmetric inputs (`1/10/2000` → `*/**/2000`, `10/1/2000` → `**/*/2000`) preserve per-field width. `parseDOBSlash` returns both field widths instead of one. New unit cases in `TestApply_DateOfBirth`, new BDD scenarios in `tests/bdd/features/identity.feature`, and updated canonical pins in `tests/corpus/date_of_birth.txt`. ([#80](https://github.com/axonops/mask/issues/80))
+
 ## [1.0.1] — 2026-05-15
 
 ### Added
