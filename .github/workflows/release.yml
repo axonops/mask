@@ -1,5 +1,10 @@
 name: Release
 
+# Stable tags trigger .github/workflows/release-announcement.yml,
+# which posts a GitHub Discussion in the Announcements category
+# after this workflow publishes. Pre-releases are skipped there.
+# See #51.
+
 on:
   workflow_dispatch:
     inputs:

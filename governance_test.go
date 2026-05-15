@@ -310,6 +310,7 @@ func TestGovernance_WorkflowsLeastPrivilegeBaseline(t *testing.T) {
 		".github/workflows/cla.yml",
 		".github/workflows/contributors.yml",
 		".github/workflows/dependabot-automerge.yml",
+		".github/workflows/release-announcement.yml",
 		".github/workflows/release.yml",
 		".github/workflows/scorecard.yml",
 	}
@@ -465,4 +466,55 @@ func TestGovernance_ReleaseAttestations(t *testing.T) {
 		"SECURITY.md must document the gh attestation verify path under '## Verifying a release'")
 	assert.Contains(t, string(security), "gh attestation verify",
 		"SECURITY.md must include the gh attestation verify command")
+}
+
+// TestGovernance_ReleaseAnnouncementWorkflow pins the contract on
+// .github/workflows/release-announcement.yml (#51). The workflow must
+// trigger on `release: published`, skip prereleases and drafts,
+// declare `discussions: write` and `contents: read`, reference the
+// Announcements category id, and read the footer template from
+// .github/DISCUSSION_ANNOUNCEMENT_FOOTER.md.
+func TestGovernance_ReleaseAnnouncementWorkflow(t *testing.T) {
+	t.Parallel()
+	body, err := os.ReadFile(".github/workflows/release-announcement.yml")
+	require.NoError(t, err, ".github/workflows/release-announcement.yml must exist")
+	var v any
+	require.NoError(t, yaml.Unmarshal(body, &v), "release-announcement.yml must be valid YAML")
+	s := string(body)
+
+	assert.Regexp(t, regexp.MustCompile(`(?s)on:\s*\n\s*release:\s*\n\s*types:\s*\[\s*published\s*\]`), s,
+		"workflow must trigger on release: { types: [published] }")
+	assert.Contains(t, s, "github.event.release.prerelease == false",
+		"workflow must skip prereleases")
+	assert.Contains(t, s, "github.event.release.draft == false",
+		"workflow must skip drafts")
+	assert.Contains(t, s, "discussions: write",
+		"workflow must declare discussions: write permission")
+	assert.Contains(t, s, "contents: read",
+		"workflow must declare contents: read permission")
+	assert.Contains(t, s, "DIC_kwDOSFydIc4C7L1u",
+		"workflow must reference the Announcements category id")
+	assert.Contains(t, s, ".github/DISCUSSION_ANNOUNCEMENT_FOOTER.md",
+		"workflow must read the footer template")
+	assert.Contains(t, s, "createDiscussion",
+		"workflow must call the createDiscussion GraphQL mutation")
+
+	footer, err := os.ReadFile(".github/DISCUSSION_ANNOUNCEMENT_FOOTER.md")
+	require.NoError(t, err, ".github/DISCUSSION_ANNOUNCEMENT_FOOTER.md must exist")
+	fs := string(footer)
+	assert.Contains(t, fs, "go get github.com/axonops/mask@<tag>",
+		"footer must contain the version-pinned install command with <tag> placeholder")
+	assert.Contains(t, fs, "pkg.go.dev/github.com/axonops/mask@<tag>",
+		"footer must contain the version-pinned pkg.go.dev link with <tag> placeholder")
+	assert.NotContains(t, fs, "@latest",
+		"footer must not embed floating @latest links — announcements are version-specific")
+
+	for _, fx := range []string{
+		".github/test-fixtures/release-payload-stable.json",
+		".github/test-fixtures/release-payload-prerelease.json",
+		".github/test-fixtures/release-payload-draft.json",
+	} {
+		_, err := os.Stat(fx)
+		assert.NoErrorf(t, err, "test fixture %s must exist", fx)
+	}
 }

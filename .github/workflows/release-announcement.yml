@@ -1,0 +1,106 @@
+name: Release announcement
+
+# Posts a GitHub Discussion in the Announcements category whenever a
+# stable release is published. Pre-releases and drafts are skipped.
+# The footer template at .github/DISCUSSION_ANNOUNCEMENT_FOOTER.md is
+# substituted with the release tag at run time so the install command
+# and pkg.go.dev link point at the version being announced. See #51
+# for design rationale.
+
+on:
+  release:
+    types: [published]
+
+# Workflow-level least-privilege baseline (single key). The
+# announce job below declares `discussions: write` per-job.
+permissions:
+  contents: read
+
+env:
+  # The Announcements category id. Workflow-level env var so a future
+  # category restructure is a one-line change rather than a search
+  # through a shell step. Re-discover via:
+  #   gh api graphql -f query='query { repository(owner: "axonops", name: "mask") { discussionCategories(first: 20) { nodes { id name } } } }'
+  ANNOUNCEMENTS_CATEGORY_ID: DIC_kwDOSFydIc4C7L1u
+
+jobs:
+  announce:
+    name: Post announcement
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      discussions: write
+    # Skip prereleases (semver -rc / -beta tags) and drafts.
+    # GoReleaser publishes with draft: false; the draft check here
+    # is defence-in-depth.
+    if: github.event.release.prerelease == false && github.event.release.draft == false
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build announcement body
+        id: build-body
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+        run: |
+          set -euo pipefail
+          footer=$(sed "s|<tag>|${TAG}|g" .github/DISCUSSION_ANNOUNCEMENT_FOOTER.md)
+          {
+            printf '**mask %s** is now available.\n\n' "$TAG"
+            printf 'GitHub release: %s\n\n' "$RELEASE_URL"
+            printf '%s\n\n---\n\n%s\n' "$RELEASE_BODY" "$footer"
+          } > body.md
+          # Sanity-check the version pinning required by AC9 of #51.
+          if ! grep -q "go get github.com/axonops/mask@${TAG}" body.md; then
+            echo "::error::footer did not substitute <tag> into the install command"
+            exit 1
+          fi
+          if ! grep -q "pkg.go.dev/github.com/axonops/mask@${TAG}" body.md; then
+            echo "::error::footer did not substitute <tag> into the pkg.go.dev link"
+            exit 1
+          fi
+          if grep -q '@latest' body.md; then
+            echo "::error::body contains @latest — announcements must be version-pinned"
+            exit 1
+          fi
+          echo "body-file=body.md" >> "$GITHUB_OUTPUT"
+          echo "title=mask ${TAG} is released" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve repository node id
+        id: repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo_id=$(gh api graphql -f query='query { repository(owner: "axonops", name: "mask") { id } }' --jq '.data.repository.id')
+          if [ -z "$repo_id" ]; then
+            echo "::error::could not resolve repository node id"
+            exit 1
+          fi
+          echo "id=${repo_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Post discussion
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_ID: ${{ steps.repo.outputs.id }}
+          CATEGORY_ID: ${{ env.ANNOUNCEMENTS_CATEGORY_ID }}
+          TITLE: ${{ steps.build-body.outputs.title }}
+        run: |
+          set -euo pipefail
+          body=$(cat body.md)
+          url=$(gh api graphql \
+            -f query='mutation($repo: ID!, $cat: ID!, $title: String!, $body: String!) { createDiscussion(input: {repositoryId: $repo, categoryId: $cat, title: $title, body: $body}) { discussion { url } } }' \
+            -F repo="$REPO_ID" \
+            -F cat="$CATEGORY_ID" \
+            -F title="$TITLE" \
+            -F body="$body" \
+            --jq '.data.createDiscussion.discussion.url')
+          if [ -z "$url" ]; then
+            echo "::error::createDiscussion returned no url — mutation likely failed"
+            exit 1
+          fi
+          echo "Announcement posted: $url"
+          echo "## Announcement posted" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"

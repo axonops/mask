@@ -1,0 +1,11 @@
+{
+  "action": "published",
+  "release": {
+    "tag_name": "v1.0.2",
+    "name": "v1.0.2 draft",
+    "prerelease": false,
+    "draft": true,
+    "html_url": "https://github.com/axonops/mask/releases/tag/v1.0.2",
+    "body": "Draft body — do not announce."
+  }
+}

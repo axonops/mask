@@ -1,0 +1,11 @@
+{
+  "action": "published",
+  "release": {
+    "tag_name": "v1.0.2",
+    "name": "v1.0.2",
+    "prerelease": false,
+    "draft": false,
+    "html_url": "https://github.com/axonops/mask/releases/tag/v1.0.2",
+    "body": "### Added\n\n- Example addition for fixture coverage.\n\n### Fixed\n\n- Example fix for fixture coverage."
+  }
+}

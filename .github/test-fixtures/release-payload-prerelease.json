@@ -1,0 +1,11 @@
+{
+  "action": "published",
+  "release": {
+    "tag_name": "v1.0.2-rc1",
+    "name": "v1.0.2-rc1",
+    "prerelease": true,
+    "draft": false,
+    "html_url": "https://github.com/axonops/mask/releases/tag/v1.0.2-rc1",
+    "body": "Pre-release smoke build — do not announce."
+  }
+}
