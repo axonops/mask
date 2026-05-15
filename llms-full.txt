@@ -1236,8 +1236,8 @@ Infrastructure and application-security fields. The URL family never emits `net/
 |---|---|---|
 | `api_key` | Preserves the first 4 and last 4 runes and same-length-masks the middle; input shorter than 9 runes fails closed. | `AKIAIOSFODNN7EXAMPLE` → `AKIA************MPLE` |
 | `bearer_token` | Preserves the `Bearer` scheme and its trailing space, keeps the first 6 runes of the token, then appends the literal elision marker `****...` (four mask runes plus three dots — the dots are not the configured mask character, they distinguish the marker from a masked token). | `Bearer abc123def456` → `Bearer abc123****...` |
-| `connection_string` | Preserves scheme, host, port, path and non-secret query parameters; redacts userinfo and the values of known secret query parameters. | `postgresql://admin:s3cret@db.example.com:5432/myapp` → `postgresql://****:****@db.example.com:5432/myapp` |
-| `database_dsn` | Parses the Go MySQL DSN form and redacts userinfo. | `user:password@tcp(localhost:3306)/dbname` → `****:****@tcp(localhost:3306)/dbname` |
+| `connection_string` | Preserves scheme, host, port, path and non-secret query parameters; redacts userinfo and the values of known secret query parameters (password family, OAuth `client_secret` / `refresh_token` / `id_token` / `client_credentials`, AWS `aws_secret_access_key`, Azure `connectionstring` / `sas` / `sastoken`, `signature` / `sig`, `private_key` / `authorization` / `bearer`). Whole-key match, case-insensitive, percent-decoded. | `postgresql://admin:s3cret@db.example.com:5432/myapp` → `postgresql://****:****@db.example.com:5432/myapp` |
+| `database_dsn` | Parses the Go MySQL DSN form `user:password@protocol(addr)/db?params`, redacts userinfo, and same-length-masks values of secret query parameters in the `?key=value` tail (same curated keyword set as `connection_string`). | `user:secret@tcp(host:3306)/db?charset=utf8mb4&password=other` → `****:****@tcp(host:3306)/db?charset=utf8mb4&password=****` |
 | `hostname` | Preserves the first label and same-length-masks the remaining labels; single-label inputs fail closed. | `web-01.prod.example.com` → `web-01.****.*******.***` |
 | `ipv4_address` | Preserves the first 2 octets and masks the last 2 as single mask runes. | `192.168.1.42` → `192.168.*.*` |
 | `ipv6_address` | Preserves the first 4 hextets and masks the interface identifier; compressed form is preserved when `::` is in the tail. | `2001:0db8:85a3:0000:0000:8a2e:0370:7334` → `2001:0db8:85a3:0000:****:****:****:****` |
@@ -1263,7 +1263,7 @@ Phone numbers, mobile identifiers, postcodes, and geographic coordinates.
 | `mobile_phone_number` | Alias of `phone_number`. | `+44 7911 123456` → `+44 **** **3456` |
 | `msisdn` | Preserves the first 2 and last 4 digits of a 10-15 digit MSISDN. | `447911123456` → `44******3456` |
 | `phone_number` | Preserves a leading `+NN` country code or `00NN` international access prefix (if present) and the last 4 digits; masks middle digits while preserving structural separators. The `00` prefix is kept verbatim, not rewritten to `+`. Inputs with a single domestic leading `0` (e.g. `07911 123456`) are treated as having no country-code prefix. The `00` parser also accepts compact form (`00CC<digits>` with no separator between the country code and the subscriber number); the `+` parser requires a separator after the country code. | `+44 7911 123456` → `+44 **** **3456`; `0044 7911 123456` → `0044 **** **3456` |
-| `postal_code` | Shape-aware across UK (outward code), US 5-digit ZIP (first 3), and Canada (FSA); other shapes fail closed. | `SW1A 2AA` → `SW1A ***` |
+| `postal_code` | Shape-aware across UK (outward code), US 5-digit ZIP (first 3), and Canada (FSA); other shapes fail closed. UK outward codes are validated against the six BS 7666 patterns (`AN`, `ANN`, `AAN`, `AANN`, `A9A`, `AA9A`); over-permissive shapes like `A1AA` or `AAAA` fail closed. | `SW1A 2AA` → `SW1A ***` |
 
 ---
 
