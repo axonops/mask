@@ -260,7 +260,7 @@ cassandra://cluster-east.example.org/analytics?connectionstring=9bae24af9b348939
 couchbase://rds.aws.example.com/orders?client_secret=634d32ccc8c525170	couchbase://rds.aws.example.com/orders?client_secret=****
 couchbases://primary.cluster.local/app?authorization=0b96ff6d53eca8c9ad7aaf0b6d6fd4	couchbases://primary.cluster.local/app?authorization=****
 mongodb+srv://127.0.0.1/users?apikey=48da281bf0a88fa32929f47	mongodb+srv://127.0.0.1/users?apikey=****
-vertica://primary.cluster.local/orders?pass=6b266cce40c466651db45a8	*******************************************************************
+vertica://primary.cluster.local/orders?pass=6b266cce40c466651db45a8	vertica://primary.cluster.local/orders?pass=****
 cockroachdb://replica-1.internal/orders?bearer=90c17408dd298bdf7b99e9a0356a	cockroachdb://replica-1.internal/orders?bearer=****
 elasticsearch://shard0.mongodb.example.net/staging?token=9278f584f3f479e35c0195c0f	elasticsearch://shard0.mongodb.example.net/staging?token=****
 couchbase://[::1]/app?sig=d15b2ee939138b034b57a0559f97754	couchbase://[::1]/app?sig=****
@@ -316,7 +316,7 @@ memcached://cluster-east.example.org/app?password=958d6204a09f277e&loadBalanceHo
 mariadb://cluster-east.example.org/orders?id_token=cf0de69f186cb3d9&sslmode=verify-full	mariadb://cluster-east.example.org/orders?id_token=****&sslmode=verify-full
 mongodb://primary.cluster.local/audit?bearer=8396519c0792037f&ssl=verify-full	mongodb://primary.cluster.local/audit?bearer=****&ssl=verify-full
 kafka://replica-1.internal/staging?secret=c5debcffeddf1c44&ssl=verify-full	kafka://replica-1.internal/staging?secret=****&ssl=verify-full
-snowflake://db.example.com/analytics?pass=6567896d2962bf30&application_name=verify-full	***************************************************************************************
+snowflake://db.example.com/analytics?pass=6567896d2962bf30&application_name=verify-full	snowflake://db.example.com/analytics?pass=****&application_name=verify-full
 firebird://rds.aws.example.com/staging?sig=9ef78e5d3ffa58fc&w=verify-full	firebird://rds.aws.example.com/staging?sig=****&w=verify-full
 db2://rds.aws.example.com/app?apikey=2791e59d06800298&w=verify-full	db2://rds.aws.example.com/app?apikey=****&w=verify-full
 vertica://rds.aws.example.com/audit?bearer=75fdb65c7dacc212&retryWrites=verify-full	vertica://rds.aws.example.com/audit?bearer=****&retryWrites=verify-full
@@ -325,7 +325,7 @@ cassandra://127.0.0.1/orders?signature=4f51ab384f5c7d3c&w=verify-full	cassandra:
 mariadb://db.example.com/audit?secret=94c801f421779ab8&w=verify-full	mariadb://db.example.com/audit?secret=****&w=verify-full
 redis://rds.aws.example.com/products?authorization=058e5895fb9a1b11&appname=verify-full	redis://rds.aws.example.com/products?authorization=****&appname=verify-full
 mssql://replica-1.internal/reporting?client_credentials=202a18f6018a0ace&appname=verify-full	mssql://replica-1.internal/reporting?client_credentials=****&appname=verify-full
-postgresql://shard0.mongodb.example.net/users?pass=07ddae92660507cc&connectTimeout=verify-full	**********************************************************************************************
+postgresql://shard0.mongodb.example.net/users?pass=07ddae92660507cc&connectTimeout=verify-full	postgresql://shard0.mongodb.example.net/users?pass=****&connectTimeout=verify-full
 pulsar://db.example.com/users?client_credentials=82018cf1ba060942&retryWrites=verify-full	pulsar://db.example.com/users?client_credentials=****&retryWrites=verify-full
 mqtt://primary.cluster.local/app?private_key=9918fdf926ffbf7f&compression=verify-full	mqtt://primary.cluster.local/app?private_key=****&compression=verify-full
 db2://rds.aws.example.com/reporting?sastoken=c2de88856e6d5b6a&readPreference=verify-full	db2://rds.aws.example.com/reporting?sastoken=****&readPreference=verify-full
@@ -335,7 +335,7 @@ elasticsearch://cluster-east.example.org/users?bearer=71d5f57f41b18bcd&ssl=verif
 mariadb://cluster-east.example.org/products?auth_token=ad0eb106c6927303&tlsCAFile=verify-full	mariadb://cluster-east.example.org/products?auth_token=****&tlsCAFile=verify-full
 etcd://shard0.mongodb.example.net/analytics?apikey=db53791be66757d6&retryWrites=verify-full	etcd://shard0.mongodb.example.net/analytics?apikey=****&retryWrites=verify-full
 amqps://primary.cluster.local/audit?bearer=55e8f75ec917ab47&w=verify-full	amqps://primary.cluster.local/audit?bearer=****&w=verify-full
-postgres://[::1]/reporting?pass=5d5fd957f32a009e&compression=verify-full	************************************************************************
+postgres://[::1]/reporting?pass=5d5fd957f32a009e&compression=verify-full	postgres://[::1]/reporting?pass=****&compression=verify-full
 bolt://shard0.mongodb.example.net/audit?refresh_token=1e790992e9c9c4c9&loadBalanceHosts=verify-full	bolt://shard0.mongodb.example.net/audit?refresh_token=****&loadBalanceHosts=verify-full
 vertica://rds.aws.example.com/audit?auth_token=4c79052c7b7becf9&loadBalanceHosts=verify-full	vertica://rds.aws.example.com/audit?auth_token=****&loadBalanceHosts=verify-full
 elasticsearch://127.0.0.1/orders?token=28c3d7a2da0d4f8c&readPreference=verify-full	elasticsearch://127.0.0.1/orders?token=****&readPreference=verify-full
@@ -345,7 +345,7 @@ firebird://replica-1.internal/analytics?sastoken=e01edf849453d6fa&sslmode=verify
 cockroachdb://127.0.0.1/products?token=61e8a2fc378c3830&readPreference=verify-full	cockroachdb://127.0.0.1/products?token=****&readPreference=verify-full
 postgres://shard0.mongodb.example.net/audit?access_token=7a7ae86dcba86420&replicaSet=verify-full	postgres://shard0.mongodb.example.net/audit?access_token=****&replicaSet=verify-full
 mariadb://primary.cluster.local/products?client_credentials=4c68d209a2acde7d&readPreference=verify-full	mariadb://primary.cluster.local/products?client_credentials=****&readPreference=verify-full
-elastic://127.0.0.1/orders?w=verify-full&pass=02a0fd7cf9a96221	**************************************************************
+elastic://127.0.0.1/orders?w=verify-full&pass=02a0fd7cf9a96221	elastic://127.0.0.1/orders?w=verify-full&pass=****
 sqlserver://rds.aws.example.com/users?compression=verify-full&client_secret=92637850ec59d7ad	sqlserver://rds.aws.example.com/users?compression=verify-full&client_secret=****
 redis://db.example.com/analytics?loadBalanceHosts=verify-full&access_token=779e0e9342c04ff0	redis://db.example.com/analytics?loadBalanceHosts=verify-full&access_token=****
 firebird://127.0.0.1/audit?readPreference=verify-full&aws_secret_access_key=2c964f79a7fd370b	firebird://127.0.0.1/audit?readPreference=verify-full&aws_secret_access_key=****
@@ -403,7 +403,7 @@ s3://rds.aws.example.com/orders?schema=verify-full&client_secret=87c52f63ea56120
 postgres://rds.aws.example.com/users?application_name=verify-full&pwd=c2c9c3b8ba35613a&ssl=myapp	postgres://rds.aws.example.com/users?application_name=verify-full&pwd=****&ssl=myapp
 firebird://rds.aws.example.com/analytics?compression=verify-full&sig=64d525021a5a9e51&tlsCAFile=myapp	firebird://rds.aws.example.com/analytics?compression=verify-full&sig=****&tlsCAFile=myapp
 tls://db.example.com/analytics?retryWrites=verify-full&refresh_token=a002fa8ca38bd055&sslmode=myapp	tls://db.example.com/analytics?retryWrites=verify-full&refresh_token=****&sslmode=myapp
-pulsar+ssl://cluster-east.example.org/staging?connectTimeout=verify-full&pass=0c211deb4ceb33a0&appname=myapp	************************************************************************************************************
+pulsar+ssl://cluster-east.example.org/staging?connectTimeout=verify-full&pass=0c211deb4ceb33a0&appname=myapp	pulsar+ssl://cluster-east.example.org/staging?connectTimeout=verify-full&pass=****&appname=myapp
 oracle://shard0.mongodb.example.net/products?tlsCAFile=verify-full&aws_secret_access_key=de18c267bfa948ea&targetServerType=myapp	oracle://shard0.mongodb.example.net/products?tlsCAFile=verify-full&aws_secret_access_key=****&targetServerType=myapp
 mariadb://cluster-east.example.org/orders?retryWrites=verify-full&aws_secret_access_key=40006aa92a2224ce&schema=myapp	mariadb://cluster-east.example.org/orders?retryWrites=verify-full&aws_secret_access_key=****&schema=myapp
 couchbases://[::1]/analytics?ssl=verify-full&sig=8815fcbea22da07e&authSource=myapp	couchbases://[::1]/analytics?ssl=verify-full&sig=****&authSource=myapp
@@ -416,21 +416,21 @@ pulsar://replica-1.internal/app?appname=verify-full&id_token=d8c8b9a14d294663&ap
 neo4j://127.0.0.1/reporting?loadBalanceHosts=verify-full&token=0adbf9401da32371&retryWrites=myapp	neo4j://127.0.0.1/reporting?loadBalanceHosts=verify-full&token=****&retryWrites=myapp
 postgresql://127.0.0.1/users?ssl=verify-full&secret=5a84d04450142e89&tlsCAFile=myapp	postgresql://127.0.0.1/users?ssl=verify-full&secret=****&tlsCAFile=myapp
 gs://[::1]/staging?compression=verify-full&sas=14629fdd8bfa45e7&loadBalanceHosts=myapp	gs://[::1]/staging?compression=verify-full&sas=****&loadBalanceHosts=myapp
-vertica://[::1]/products?schema=verify-full&pass=589cf7c7e12b2368&application_name=myapp	****************************************************************************************
+vertica://[::1]/products?schema=verify-full&pass=589cf7c7e12b2368&application_name=myapp	vertica://[::1]/products?schema=verify-full&pass=****&application_name=myapp
 clickhouse://shard0.mongodb.example.net/app?w=verify-full&connectionstring=26f499ad66025592&schema=myapp	clickhouse://shard0.mongodb.example.net/app?w=verify-full&connectionstring=****&schema=myapp
 postgresql://replica-1.internal/analytics?w=verify-full&bearer=34111b209e525de5&tlsCAFile=myapp	postgresql://replica-1.internal/analytics?w=verify-full&bearer=****&tlsCAFile=myapp
 kafka://shard0.mongodb.example.net/orders?connectTimeout=verify-full&sas=04ca9768760dfb2d&w=myapp	kafka://shard0.mongodb.example.net/orders?connectTimeout=verify-full&sas=****&w=myapp
-mariadb://rds.aws.example.com/audit?appname=verify-full&pass=6aa850fbce30abef&readPreference=myapp	**************************************************************************************************
+mariadb://rds.aws.example.com/audit?appname=verify-full&pass=6aa850fbce30abef&readPreference=myapp	mariadb://rds.aws.example.com/audit?appname=verify-full&pass=****&readPreference=myapp
 snowflake://db.example.com/products?connectTimeout=verify-full&secret=6bee3be4955bd9e1&sslmode=myapp	snowflake://db.example.com/products?connectTimeout=verify-full&secret=****&sslmode=myapp
 oracle://rds.aws.example.com/orders?w=verify-full&apikey=3b13b89793ab76a1&replicaSet=myapp	oracle://rds.aws.example.com/orders?w=verify-full&apikey=****&replicaSet=myapp
-postgres://primary.cluster.local/users?loadBalanceHosts=verify-full&pass=a42766315fcba207&w=myapp	*************************************************************************************************
-dynamodb://shard0.mongodb.example.net/analytics?retryWrites=verify-full&pass=854f438550f23568&compression=myapp	***************************************************************************************************************
+postgres://primary.cluster.local/users?loadBalanceHosts=verify-full&pass=a42766315fcba207&w=myapp	postgres://primary.cluster.local/users?loadBalanceHosts=verify-full&pass=****&w=myapp
+dynamodb://shard0.mongodb.example.net/analytics?retryWrites=verify-full&pass=854f438550f23568&compression=myapp	dynamodb://shard0.mongodb.example.net/analytics?retryWrites=verify-full&pass=****&compression=myapp
 firebird://[::1]/analytics?client_secret=d5a0ec050829&bearer=d0f34b71de95&authorization=8b77dbd610dc&pwd=88baaea3bd57	firebird://[::1]/analytics?client_secret=****&bearer=****&authorization=****&pwd=****
 pulsar+ssl://primary.cluster.local/users?connectionstring=a7badd0d4f79&api_key=0dc35ad655b2&aws_secret_access_key=30fc1a22c430	pulsar+ssl://primary.cluster.local/users?connectionstring=****&api_key=****&aws_secret_access_key=****
 memcached://[::1]/products?client_secret=a1c1a06253de&signature=aadca4176487	memcached://[::1]/products?client_secret=****&signature=****
 couchbase://shard0.mongodb.example.net/staging?aws_secret_access_key=c31aafa91956&secret=ecb21f41c4f2	couchbase://shard0.mongodb.example.net/staging?aws_secret_access_key=****&secret=****
 dynamodb://db.example.com/analytics?api_key=6c154842dc7d&connectionstring=4e35f5a689bf	dynamodb://db.example.com/analytics?api_key=****&connectionstring=****
-kafka://shard0.mongodb.example.net/reporting?token=94eb44de481c&pass=8efaa77d5b8c	kafka://shard0.mongodb.example.net/reporting?token=****&pass=8efaa77d5b8c
+kafka://shard0.mongodb.example.net/reporting?token=94eb44de481c&pass=8efaa77d5b8c	kafka://shard0.mongodb.example.net/reporting?token=****&pass=****
 elasticsearch://127.0.0.1/orders?api_key=95818e1d367d&id_token=a950cc198289	elasticsearch://127.0.0.1/orders?api_key=****&id_token=****
 amqp://primary.cluster.local/orders?secret=c2a3a3325072&pwd=6804e643aa4c&refresh_token=0d24f10943db	amqp://primary.cluster.local/orders?secret=****&pwd=****&refresh_token=****
 db2://replica-1.internal/app?id_token=02c2bcde2604&signature=e0bb89ee29be&private_key=d1c6fba3b01d&token=8461e947116f	db2://replica-1.internal/app?id_token=****&signature=****&private_key=****&token=****
@@ -442,7 +442,7 @@ postgresql://127.0.0.1/reporting?signature=0953dc690eec&sas=9f05acad75d1&passwor
 couchbases://replica-1.internal/users?private_key=7af3d48e09bf&authorization=5183943f8551&passwd=c744326b5bea	couchbases://replica-1.internal/users?private_key=****&authorization=****&passwd=****
 neo4j://[::1]/app?sastoken=e41653fe75cf&authorization=c13d96c28280&password=d70ab5e1446e	neo4j://[::1]/app?sastoken=****&authorization=****&password=****
 vertica://127.0.0.1/reporting?sastoken=34236ba1529e&sas=72771c1c9438&id_token=142e858519d9	vertica://127.0.0.1/reporting?sastoken=****&sas=****&id_token=****
-oracle://primary.cluster.local/users?token=30f878500cff&connectionstring=1d984fe36282&pass=cc1f584065ef	oracle://primary.cluster.local/users?token=****&connectionstring=****&pass=cc1f584065ef
+oracle://primary.cluster.local/users?token=30f878500cff&connectionstring=1d984fe36282&pass=cc1f584065ef	oracle://primary.cluster.local/users?token=****&connectionstring=****&pass=****
 memcached://shard0.mongodb.example.net/analytics?client_secret=5f62b7614dd3&apikey=93359d382a5e&bearer=8d2e780f30b6	memcached://shard0.mongodb.example.net/analytics?client_secret=****&apikey=****&bearer=****
 cockroachdb://127.0.0.1/reporting?client_secret=9701d304f88a&private_key=ba55abc28d46&id_token=30f5e78a5237	cockroachdb://127.0.0.1/reporting?client_secret=****&private_key=****&id_token=****
 tcp://replica-1.internal/products?sastoken=39928acaa077&refresh_token=e8a9193c85e6	tcp://replica-1.internal/products?sastoken=****&refresh_token=****
@@ -485,7 +485,7 @@ elastic://[::1]/staging?my_token_id=ok&bearer=b8e2befb750d	elastic://[::1]/stagi
 mssql://127.0.0.1/users?key_metric=ok&auth_token=0196eb0e5d5f	mssql://127.0.0.1/users?key_metric=ok&auth_token=****
 vertica://primary.cluster.local/audit?passcode_label=ok&pwd=44285c5103a8	vertica://primary.cluster.local/audit?passcode_label=ok&pwd=****
 clickhouse://cluster-east.example.org/reporting?key_metric=ok&sastoken=f3f8460bb3aa	clickhouse://cluster-east.example.org/reporting?key_metric=ok&sastoken=****
-gs://127.0.0.1/reporting?key_metric=ok&pass=d272a911c4a7	********************************************************
+gs://127.0.0.1/reporting?key_metric=ok&pass=d272a911c4a7	gs://127.0.0.1/reporting?key_metric=ok&pass=****
 mqtts://rds.aws.example.com/audit?application_name=ok&private_key=b534641aad64	mqtts://rds.aws.example.com/audit?application_name=ok&private_key=****
 redis://replica-1.internal/analytics?secretsauce=ok&secret=56e98ebe07b0	redis://replica-1.internal/analytics?secretsauce=ok&secret=****
 mongodb+srv://shard0.mongodb.example.net/orders?my_token_id=ok&token=f9c81e88c68d	mongodb+srv://shard0.mongodb.example.net/orders?my_token_id=ok&token=****
@@ -501,7 +501,7 @@ tls://db.example.com/orders?passcode_label=ok&pwd=eb9e537c0523	tls://db.example.
 elasticsearch://127.0.0.1/reporting?secretsauce=ok&apikey=9be066b73524	elasticsearch://127.0.0.1/reporting?secretsauce=ok&apikey=****
 clickhouse://cluster-east.example.org/orders?signedurl_handler=ok&aws_secret_access_key=366058d51232	clickhouse://cluster-east.example.org/orders?signedurl_handler=ok&aws_secret_access_key=****
 firebird://rds.aws.example.com/products?application_name=ok&aws_secret_access_key=f6388ffc23a0	firebird://rds.aws.example.com/products?application_name=ok&aws_secret_access_key=****
-couchbase://127.0.0.1/staging?application_name=ok&pass=4f475c54a597	*******************************************************************
+couchbase://127.0.0.1/staging?application_name=ok&pass=4f475c54a597	couchbase://127.0.0.1/staging?application_name=ok&pass=****
 neo4j://replica-1.internal/analytics?application_name=ok&authorization=754a17e57d3c	neo4j://replica-1.internal/analytics?application_name=ok&authorization=****
 snowflake://rds.aws.example.com/analytics?secretsauce=ok&sas=4840d3604140	snowflake://rds.aws.example.com/analytics?secretsauce=ok&sas=****
 mongodb://127.0.0.1/products?secretsauce=ok&access_token=e2653cd21c81	mongodb://127.0.0.1/products?secretsauce=ok&access_token=****
@@ -517,7 +517,7 @@ postgres://127.0.0.1/reporting?sslmode=verify-full&application_name=svc&authoriz
 postgres://rds.aws.example.com/users?sslmode=verify-full&application_name=svc&pwd=fd66d021e2130b5d&connect_timeout=10	postgres://rds.aws.example.com/users?sslmode=verify-full&application_name=svc&pwd=****&connect_timeout=10
 postgres://cluster-east.example.org/reporting?sslmode=verify-full&application_name=svc&sastoken=d4200a821f68f2fb&connect_timeout=10	postgres://cluster-east.example.org/reporting?sslmode=verify-full&application_name=svc&sastoken=****&connect_timeout=10
 postgres://127.0.0.1/reporting?sslmode=verify-full&application_name=svc&pwd=c4875893ec1543dc&connect_timeout=10	postgres://127.0.0.1/reporting?sslmode=verify-full&application_name=svc&pwd=****&connect_timeout=10
-postgres://cluster-east.example.org/orders?sslmode=verify-full&application_name=svc&pass=9c0b404d7c65f8de&connect_timeout=10	****************************************************************************************************************************
+postgres://cluster-east.example.org/orders?sslmode=verify-full&application_name=svc&pass=9c0b404d7c65f8de&connect_timeout=10	postgres://cluster-east.example.org/orders?sslmode=verify-full&application_name=svc&pass=****&connect_timeout=10
 postgres://rds.aws.example.com/audit?sslmode=verify-full&application_name=svc&authorization=a5f2e64022fdaba2&connect_timeout=10	postgres://rds.aws.example.com/audit?sslmode=verify-full&application_name=svc&authorization=****&connect_timeout=10
 postgres://127.0.0.1/staging?sslmode=verify-full&application_name=svc&authorization=ca02c8cc62c5c2c0&connect_timeout=10	postgres://127.0.0.1/staging?sslmode=verify-full&application_name=svc&authorization=****&connect_timeout=10
 postgres://shard0.mongodb.example.net/users?sslmode=verify-full&application_name=svc&sas=cb667101b49517f9&connect_timeout=10	postgres://shard0.mongodb.example.net/users?sslmode=verify-full&application_name=svc&sas=****&connect_timeout=10
@@ -536,7 +536,7 @@ postgres://primary.cluster.local/staging?sslmode=verify-full&application_name=sv
 postgres://rds.aws.example.com/app?sslmode=verify-full&application_name=svc&passwd=e1c1969ed3dc512c&connect_timeout=10	postgres://rds.aws.example.com/app?sslmode=verify-full&application_name=svc&passwd=****&connect_timeout=10
 postgres://primary.cluster.local/app?sslmode=verify-full&application_name=svc&id_token=ba8f246aaacdfbb3&connect_timeout=10	postgres://primary.cluster.local/app?sslmode=verify-full&application_name=svc&id_token=****&connect_timeout=10
 mongodb://127.0.0.1/analytics?replicaSet=rs0&authSource=admin&sig=4088aa5e2d142b7d&w=majority	mongodb://127.0.0.1/analytics?replicaSet=rs0&authSource=admin&sig=****&w=majority
-mongodb://shard0.mongodb.example.net/users?replicaSet=rs0&authSource=admin&pass=2f996c452d141237&w=majority	***********************************************************************************************************
+mongodb://shard0.mongodb.example.net/users?replicaSet=rs0&authSource=admin&pass=2f996c452d141237&w=majority	mongodb://shard0.mongodb.example.net/users?replicaSet=rs0&authSource=admin&pass=****&w=majority
 mongodb://[::1]/products?replicaSet=rs0&authSource=admin&auth_token=1c643c87892bf602&w=majority	mongodb://[::1]/products?replicaSet=rs0&authSource=admin&auth_token=****&w=majority
 mongodb://replica-1.internal/products?replicaSet=rs0&authSource=admin&signature=1299ca5c651fb295&w=majority	mongodb://replica-1.internal/products?replicaSet=rs0&authSource=admin&signature=****&w=majority
 mongodb://replica-1.internal/reporting?replicaSet=rs0&authSource=admin&bearer=ebea8d4e1be435af&w=majority	mongodb://replica-1.internal/reporting?replicaSet=rs0&authSource=admin&bearer=****&w=majority
@@ -565,7 +565,7 @@ mqtts://developer:5b6f878bf1e80cd0@127.0.0.1/analytics?sslmode=verify-full&signa
 memcached://readonly:55ab81594f1a87b3@rds.aws.example.com/users?connectTimeout=verify-full&pwd=30292da5938e2735	memcached://****:****@rds.aws.example.com/users?connectTimeout=verify-full&pwd=****
 kafka://readonly:82a50b3e5ad41c22@[::1]/reporting?schema=verify-full&bearer=348ed7880b62db2a	kafka://****:****@[::1]/reporting?schema=verify-full&bearer=****
 postgresql://service:22272966072c3082@rds.aws.example.com/orders?ssl=verify-full&auth_token=62776f70fdcd112e	postgresql://****:****@rds.aws.example.com/orders?ssl=verify-full&auth_token=****
-elastic://service:4821ae9c3c2711ff@rds.aws.example.com/products?ssl=verify-full&pass=98aaecef13a57297	elastic://****:****@rds.aws.example.com/products?ssl=verify-full&pass=98aaecef13a57297
+elastic://service:4821ae9c3c2711ff@rds.aws.example.com/products?ssl=verify-full&pass=98aaecef13a57297	elastic://****:****@rds.aws.example.com/products?ssl=verify-full&pass=****
 amqp://admin:db5f1068b7f18737@db.example.com/audit?w=verify-full&passwd=1013c38c6ae2da55	amqp://****:****@db.example.com/audit?w=verify-full&passwd=****
 amqp://readonly:1d64c745ce64d9e0@cluster-east.example.org/reporting?replicaSet=verify-full&password=e2ce365988b755a4	amqp://****:****@cluster-east.example.org/reporting?replicaSet=verify-full&password=****
 neo4j://service:98e588f5788da3c5@[::1]/audit?connectTimeout=verify-full&secret=4e6e085e939066bf	neo4j://****:****@[::1]/audit?connectTimeout=verify-full&secret=****

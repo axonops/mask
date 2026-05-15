@@ -85,6 +85,7 @@ var secretQueryKeys = map[string]struct{}{
 	// Password family.
 	"password": {},
 	"passwd":   {},
+	"pass":     {},
 	"pwd":      {},
 	// API-key family.
 	"apikey":  {},

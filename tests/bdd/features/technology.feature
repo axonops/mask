@@ -195,6 +195,8 @@ Feature: Technology and infrastructure masking rules
       | postgresql://admin:s3cret@db.example.com:5432/myapp                | postgresql://****:****@db.example.com:5432/myapp                   |
       | mongodb+srv://user:pass@cluster.mongodb.net/db                     | mongodb+srv://****:****@cluster.mongodb.net/db                     |
       | postgresql://db.example.com/d?password=secret                      | postgresql://db.example.com/d?password=****                        |
+      | postgresql://db.example.com/d?pass=secret                          | postgresql://db.example.com/d?pass=****                            |
+      | postgresql://db.example.com/d?pass=secret&sslmode=verify-full      | postgresql://db.example.com/d?pass=****&sslmode=verify-full        |
       | postgresql://db.example.com/d?user=u&password=p&sslmode=require    | postgresql://db.example.com/d?user=u&password=****&sslmode=require |
       | postgresql://db.example.com:5432/myapp                             | **************************************                             |
       |                                                                    |                                                                    |
