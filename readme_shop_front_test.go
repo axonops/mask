@@ -118,7 +118,7 @@ var expectedBadgeURLFragments = []string{
 	"pkg.go.dev/badge/github.com/axonops/mask",
 	"goreportcard.com/badge/github.com/axonops/mask",
 	"License-Apache",
-	"status-pre--release",
+	"status-stable",
 }
 
 // TestReadme_BadgeMarkdownReferencesExpectedURLs asserts the README
