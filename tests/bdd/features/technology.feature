@@ -209,7 +209,11 @@ Feature: Technology and infrastructure masking rules
     Examples:
       | input                                    | expected                                 |
       | user:password@tcp(localhost:3306)/dbname | ****:****@tcp(localhost:3306)/dbname     |
+      | user:pass@tcp4(127.0.0.1:3306)/db        | ****:****@tcp4(127.0.0.1:3306)/db        |
+      | user:pass@tcp6([2001:db8::1]:3306)/db    | ****:****@tcp6([2001:db8::1]:3306)/db    |
       | user:pass@unix(/tmp/mysql.sock)/dbname   | ****:****@unix(/tmp/mysql.sock)/dbname   |
+      | user:pass@udp(host:3306)/db              | ****:****@udp(host:3306)/db              |
+      | user:pass@quic(host)/db                  | ***********************                  |
       | user@tcp(host)/db                        | ****@tcp(host)/db                        |
       | user:pass@host/db                        | *****************                        |
       |                                          |                                          |
@@ -228,6 +232,8 @@ Feature: Technology and infrastructure masking rules
       | user:pass@tcp(host:3306)/db?client_secret=abc                          | ****:****@tcp(host:3306)/db?client_secret=****                          |
       | user:pass@tcp(host:3306)/db?aws_secret_access_key=AKIA                 | ****:****@tcp(host:3306)/db?aws_secret_access_key=****                  |
       | user:pass@tcp(host:3306)/db?secretsauce=ok&password=leak               | ****:****@tcp(host:3306)/db?secretsauce=ok&password=****                |
+      | user:pass@tcp6([2001:db8::1]:3306)/db?password=leak&charset=utf8mb4    | ****:****@tcp6([2001:db8::1]:3306)/db?password=****&charset=utf8mb4     |
+      | user:pass@unix(/tmp/mysql.sock)/db?token=t&parseTime=true              | ****:****@unix(/tmp/mysql.sock)/db?token=****&parseTime=true            |
 
   Scenario Outline: Mask UUIDs
     Given a fresh masker
