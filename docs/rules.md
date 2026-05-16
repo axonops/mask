@@ -31,7 +31,7 @@ Personal and identity fields common to most jurisdictions. See [Country-specific
 
 | Rule | Description | Example |
 |---|---|---|
-| `date_of_birth` | Preserves the year and masks month and day across three common formats (ISO, slash, month-name); separator style is unchanged. | `1985-03-15` → `1985-**-**` |
+| `date_of_birth` | Preserves the year and masks month and day across four common formats (ISO hyphen, slash-ISO `YYYY/M/D`, slash D-first `D/M/YYYY`, month-name); separator style is unchanged. | `1985-03-15` → `1985-**-**`; `2000/01/16` → `2000/**/**` |
 | `driver_license_number` | Preserves the first 2 and last 3 or 4 non-separator characters of a driver licence number. | `DL-1234-5678` → `DL-****-5678` |
 | `email_address` | Preserves the first character of the local-part and the **full domain**; masks the rest of the local-part. Single-rune local parts fail closed (the whole local-part is masked) so the identifier is never echoed. GDPR-aware consumers: the retained domain is itself personal data for many mail providers; wrap with `deterministic_hash` + `WithKeyedSalt` if you need Art. 4(5) pseudonymisation. | `alice@example.com` → `a****@example.com` |
 | `family_name` | Preserves the first character of the surname. | `Smith` → `S****` |
