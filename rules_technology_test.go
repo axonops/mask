@@ -725,6 +725,161 @@ func TestApply_DatabaseDSN_QueryParamSecrets(t *testing.T) {
 	}
 }
 
+// TestApply_DatabaseDSN_GoMySQLProtocols pins the closed allowlist
+// of supported Go MySQL DSN protocol tokens. The protocol-match
+// gate at rules_technology.go::looksLikeDSNProtocol was widened in
+// #83 from `[a-z]+` (open scan) to a closed set of `tcp`, `tcp4`,
+// `tcp6`, `unix`, `udp`. Each accepted protocol must redact
+// userinfo and preserve protocol+addr+database verbatim; every
+// other prefix must fail closed.
+func TestApply_DatabaseDSN_GoMySQLProtocols(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	cases := []struct{ name, in, want string }{
+		// Accepted protocols (AC 1-4 + #6 regression).
+		{"tcp regression",
+			"admin:secret@tcp(localhost:3306)/db",
+			"****:****@tcp(localhost:3306)/db"},
+		{"tcp4 IPv4 literal",
+			"admin:secret@tcp4(127.0.0.1:3306)/db",
+			"****:****@tcp4(127.0.0.1:3306)/db"},
+		{"tcp6 IPv6 literal",
+			"admin:secret@tcp6([2001:db8::88]:3306)/users",
+			"****:****@tcp6([2001:db8::88]:3306)/users"},
+		{"unix socket path",
+			"admin:secret@unix(/var/run/mysqld/mysqld.sock)/db",
+			"****:****@unix(/var/run/mysqld/mysqld.sock)/db"},
+		{"udp protocol",
+			"admin:secret@udp(host:3306)/db",
+			"****:****@udp(host:3306)/db"},
+		// Negative pins — anything outside the allowlist fails closed.
+		// `tcpx` was previously accepted by the open `[a-z]+` scan
+		// and redacted as a plausible-looking protocol; under the
+		// closed allowlist it fails closed, which is strictly safer.
+		{"unknown protocol tcpx fails closed",
+			"u:p@tcpx(addr)/db",
+			"*****************"},
+		{"unknown protocol quic fails closed",
+			"u:p@quic(addr)/db",
+			"*****************"},
+		{"unknown protocol gopher fails closed",
+			"u:p@gopher(addr)/db",
+			"*******************"},
+		// Case-sensitive — go-sql-driver/mysql is case-sensitive on
+		// protocol tokens; the allowlist matches lowercase only.
+		{"uppercase TCP fails closed",
+			"u:p@TCP(host:3306)/db",
+			"*********************"},
+		{"mixed-case Tcp6 fails closed",
+			"u:p@Tcp6(host:3306)/db",
+			"**********************"},
+		// `udp4` / `udp6` not in the allowlist — only `udp` plain.
+		{"udp4 fails closed",
+			"u:p@udp4(host:3306)/db",
+			"**********************"},
+		// `tcp44` is `tcp4` then a stray `4`; allowlist returns 4
+		// for `tcp4`, caller checks s[4]=='(', sees '4' -> fail.
+		{"tcp44 fails closed",
+			"u:p@tcp44(host:3306)/db",
+			"***********************"},
+		// Existing unterminated-protocol contract preserved.
+		{"tcp4 unterminated fails closed",
+			"u:p@tcp4(",
+			"*********"},
+		{"tcp6 unterminated fails closed",
+			"u:p@tcp6(",
+			"*********"},
+		// Exact-length protocol with no `(` (caller's protoEnd >=
+		// len(s) guard hardening — see #83 test-analyst feedback).
+		{"bare tcp4 no parens fails closed",
+			"u:p@tcp4",
+			"********"},
+		{"bare tcp6 no parens fails closed",
+			"u:p@tcp6",
+			"********"},
+		// `strings.IndexByte` finds the FIRST `)`. A unix-socket
+		// path containing `)` early-terminates the address gate and
+		// the trailing bytes are non-`/`, so the whole input fails
+		// closed. Documented externally observable behaviour, not a
+		// bug. Pinned here so a future "be liberal" tweak doesn't
+		// silently leak.
+		{"unix path with stray paren fails closed",
+			"u:p@unix(/var/run/foo)bar/mysqld.sock)/db",
+			"*****************************************"},
+		// Trailing `?` directly after `)` (no `/` path) — the gate
+		// requires `/` or EOF after the closing paren, so this
+		// fails closed. Pin against a future regression where the
+		// boundary check is relaxed.
+		{"query without path fails closed",
+			"u:p@tcp(host:3306)?password=x",
+			"*****************************"},
+		// Empty address `tcp()` — the gate accepts it (parens
+		// present, `/db` follows). Pinned to document current
+		// behaviour rather than silently accept.
+		{"empty address parens accepted",
+			"u:p@tcp()/db",
+			"****:****@tcp()/db"},
+		// Trailing `/` with no database name — `after == '/'` so
+		// the gate passes and the literal `/` echoes.
+		{"trailing slash no database accepted",
+			"u:p@tcp(host:3306)/",
+			"****:****@tcp(host:3306)/"},
+		// Two distinct allowlist protocols in the same input —
+		// findDSNProtocolAt sees two candidates and fails closed.
+		// Pre-existing test covered tcp+tcp; this pins the mixed
+		// case under the new allowlist.
+		{"ambiguous mixed protocols fails closed",
+			"u@tcp(a)/d@unix(b)/e",
+			"********************"},
+		// Nested protocol-shaped substring in the password — first
+		// `@tcp` is followed by `@`, not `(`, so it's rejected;
+		// the second `@tcp6(...)` is the sole candidate and
+		// redacts cleanly. Substring overlap with the allowlist
+		// alphabet is safe.
+		{"nested protocol-shape in password",
+			"u:p@tcp@tcp6([::1]:3306)/db",
+			"****:****@tcp6([::1]:3306)/db"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("database_dsn", tc.in))
+		})
+	}
+}
+
+// TestApply_DatabaseDSN_GoMySQLProtocols_QuerySecrets pins AC #5
+// of #83: the secret query-parameter redaction added in #72 must
+// continue to work on every protocol in the new allowlist, not
+// just `tcp(...)`.
+func TestApply_DatabaseDSN_GoMySQLProtocols_QuerySecrets(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	cases := []struct{ name, in, want string }{
+		{"tcp4 with password param",
+			"u:p@tcp4(127.0.0.1:3306)/db?password=leak&charset=utf8mb4",
+			"****:****@tcp4(127.0.0.1:3306)/db?password=****&charset=utf8mb4"},
+		{"tcp6 with password param",
+			"u:p@tcp6([2001:db8::1]:3306)/db?password=leak&charset=utf8mb4",
+			"****:****@tcp6([2001:db8::1]:3306)/db?password=****&charset=utf8mb4"},
+		{"unix with token param",
+			"u:p@unix(/tmp/mysql.sock)/db?token=t&parseTime=true",
+			"****:****@unix(/tmp/mysql.sock)/db?token=****&parseTime=true"},
+		{"udp with multiple secrets",
+			"u:p@udp(host:3306)/db?password=p&secret=s&loc=UTC",
+			"****:****@udp(host:3306)/db?password=****&secret=****&loc=UTC"},
+		// pass short-form key (#82) flows through database_dsn too —
+		// pin the cross-issue interaction.
+		{"tcp6 with pass short form",
+			"u:p@tcp6([::1]:3306)/db?pass=secret",
+			"****:****@tcp6([::1]:3306)/db?pass=****"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("database_dsn", tc.in))
+		})
+	}
+}
+
 // ---------- uuid ----------
 
 func TestApply_UUID(t *testing.T) {

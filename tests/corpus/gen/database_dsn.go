@@ -24,11 +24,8 @@ import (
 // databaseDSNGen exercises maskDatabaseDSN — parses the Go MySQL
 // driver DSN form `user:password@protocol(addr)/db` and redacts
 // userinfo. Protocol, address, database, and params are preserved.
-//
-// NOTE: the current parser rejects `tcp6(...)` IPv6 protocol form
-// (rules_technology.go:1058-1063). Fixtures here lock that as
-// current behaviour — reviewers should leave a `# BUG?` marker in
-// canonical and open a follow-up if appropriate.
+// Recognised protocol set (closed allowlist, see #83):
+// `tcp`, `tcp4`, `tcp6`, `unix`, `udp`. Anything else fails closed.
 type databaseDSNGen struct{}
 
 func (databaseDSNGen) Generate(seed uint64) []Pair {
@@ -36,7 +33,6 @@ func (databaseDSNGen) Generate(seed uint64) []Pair {
 
 	users := []string{"root", "admin", "app", "service", "etl",
 		"replicator", "monitor", "ops"}
-	protocols := []string{"tcp", "unix", "tcp6"} // tcp6 likely fails closed
 	hosts := []string{"localhost:3306", "db.internal:3306",
 		"127.0.0.1:3306", "primary.cluster.local:3306",
 		"[::1]:3306", "[2001:db8::1]:3306",
@@ -50,10 +46,9 @@ func (databaseDSNGen) Generate(seed uint64) []Pair {
 	for i := 0; i < 80; i++ {
 		u := users[r.IntN(len(users))]
 		p := randomHex(r, 16)
-		proto := protocols[0] // tcp
 		h := hosts[r.IntN(4)] // pick TCP-ish hosts
 		db := dbnames[r.IntN(len(dbnames))]
-		inputs = append(inputs, fmt.Sprintf("%s:%s@%s(%s)/%s", u, p, proto, h, db))
+		inputs = append(inputs, fmt.Sprintf("%s:%s@tcp(%s)/%s", u, p, h, db))
 	}
 
 	// Unix socket form.
@@ -64,13 +59,68 @@ func (databaseDSNGen) Generate(seed uint64) []Pair {
 		inputs = append(inputs, fmt.Sprintf("%s:%s@unix(/var/run/mysqld/mysqld.sock)/%s", u, p, db))
 	}
 
-	// tcp6 form — BUG? path. Lock current behaviour.
+	// tcp6 form — IPv6 deployments. Fixed in #83; protocol token
+	// `tcp6` is now in the allowlist and these inputs redact
+	// userinfo while preserving the IPv6 authority verbatim.
 	for i := 0; i < 20; i++ {
 		u := users[r.IntN(len(users))]
 		p := randomHex(r, 16)
 		db := dbnames[r.IntN(len(dbnames))]
 		inputs = append(inputs, fmt.Sprintf("%s:%s@tcp6([2001:db8::%d]:3306)/%s",
 			u, p, r.IntN(100), db))
+	}
+
+	// tcp4 form — explicit IPv4 transport. Added in #83.
+	for i := 0; i < 15; i++ {
+		u := users[r.IntN(len(users))]
+		p := randomHex(r, 16)
+		db := dbnames[r.IntN(len(dbnames))]
+		inputs = append(inputs, fmt.Sprintf("%s:%s@tcp4(127.0.0.%d:3306)/%s",
+			u, p, 1+r.IntN(200), db))
+	}
+
+	// udp form — the Go MySQL driver hands the protocol token to
+	// net.Dial, which permits `udp` as a network family. The rule
+	// is a redactor not a connection-string validator, so the
+	// allowlist accepts it (#83).
+	for i := 0; i < 10; i++ {
+		u := users[r.IntN(len(users))]
+		p := randomHex(r, 16)
+		db := dbnames[r.IntN(len(dbnames))]
+		inputs = append(inputs, fmt.Sprintf("%s:%s@udp(host%d:3306)/%s",
+			u, p, r.IntN(10), db))
+	}
+
+	// Non-tcp protocols carrying a secret query parameter — pins
+	// the cross-issue interaction between #72 (query secret
+	// redaction) and #83 (allowlist).
+	nonTCPSecretShapes := []struct {
+		proto string
+		addr  string
+	}{
+		{"tcp6", "[2001:db8::1]:3306"},
+		{"tcp4", "127.0.0.1:3306"},
+		{"unix", "/var/run/mysqld/mysqld.sock"},
+		{"udp", "host:3306"},
+	}
+	for i := 0; i < 12; i++ {
+		shape := nonTCPSecretShapes[r.IntN(len(nonTCPSecretShapes))]
+		u := users[r.IntN(len(users))]
+		p := randomHex(r, 16)
+		db := dbnames[r.IntN(len(dbnames))]
+		secret := randomHex(r, 16)
+		inputs = append(inputs, fmt.Sprintf("%s:%s@%s(%s)/%s?charset=utf8mb4&password=%s",
+			u, p, shape.proto, shape.addr, db, secret))
+	}
+
+	// Fail-closed pins for unknown protocols — keeps the closed
+	// allowlist contract visible in the corpus (#83).
+	failClosedProtos := []string{"quic", "gopher", "ftp", "Tcp6", "TCP", "udp4"}
+	for _, fp := range failClosedProtos {
+		u := users[r.IntN(len(users))]
+		p := randomHex(r, 16)
+		db := dbnames[r.IntN(len(dbnames))]
+		inputs = append(inputs, fmt.Sprintf("%s:%s@%s(host:3306)/%s", u, p, fp, db))
 	}
 
 	// With multiple non-secret params.

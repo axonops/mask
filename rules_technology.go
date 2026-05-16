@@ -1032,10 +1032,10 @@ func asciiLower(s string) string {
 
 // maskDatabaseDSN parses the Go MySQL DSN form
 // `user:password@protocol(addr)/db?params` and redacts userinfo.
-// The parser looks for an `@` immediately followed by a lowercase
-// scheme identifier and `(` — this rules out unencoded `@`
-// characters inside the password. Any ambiguity (no such `@`, or
-// multiple candidates) fails closed.
+// The parser looks for an `@` immediately followed by one of the
+// recognised protocol tokens (see [dsnProtocolEnd]) and `(` —
+// this rules out unencoded `@` characters inside the password.
+// Any ambiguity (no such `@`, or multiple candidates) fails closed.
 func maskDatabaseDSN(v string, c rune) string {
 	if v == "" {
 		return ""
@@ -1074,7 +1074,8 @@ func maskDatabaseDSN(v string, c rune) string {
 }
 
 // findDSNProtocolAt locates the single `@` whose following bytes
-// match `[a-z]+\(`. Returns the `@` byte offset plus ok=true only
+// open with one of the supported Go MySQL DSN protocol tokens
+// followed by `(`. Returns the `@` byte offset plus ok=true only
 // when exactly one such `@` is present.
 func findDSNProtocolAt(v string) (int, bool) {
 	candidate := -1
@@ -1091,24 +1092,50 @@ func findDSNProtocolAt(v string) (int, bool) {
 }
 
 // looksLikeDSNProtocol reports whether s starts with a well-formed
-// `[a-z]+\([^)]*\)` protocol-and-address block, optionally followed
-// by a `/` (path separator) or end-of-string. This prevents
-// unterminated inputs like `u:p@tcp(abc` from being treated as a
-// valid DSN shape and emitted as pseudo-masked output.
+// `<protocol>(<addr>)` block, optionally followed by `/` (path
+// separator) or end-of-string. The protocol token set is a closed
+// allowlist matching go-sql-driver/mysql's recognised network
+// families: `tcp`, `tcp4`, `tcp6`, `unix`, `udp`. Matching is
+// case-sensitive by design — go-sql-driver/mysql forwards the
+// token to net.Dial verbatim, which is also case-sensitive. Any
+// other prefix (e.g. `Tcp6`, `tcpx`, `quic`, `gopher`) fails the
+// gate and the caller falls back to SameLengthMask.
+//
+// The closed allowlist deliberately rejects shapes that the old
+// `[a-z]+\(` scan accepted (#83): emitting pseudo-masked output
+// for unrecognised protocols is grammar-faithful but not the
+// rule's contract — fail-closed is safer.
 func looksLikeDSNProtocol(s string) bool {
-	i := 0
-	for i < len(s) && s[i] >= 'a' && s[i] <= 'z' {
-		i++
-	}
-	if i == 0 || i >= len(s) || s[i] != '(' {
+	protoEnd := dsnProtocolEnd(s)
+	if protoEnd == 0 || protoEnd >= len(s) || s[protoEnd] != '(' {
 		return false
 	}
-	closeIdx := strings.IndexByte(s[i+1:], ')')
+	closeIdx := strings.IndexByte(s[protoEnd+1:], ')')
 	if closeIdx < 0 {
 		return false
 	}
-	after := i + 1 + closeIdx + 1
+	after := protoEnd + 1 + closeIdx + 1
 	return after == len(s) || s[after] == '/'
+}
+
+// dsnProtocolEnd returns the byte length of the supported protocol
+// token at the start of s, or 0 if s does not start with one.
+// Within the `tcp*` family, the longer prefixes (`tcp4`, `tcp6`)
+// are tested before the shorter `tcp` so the longest valid match
+// wins; `unix` is 4 bytes but does not overlap any shorter token.
+// strings.HasPrefix is length-safe so the caller's `protoEnd >=
+// len(s)` guard handles the rare exact-length-3 input.
+func dsnProtocolEnd(s string) int {
+	switch {
+	case strings.HasPrefix(s, "tcp4"),
+		strings.HasPrefix(s, "tcp6"),
+		strings.HasPrefix(s, "unix"):
+		return 4
+	case strings.HasPrefix(s, "tcp"),
+		strings.HasPrefix(s, "udp"):
+		return 3
+	}
+	return 0
 }
 
 // ---------- uuid ----------
@@ -1236,7 +1263,7 @@ func registerTechnologyRules(m *Masker) {
 		func(v string) string { return maskDatabaseDSN(v, m.maskChar()) },
 		RuleInfo{
 			Name: "database_dsn", Category: "technology", Jurisdiction: "global",
-			Description: "Parses the Go MySQL DSN form `user:password@protocol(addr)/db?params` and redacts userinfo and the values of any query parameters whose keys match the curated secret set (password family, OAuth, AWS, Azure — same keyword set as connection_string). Protocol, address, database, and well-formed non-secret `key=value` params pass through verbatim. Malformed pairs (bare flags, empty keys) are length-masked rather than echoed — the rule fails closed on inputs that depart from the documented MySQL DSN grammar. Example: user:password@tcp(localhost:3306)/dbname?charset=utf8mb4&password=other → ****:****@tcp(localhost:3306)/dbname?charset=utf8mb4&password=****.",
+			Description: "Parses the Go MySQL DSN form `user:password@protocol(addr)/db?params` and redacts userinfo and the values of any query parameters whose keys match the curated secret set (password family, OAuth, AWS, Azure — same keyword set as connection_string). Supported protocol tokens are the closed allowlist `tcp`, `tcp4`, `tcp6`, `unix`, `udp` (case-sensitive); other protocol prefixes fail closed. Protocol, address, database, and well-formed non-secret `key=value` params pass through verbatim. Malformed pairs (bare flags, empty keys) are length-masked rather than echoed — the rule fails closed on inputs that depart from the documented MySQL DSN grammar. Example: user:secret@tcp6([2001:db8::1]:3306)/db?charset=utf8mb4&password=other → ****:****@tcp6([2001:db8::1]:3306)/db?charset=utf8mb4&password=****.",
 		})
 	m.mustRegisterBuiltin("uuid",
 		func(v string) string { return maskUUID(v, m.maskChar()) },

@@ -139,6 +139,20 @@ func BenchmarkApply_database_dsn_invalid(b *testing.B) {
 	runBench(b, "database_dsn", "nothing at all like a dsn")
 }
 
+// BenchmarkApply_database_dsn_tcp6 pins the IPv6 path's hot-loop
+// overhead under the closed-allowlist matcher introduced in #83.
+func BenchmarkApply_database_dsn_tcp6(b *testing.B) {
+	runBench(b, "database_dsn", "user:password@tcp6([2001:db8::1]:3306)/dbname")
+}
+
+// BenchmarkApply_database_dsn_unlisted_protocol exercises the
+// fail-closed path for a protocol that lexes as `[a-z]+\(` but
+// is outside the closed allowlist (#83). Confirms the rejection
+// path stays cheap and allocation-free.
+func BenchmarkApply_database_dsn_unlisted_protocol(b *testing.B) {
+	runBench(b, "database_dsn", "user:password@quic(localhost:3306)/dbname")
+}
+
 // ---------- uuid ----------
 
 func BenchmarkApply_uuid(b *testing.B) {
