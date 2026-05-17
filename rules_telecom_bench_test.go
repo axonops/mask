@@ -61,9 +61,10 @@ func BenchmarkApply_msisdn_invalid(b *testing.B) {
 
 // ---------- postal_code ----------
 
-func BenchmarkApply_postal_code_uk(b *testing.B) { runBench(b, "postal_code", "SW1A 2AA") }
-func BenchmarkApply_postal_code_us(b *testing.B) { runBench(b, "postal_code", "94103") }
-func BenchmarkApply_postal_code_ca(b *testing.B) { runBench(b, "postal_code", "M5V 2T6") }
+func BenchmarkApply_postal_code_uk(b *testing.B)           { runBench(b, "postal_code", "SW1A 2AA") }
+func BenchmarkApply_postal_code_uk_spaceless(b *testing.B) { runBench(b, "postal_code", "SW1A2AA") }
+func BenchmarkApply_postal_code_us(b *testing.B)           { runBench(b, "postal_code", "94103") }
+func BenchmarkApply_postal_code_ca(b *testing.B)           { runBench(b, "postal_code", "M5V 2T6") }
 func BenchmarkApply_postal_code_unknown(b *testing.B) {
 	runBench(b, "postal_code", "01310-100")
 }

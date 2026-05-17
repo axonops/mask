@@ -318,9 +318,15 @@ func TestApply_PostalCode(t *testing.T) {
 		{"uk short 6-byte", "M1 1AA", "M1 ***"},
 		{"uk mid 7-byte", "M25 5AA", "M25 ***"},
 		{"uk lowercase fails closed", "sw1a 2aa", "********"},
-		{"uk missing space fails closed", "SW1A2AA", "*******"},
+		// Spaceless UK form recognised since #85 — output preserves
+		// the absence of a space.
+		{"uk spaceless 7-byte SW1A2AA", "SW1A2AA", "SW1A***"},
+		{"uk spaceless 5-byte M11AA", "M11AA", "M1***"},
 		{"us zip plus four fails closed", "94103-6789", "**********"},
 		{"ca lowercase fails closed", "m5v 2t6", "*******"},
+		// CA spaceless still fails closed — the spaceless UK branch
+		// rejects `M5V2T6` because the inward `2T6` is digit-letter-
+		// digit (UK inward demands digit-letter-letter).
 		{"ca missing space fails closed", "M5V2T6", "******"},
 		{"de 5-digit masks as us shape", "10115", "101**"},
 		{"random short fails closed", "AB123", "*****"},
@@ -368,6 +374,72 @@ func TestPostalCode_UKOutwardCodeValidation(t *testing.T) {
 	}
 	for _, tc := range invalid {
 		t.Run("invalid/"+tc.in, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("postal_code", tc.in))
+		})
+	}
+}
+
+// TestApply_PostalCode_SpacelessUK pins acceptance of UK postcodes
+// in their spaceless form (`SW1A2AA`, `BT15JE`, `EC1A7AB`) alongside
+// the existing spaced form. Output preserves the input spacing.
+// Added in #85.
+func TestApply_PostalCode_SpacelessUK(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	// Every BS 7666 outward shape in spaced and spaceless forms.
+	cases := []struct{ name, in, want string }{
+		// AN (length 5 spaceless, length 6 spaced — new minimum).
+		{"AN spaced", "M1 1AA", "M1 ***"},
+		{"AN spaceless", "M11AA", "M1***"},
+		// ANN (length 6 spaceless, length 7 spaced).
+		{"ANN spaced", "B33 1AA", "B33 ***"},
+		{"ANN spaceless", "B331AA", "B33***"},
+		// AAN (length 6 spaceless, length 7 spaced).
+		{"AAN spaced", "CR2 1AA", "CR2 ***"},
+		{"AAN spaceless", "CR21AA", "CR2***"},
+		// Issue example — BT1 outward (AAN).
+		{"AAN spaceless BT15JE", "BT15JE", "BT1***"},
+		// AANN (length 7 spaceless, length 8 spaced).
+		{"AANN spaced", "DN55 1AA", "DN55 ***"},
+		{"AANN spaceless", "DN551AA", "DN55***"},
+		// A9A (length 6 spaceless, length 7 spaced).
+		{"A9A spaced", "W1A 1AA", "W1A ***"},
+		{"A9A spaceless", "W1A1AA", "W1A***"},
+		// AA9A (length 7 spaceless, length 8 spaced) — spec example.
+		{"AA9A spaced SW1A 2AA", "SW1A 2AA", "SW1A ***"},
+		{"AA9A spaceless SW1A2AA", "SW1A2AA", "SW1A***"},
+		// Issue example — EC1A outward (AA9A).
+		{"AA9A spaceless EC1A7AB", "EC1A7AB", "EC1A***"},
+		// BS 7666 reject — outward shape not in the allowlist.
+		// Same fail-closed contract from #71 applies to spaceless.
+		{"BS7666 reject A9AA spaceless", "A1AA0AA", "*******"},
+		{"BS7666 reject ANNA spaceless", "A11A0AA", "*******"},
+		{"BS7666 reject AAAA spaceless", "AAAA1AA", "*******"},
+		// ZZ999ZZ — grammar-valid AANN; ZZ is not on the Royal Mail
+		// area register but the rule is grammar-only.
+		{"AANN spaceless ZZ999ZZ accepted", "ZZ999ZZ", "ZZ99***"},
+		// Disambiguation: Canadian-shaped spaceless inputs whose
+		// inward part fails the UK inward grammar (`d[A-Z]{2}`).
+		// `A1A1A1` outward `A1A` (A9A valid) + inward `1A1` (digit-
+		// letter-digit) — UK fails closed, no Canadian acceptance.
+		{"CA-shaped spaceless A1A1A1 fails closed", "A1A1A1", "******"},
+		{"CA-shaped spaceless M5V2T6 fails closed", "M5V2T6", "******"},
+		// Lowercase spaceless must still fail closed (case-sensitive
+		// by design — matches the existing spaced contract).
+		{"lowercase spaceless fails closed", "sw1a2aa", "*******"},
+		{"mixed case spaceless fails closed", "Sw1a2aa", "*******"},
+		// Length boundaries — 4 (below floor) and 8 spaceless
+		// (above ceiling) fail closed.
+		{"below floor M1AA fails closed", "M1AA", "****"},
+		{"above ceiling spaceless fails closed", "SW1A2AAA", "********"},
+		// US ZIP unchanged — spaceless UK must not steal it.
+		{"US ZIP unchanged", "94103", "941**"},
+		// Already-masked spaceless 7-byte fails closed (inward
+		// `***` isn't `d[A-Z]{2}`).
+		{"already-masked spaceless fails closed", "SW1A***", "*******"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, m.Apply("postal_code", tc.in))
 		})
 	}
@@ -447,19 +519,20 @@ func TestApply_GeoCoordinates(t *testing.T) {
 func TestTelecom_MaskCharOverride(t *testing.T) {
 	t.Parallel()
 	m := mask.New(mask.WithMaskChar('X'))
-	cases := []struct{ rule, in, want string }{
-		{"phone_number", "+44 7911 123456", "+44 XXXX XX3456"},
-		{"mobile_phone_number", "+44 7911 123456", "+44 XXXX XX3456"},
-		{"imei", "353456789012345", "XXXXXXXXXXX2345"},
-		{"imsi", "310260123456789", "31026XXXXXX6789"},
-		{"msisdn", "447911123456", "44XXXXXX3456"},
-		{"postal_code", "SW1A 2AA", "SW1A XXX"},
-		{"geo_latitude", "37.7749295", "37.77XXXXX"},
-		{"geo_longitude", "-122.4194155", "-122.41XXXXX"},
-		{"geo_coordinates", "37.7749,-122.4194", "37.77XX,-122.41XX"},
+	cases := []struct{ name, rule, in, want string }{
+		{"phone_number", "phone_number", "+44 7911 123456", "+44 XXXX XX3456"},
+		{"mobile_phone_number", "mobile_phone_number", "+44 7911 123456", "+44 XXXX XX3456"},
+		{"imei", "imei", "353456789012345", "XXXXXXXXXXX2345"},
+		{"imsi", "imsi", "310260123456789", "31026XXXXXX6789"},
+		{"msisdn", "msisdn", "447911123456", "44XXXXXX3456"},
+		{"postal_code_spaced", "postal_code", "SW1A 2AA", "SW1A XXX"},
+		{"postal_code_spaceless", "postal_code", "SW1A2AA", "SW1AXXX"},
+		{"geo_latitude", "geo_latitude", "37.7749295", "37.77XXXXX"},
+		{"geo_longitude", "geo_longitude", "-122.4194155", "-122.41XXXXX"},
+		{"geo_coordinates", "geo_coordinates", "37.7749,-122.4194", "37.77XX,-122.41XX"},
 	}
 	for _, tc := range cases {
-		t.Run(tc.rule, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, m.Apply(tc.rule, tc.in))
 		})
 	}

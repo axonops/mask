@@ -121,9 +121,14 @@ Feature: Telecom and location masking rules
     Examples:
       | input      | expected   |
       | SW1A 2AA   | SW1A ***   |
+      | SW1A2AA    | SW1A***    |
       | M1 1AA     | M1 ***     |
+      | M11AA      | M1***      |
+      | BT15JE     | BT1***     |
+      | EC1A7AB    | EC1A***    |
       | 94103      | 941**      |
       | M5V 2T6    | M5V ***    |
+      | M5V2T6     | ******     |
       | sw1a 2aa   | ********   |
       | 94103-6789 | **********  |
       | 01310-100  | *********  |
