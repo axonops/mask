@@ -340,7 +340,8 @@ func maskMSISDN(v string, c rune) string {
 //
 // Spec examples:
 //
-//	SW1A 2AA  →  SW1A ***  (UK — keep outward code)
+//	SW1A 2AA  →  SW1A ***  (UK spaced — keep outward code)
+//	SW1A2AA   →  SW1A***   (UK spaceless — keep outward code, #85)
 //	94103     →  941**     (US — keep first 3)
 //	M5V 2T6   →  M5V ***   (Canada — keep FSA)
 func maskPostalCode(v string, c rune) string {
@@ -359,27 +360,52 @@ func maskPostalCode(v string, c rune) string {
 	return SameLengthMask(v, c)
 }
 
-// maskUKPostalCode accepts 6-8 byte UK codes: outward code of 2-4
-// ASCII characters (first byte letter, remainder letter/digit),
-// single ASCII space, then `d[A-Z]{2}` inward code. Output
-// preserves the outward code + space and masks the inward code.
+// maskUKPostalCode accepts UK postcodes in two shapes:
+//
+//   - Spaced 6-8 byte: outward code of 2-4 ASCII characters, single
+//     ASCII space, then `d[A-Z]{2}` inward code (e.g. `SW1A 2AA`).
+//   - Spaceless 5-7 byte: outward code of 2-4 ASCII characters
+//     immediately followed by the inward code (e.g. `SW1A2AA`).
+//     Real-world inputs from systems that strip the separator
+//     (label printers, address-line concatenations, mobile
+//     keyboards) routinely use this form. Added in #85.
+//
+// Output preserves the input's spacing — `SW1A 2AA` → `SW1A ***`,
+// `SW1A2AA` → `SW1A***` (no synthetic space added). The BS 7666
+// outward-code grammar gate from #71 (`isUKOutwardCode`) applies to
+// both branches, so malformed shapes still fail closed regardless
+// of spacing. The inward code is always exactly 3 bytes anchored at
+// the suffix, so the split point is unambiguous.
 func maskUKPostalCode(v string, c rune) (string, bool) {
 	n := len(v)
-	if n < 6 || n > 8 {
+	if n < 5 || n > 8 {
 		return "", false
 	}
-	if v[n-4] != ' ' {
-		return "", false
+	var outward, inward string
+	var spaced bool
+	// The `n >= 6` guard keeps the `v[n-4]` index in-bounds for the
+	// spaced check; an `n == 5` input is always spaceless.
+	if n >= 6 && v[n-4] == ' ' {
+		outward = v[:n-4]
+		inward = v[n-3:]
+		spaced = true
+	} else {
+		outward = v[:n-3]
+		inward = v[n-3:]
 	}
-	outward := v[:n-4]
-	inward := v[n-3:]
 	if !isUKOutwardCode(outward) || !isUKInwardCode(inward) {
 		return "", false
 	}
 	var b strings.Builder
-	b.Grow(len(outward) + 1 + 3*safeRuneLen(c))
+	size := len(outward) + 3*safeRuneLen(c)
+	if spaced {
+		size++
+	}
+	b.Grow(size)
 	b.WriteString(outward)
-	b.WriteByte(' ')
+	if spaced {
+		b.WriteByte(' ')
+	}
 	writeMaskRunes(&b, c, 3)
 	return b.String(), true
 }
@@ -611,7 +637,7 @@ func registerTelecomRules(m *Masker) {
 		func(v string) string { return maskPostalCode(v, m.maskChar()) },
 		RuleInfo{
 			Name: "postal_code", Category: "location", Jurisdiction: "global (country-aware precision reduction)",
-			Description: "Shape-aware across UK (keep outward code), US 5-digit ZIP (keep first 3), and Canada (keep FSA); other shapes fail closed. Example: SW1A 2AA → SW1A ***.",
+			Description: "Shape-aware across UK (keep outward code; accepts both spaced `SW1A 2AA` and spaceless `SW1A2AA` forms — output preserves the input spacing), US 5-digit ZIP (keep first 3), and Canada (keep FSA); other shapes fail closed. Example: SW1A 2AA → SW1A ***; SW1A2AA → SW1A***.",
 		})
 	m.mustRegisterBuiltin("geo_latitude",
 		func(v string) string { return maskGeoNumber(v, m.maskChar()) },
