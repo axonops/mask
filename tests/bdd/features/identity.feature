@@ -92,6 +92,23 @@ Feature: Identity masking rules
       | 1985-03-15T00:00:00Z | ******************** |
       | 15.03.1985           | **********           |
 
+  Scenario Outline: date_of_birth recognises YYYY/MM/DD slash-ISO
+    Given a fresh masker
+    When I apply "date_of_birth" to "<input>"
+    Then the result is "<expected>"
+
+    Examples:
+      | input                | expected             |
+      | 2000/01/16           | 2000/**/**           |
+      | 1999/12/31           | 1999/**/**           |
+      | 2000/1/6             | 2000/*/*             |
+      | 2000/1/16            | 2000/*/**            |
+      | 2000/01/6            | 2000/**/*            |
+      | 2000/13/45           | 2000/**/**           |
+      | 01/02/2000           | **/**/2000           |
+      | 1985-03-15           | 1985-**-**           |
+      | 2000/01/16T00:00:00Z | ******************** |
+
   Scenario Outline: Mask usernames
     Given a fresh masker
     When I apply "username" to "<input>"

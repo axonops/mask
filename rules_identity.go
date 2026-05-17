@@ -377,9 +377,11 @@ func maskBodyPreservingSpaces(b *strings.Builder, body string, c rune) {
 }
 
 // maskDateOfBirth preserves the four-digit year and masks month and day.
-// Three formats are recognised:
+// Four formats are recognised:
 //
 //   - ISO `YYYY-M-D` (hyphen-separated, 1–2 digit M/D allowed)
+//   - Slash-ISO `YYYY/M/D` (slash-separated, year first — `2000/01/16`
+//     → `2000/**/**`; added in #84)
 //   - Slash `D/M/YYYY` (both day and month fields are width-matched to
 //     the input, mirroring the ISO branch — `15/03/1985` → `**/**/1985`)
 //   - Month name `Month D, YYYY` (full English month names, case-insensitive)
@@ -398,6 +400,15 @@ func maskDateOfBirth(v string, c rune) string {
 	}
 	if year, mLen, dLen, ok := parseDOBISO(v); ok {
 		return buildDOB(c, year, "-", mLen, "-", dLen, "")
+	}
+	// Slash-ISO `YYYY/MM/DD` is dispatched before slash D-first.
+	// The two grammars are syntactically disjoint — parseDOBSlashISO
+	// requires a 4-digit leading field; parseDOBSlash rejects any
+	// leading field longer than 2 digits — so order here is for
+	// clarity, not correctness. Placement mirrors the hyphen/slash
+	// symmetry between parseDOBISO and parseDOBSlash.
+	if year, mLen, dLen, ok := parseDOBSlashISO(v); ok {
+		return buildDOB(c, year, "/", mLen, "/", dLen, "")
 	}
 	if d1Len, d2Len, year, ok := parseDOBSlash(v); ok {
 		// Width-match both fields, mirroring the ISO branch. The
@@ -429,6 +440,35 @@ func parseDOBISO(v string) (year string, mLen, dLen int, ok bool) {
 	}
 	rest := v[5:]
 	sep := strings.IndexByte(rest, '-')
+	if sep < 1 || sep > 2 || !allASCIIDigits(rest[:sep]) {
+		return
+	}
+	day := rest[sep+1:]
+	if len(day) < 1 || len(day) > 2 || !allASCIIDigits(day) {
+		return
+	}
+	return v[:4], sep, len(day), true
+}
+
+// parseDOBSlashISO parses YYYY/M/D or YYYY/MM/DD without allocating —
+// the slash-separated mirror of [parseDOBISO]. Returns the year
+// substring and the byte-lengths of the month and day fields so the
+// caller can width-match the masked output per #80. Syntactically
+// disjoint from [parseDOBSlash], which requires a 1-2 digit leading
+// field; a 4-digit leading field is unambiguously YYYY-first. Added
+// in #84.
+func parseDOBSlashISO(v string) (year string, mLen, dLen int, ok bool) {
+	if len(v) < 8 {
+		return
+	}
+	if !allASCIIDigits(v[:4]) {
+		return
+	}
+	if v[4] != '/' {
+		return
+	}
+	rest := v[5:]
+	sep := strings.IndexByte(rest, '/')
 	if sep < 1 || sep > 2 || !allASCIIDigits(rest[:sep]) {
 		return
 	}
@@ -675,7 +715,7 @@ func registerIdentityRules(m *Masker) {
 		func(v string) string { return maskDateOfBirth(v, m.maskChar()) },
 		RuleInfo{
 			Name: "date_of_birth", Category: "identity", Jurisdiction: "global",
-			Description: "Preserves the year and masks month and day in three common formats; does not satisfy HIPAA Safe Harbor on its own. Example: 1985-03-15 → 1985-**-**.",
+			Description: "Preserves the year and masks month and day in four common formats — ISO hyphen `YYYY-M-D`, slash-ISO `YYYY/M/D`, slash D-first `D/M/YYYY`, and `Month D, YYYY`. Does not satisfy HIPAA Safe Harbor on its own. Example: 1985-03-15 → 1985-**-**; 2000/01/16 → 2000/**/**.",
 		})
 
 	m.mustRegisterBuiltin("username",

@@ -22,11 +22,9 @@ import (
 )
 
 // dateOfBirthGen exercises the date_of_birth masker. Recognised
-// shapes: YYYY-MM-DD (ISO), YYYY/MM/DD, DD/MM/YYYY, MM/DD/YYYY.
-// Year is preserved; month and day are masked. Slash form has a
-// deliberate quirk: emits exactly 4 mask runes regardless of
-// month-digit width (rules_identity.go:404-408). The corpus locks
-// that as current behaviour.
+// shapes: YYYY-MM-DD (ISO hyphen), YYYY/MM/DD (slash-ISO, added
+// in #84), DD/MM/YYYY, MM/DD/YYYY. Year is preserved; month and
+// day are width-matched per #80.
 type dateOfBirthGen struct{}
 
 func (dateOfBirthGen) Generate(seed uint64) []Pair {

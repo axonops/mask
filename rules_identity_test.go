@@ -177,12 +177,73 @@ func TestApply_DateOfBirth(t *testing.T) {
 		{"year only fallback", "1985", "****"},
 		{"iso with time fallback", "1985-03-15T00:00:00Z", "********************"},
 		{"dotted european fallback", "15.03.1985", "**********"},
-		{"slashed iso fallback", "1985/03/15", "**********"},
+		// Slashed-ISO recognised since #84 — flipped from
+		// SameLengthMask to year-preserved redaction.
+		{"slashed iso canonical", "1985/03/15", "1985/**/**"},
 		{"month name with suffix fallback", "March 15, 1985, AD", "******************"},
 		{"empty", "", ""},
 		// No semantic validation of the date itself.
 		{"syntactically valid garbage", "0000-00-00", "0000-**-**"},
 		{"syntactically valid nonsense", "9999-99-99", "9999-**-**"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, m.Apply("date_of_birth", tc.in))
+		})
+	}
+}
+
+// TestApply_DateOfBirth_YYYYSlash pins the slash-ISO `YYYY/M/D`
+// shape added in #84. The grammar mirrors parseDOBISO with `/`
+// separators; per #80 both fields width-match the input.
+func TestApply_DateOfBirth_YYYYSlash(t *testing.T) {
+	t.Parallel()
+	m := mask.New()
+	cases := []struct{ name, in, want string }{
+		// Acceptance criteria — positive shapes.
+		{"slash-iso canonical two-digit", "2000/01/16", "2000/**/**"},
+		{"slash-iso end of year", "1999/12/31", "1999/**/**"},
+		{"slash-iso single digit month and day", "2000/1/6", "2000/*/*"},
+		// Width-match asymmetric cases.
+		{"slash-iso single digit month two digit day", "2000/1/16", "2000/*/**"},
+		{"slash-iso two digit month single digit day", "2000/01/6", "2000/**/*"},
+		{"slash-iso zero padded", "2000/01/01", "2000/**/**"},
+		// No semantic validation of the date itself.
+		{"slash-iso syntactically valid garbage", "0000/00/00", "0000/**/**"},
+		{"slash-iso syntactically valid nonsense", "9999/99/99", "9999/**/**"},
+		{"slash-iso out of range month and day", "2000/13/45", "2000/**/**"},
+		// Dispatch-ordering pin: a 1-2-digit leading field must
+		// continue to route to parseDOBSlash (D-first), not the
+		// new slash-ISO branch. Without explicit pin a reviewer
+		// can't tell from the suite which branch ran.
+		{"ordering pin two-digit leading still D-first", "01/02/2000", "**/**/2000"},
+		{"ordering pin single-digit leading still D-first", "1/2/2000", "*/*/2000"},
+		// ISO hyphen regression pin — slash-ISO must not steal
+		// hyphen-ISO traffic.
+		{"ordering pin iso hyphen still wins", "1985-03-15", "1985-**-**"},
+		// Length boundary — 8-byte minimum (`2000/1/1`) accepted.
+		{"slash-iso minimum length boundary", "2000/1/1", "2000/*/*"},
+		// Negative pins — fall through to SameLengthMask.
+		{"slash-iso 3 digit year fails closed", "999/12/31", "*********"},
+		{"slash-iso 5 digit year fails closed", "20001/01/16", "***********"},
+		// Three-digit month and day fields exceed the 1-2 digit
+		// bounds in parseDOBSlashISO; fall through to SameLengthMask.
+		{"slash-iso 3 digit month fails closed", "2000/123/16", "***********"},
+		{"slash-iso 3 digit day fails closed", "2000/01/123", "***********"},
+		// Full-width / non-ASCII digits — the allASCIIDigits guard
+		// rejects every non-ASCII rune.
+		{"slash-iso full-width digits in month fail closed", "2000/０１/16", "**********"},
+		{"slash-iso trailing time fails closed", "2000/01/16T00:00:00Z", "********************"},
+		{"slash-iso trailing slash fails closed", "2000/01/16/", "***********"},
+		{"slash-iso leading whitespace fails closed", " 2000/01/16", "***********"},
+		{"slash-iso trailing whitespace fails closed", "2000/01/16 ", "***********"},
+		{"slash-iso mixed separators YYYY-MM/DD", "2000-01/16", "**********"},
+		{"slash-iso mixed separators YYYY/MM-DD", "2000/01-16", "**********"},
+		{"slash-iso empty month field", "2000//16", "********"},
+		{"slash-iso empty day field", "2000/01/", "********"},
+		{"slash-iso non-digit year", "abcd/01/16", "**********"},
+		{"slash-iso arabic-indic digits fail closed", "2000/١٢/١٦", "**********"},
+		{"slash-iso extra trailing field", "2000/01/16/extra", "****************"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
